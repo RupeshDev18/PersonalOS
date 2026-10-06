@@ -2,8 +2,14 @@ import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { TasksService } from './tasks.service';
 
+import { IsOptional, IsString } from 'class-validator';
+
 export class ChatMessageDto {
+  @IsString()
   prompt: string;
+
+  @IsOptional()
+  @IsString()
   userId?: string;
 }
 

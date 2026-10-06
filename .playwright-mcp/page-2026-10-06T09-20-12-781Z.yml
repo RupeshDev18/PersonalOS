@@ -1,0 +1,82 @@
+- generic [ref=f5e1]:
+  - generic [ref=f5e2]:
+    - complementary [ref=f5e3]:
+      - generic [ref=f5e4]:
+        - generic [ref=f5e21]:
+          - heading "Personal OS" [level=1] [ref=f5e22]
+          - paragraph [ref=f5e24]: Chief Ghost Online
+        - navigation [ref=f5e25]:
+          - button "AI Chief" [ref=f5e26] [cursor=pointer]
+          - button "Jobs & Careers M1" [ref=f5e43] [cursor=pointer]:
+            - generic [ref=f5e47]: Jobs & Careers
+            - generic [ref=f5e48]: M1
+          - button "Finance Ledger M2" [ref=f5e49] [cursor=pointer]:
+            - generic [ref=f5e53]: Finance Ledger
+            - generic [ref=f5e54]: M2
+          - button "Shopping Scout M2" [ref=f5e55] [cursor=pointer]:
+            - generic [ref=f5e59]: Shopping Scout
+            - generic [ref=f5e60]: M2
+          - button "Safety Gate 1" [ref=f5e191] [cursor=pointer]:
+            - generic [ref=f5e65]: Safety Gate
+            - generic [ref=f5e192]: "1"
+          - button "Audit Ledger" [ref=f5e66] [cursor=pointer]
+      - generic [ref=f5e86]:
+        - generic [ref=f5e87]: Agent Sentinel
+        - generic [ref=f5e88]: Milestone 2 Active
+    - main [ref=f5e89]:
+      - generic [ref=f5e90]:
+        - generic [ref=f5e91]:
+          - heading "Chief Command Center" [level=2] [ref=f5e92]
+          - generic [ref=f5e93]: "Milestone 2: Career, Finance & Shopping Live"
+        - generic [ref=f5e94]:
+          - generic [ref=f5e95]: "Finance: Read-Only Enforced"
+          - generic [ref=f5e98]: Tool Gateway
+      - generic [ref=f5e268]:
+        - generic [ref=f5e269]:
+          - generic [ref=f5e270]: Every morning at 8:00 AM, find the 20 best backend & fullstack jobs for me.
+          - generic [ref=f5e292]:
+            - generic [ref=f5e293]:
+              - generic [ref=f5e294]: Chief Ghost
+              - generic [ref=f5e297]: 08:00 AM
+            - paragraph [ref=f5e298]: All set! I registered a recurring schedule (0 8 * * 1-5). The Job Specialist executed a dry-run and discovered top matches paired with your tailored resume.
+            - generic [ref=f5e299]:
+              - generic [ref=f5e300]: Delegated Execution Pipeline
+              - generic [ref=f5e305]:
+                - strong [ref=f5e306]: "Schedule Engine:"
+                - text: Registered cron 0 8 * * 1-5 (Mon–Fri at 8:00 AM)
+              - generic [ref=f5e311]:
+                - strong [ref=f5e312]: "Job Connectors:"
+                - text: Ingested roles from Greenhouse, Lever & Wellfound
+              - generic [ref=f5e317]:
+                - strong [ref=f5e318]: "Deduplication:"
+                - text: Removed cross-posted duplicate listings
+              - generic [ref=f5e323]:
+                - strong [ref=f5e324]: "Resume Customization:"
+                - text: Paired verified competencies with Fullstack-AWS-v3.md
+          - generic [ref=f5e373]: Should I buy a ₹90,000 MacBook Air M2 based on my recent finances?
+          - generic [ref=f5e395]:
+            - generic [ref=f5e396]:
+              - generic [ref=f5e397]: Chief Ghost
+              - generic [ref=f5e400]: 02:50 PM
+            - paragraph [ref=f5e401]: "Based on my coordination with the Shopping, Research, and Finance Specialists: The item is priced attractively with high ratings (4.8/5). Your current monthly discretionary balance (₹83,000) affords this comfortably."
+            - generic [ref=f5e402]:
+              - generic [ref=f5e403]: Delegated Execution Pipeline
+              - generic [ref=f5e408]:
+                - strong [ref=f5e409]: "Compare Product & Deals:"
+                - text: Search prices and discover model alternatives
+              - generic [ref=f5e414]:
+                - strong [ref=f5e415]: "Aggregate Reviews:"
+                - text: Gather verified benchmarks and review sentiment
+              - generic [ref=f5e420]:
+                - strong [ref=f5e421]: "Check Budget Affordability:"
+                - text: Evaluate remaining discretionary monthly budget
+        - generic [ref=f5e325]:
+          - generic [ref=f5e326]:
+            - textbox "Tell Chief Ghost what to do (e.g. 'Should I buy this laptop?', 'Find jobs')..." [ref=f5e343]
+            - button "Dispatch" [ref=f5e344] [cursor=pointer]
+          - generic [ref=f5e349]:
+            - generic [ref=f5e350]: "Milestone 2 tests:"
+            - 'button "Cross-Agent: \"Should I buy this ₹90,000 laptop?\"" [active] [ref=f5e351] [cursor=pointer]'
+            - 'button "Finance: \"Check budget & discretionary reserve\"" [ref=f5e352] [cursor=pointer]'
+            - 'button "Job Specialist: \"Find me relevant jobs\"" [ref=f5e353] [cursor=pointer]'
+  - alert [ref=f5e255]

@@ -3,7 +3,10 @@ import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { JobLifecycleStatus } from '@personal-os/shared';
 import { JobsService } from './jobs.service';
 
+import { IsEnum } from 'class-validator';
+
 export class UpdateJobStatusDto {
+  @IsEnum(JobLifecycleStatus)
   status: JobLifecycleStatus;
 }
 

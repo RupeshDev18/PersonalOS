@@ -1,0 +1,83 @@
+- generic [ref=f5e1]:
+  - generic [ref=f5e2]:
+    - complementary [ref=f5e3]:
+      - generic [ref=f5e4]:
+        - generic [ref=f5e21]:
+          - heading "Personal OS" [level=1] [ref=f5e22]
+          - paragraph [ref=f5e24]: Chief Ghost Online
+        - navigation [ref=f5e25]:
+          - button "AI Chief" [ref=f5e26] [cursor=pointer]
+          - button "Jobs & Careers M1" [ref=f5e43] [cursor=pointer]:
+            - generic [ref=f5e47]: Jobs & Careers
+            - generic [ref=f5e48]: M1
+          - button "Finance Ledger M2" [ref=f5e49] [cursor=pointer]:
+            - generic [ref=f5e53]: Finance Ledger
+            - generic [ref=f5e54]: M2
+          - button "Shopping Scout M2" [active] [ref=f5e55] [cursor=pointer]:
+            - generic [ref=f5e59]: Shopping Scout
+            - generic [ref=f5e60]: M2
+          - button "Safety Gate 1" [ref=f5e191] [cursor=pointer]:
+            - generic [ref=f5e65]: Safety Gate
+            - generic [ref=f5e192]: "1"
+          - button "Audit Ledger" [ref=f5e66] [cursor=pointer]
+      - generic [ref=f5e86]:
+        - generic [ref=f5e87]: Agent Sentinel
+        - generic [ref=f5e88]: Milestone 2 Active
+    - main [ref=f5e89]:
+      - generic [ref=f5e90]:
+        - generic [ref=f5e91]:
+          - heading "Chief Command Center" [level=2] [ref=f5e92]
+          - generic [ref=f5e93]: "Milestone 2: Career, Finance & Shopping Live"
+        - generic [ref=f5e94]:
+          - generic [ref=f5e95]: "Finance: Read-Only Enforced"
+          - generic [ref=f5e98]: Tool Gateway
+      - generic [ref=f5e197]:
+        - generic [ref=f5e198]:
+          - generic [ref=f5e199]:
+            - heading "Shopping Scout & Deal Comparator" [level=2] [ref=f5e200]
+            - paragraph [ref=f5e201]: Multi-Merchant Pricing • Verified Reviews • Alternative Model Benchmarks
+          - button [ref=f5e202] [cursor=pointer]
+        - generic [ref=f5e208]:
+          - textbox "Search product (e.g. 'MacBook Air M2', 'Sony Headphones')..." [ref=f5e212]: MacBook Air M2
+          - button "Scout Deals" [ref=f5e213] [cursor=pointer]
+        - generic [ref=f5e214]:
+          - generic [ref=f5e215]:
+            - generic [ref=f5e216]:
+              - generic [ref=f5e217]:
+                - text: Primary Target
+                - heading "Apple MacBook Air M2 (13.6-inch, 16GB Unified Memory, 256GB SSD)" [level=3] [ref=f5e218]
+                - paragraph [ref=f5e219]:
+                  - text: "Best Merchant:"
+                  - strong [ref=f5e220]: Apple Authorized Store / Amazon India
+              - generic [ref=f5e221]:
+                - generic [ref=f5e222]: ₹89,990
+                - generic [ref=f5e223]: "Rating: 4.8 / 5.0"
+            - paragraph [ref=f5e224]: Unanimously praised for extraordinary 16+ hour battery life, whisper-quiet fanless thermals, and high build quality.
+            - generic [ref=f5e225]:
+              - generic [ref=f5e226]: The ₹89,990 price point for the 16GB RAM spec is currently matching the historical lowest recorded discount.
+              - button "Check Budget Impact" [ref=f5e227] [cursor=pointer]
+          - generic [ref=f5e231]:
+            - heading "Discovered Viable Alternatives" [level=3] [ref=f5e232]
+            - generic [ref=f5e233]:
+              - generic [ref=f5e234]:
+                - generic [ref=f5e235]:
+                  - generic [ref=f5e236]:
+                    - heading "Dell XPS 13 Plus (Core i7 13th Gen, 16GB, 512GB OLED)" [level=4] [ref=f5e237]
+                    - paragraph [ref=f5e238]: Dell • Dell India Direct • 382 customer reviews
+                  - generic [ref=f5e239]: ₹94,990
+                - paragraph [ref=f5e240]: Stunning 3.5K OLED touch display, but battery life is approx 7-8 hours compared to M2.
+              - generic [ref=f5e241]:
+                - generic [ref=f5e242]:
+                  - generic [ref=f5e243]:
+                    - heading "ASUS Zenbook 14 OLED (Intel Core Ultra 7, 16GB, 1TB SSD)" [level=4] [ref=f5e244]
+                    - paragraph [ref=f5e245]: ASUS • Flipkart Electronics • 512 customer reviews
+                  - generic [ref=f5e246]: ₹84,990
+                - paragraph [ref=f5e247]: "Outstanding value: Double storage (1TB SSD), lighter chassis, excellent 120Hz display."
+              - generic [ref=f5e248]:
+                - generic [ref=f5e249]:
+                  - generic [ref=f5e250]:
+                    - heading "Lenovo ThinkPad E14 Gen 5 (Ryzen 7 Pro, 16GB, 512GB)" [level=4] [ref=f5e251]
+                    - paragraph [ref=f5e252]: Lenovo • Lenovo Official Store • 890 customer reviews
+                  - generic [ref=f5e253]: ₹68,990
+                - paragraph [ref=f5e254]: Best keyboard ergonomics and durability for heavy coding, saves ₹21,000.
+  - alert [ref=f5e255]

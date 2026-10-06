@@ -1,0 +1,61 @@
+- generic [ref=f4e2]:
+  - complementary [ref=f4e3]:
+    - generic [ref=f4e4]:
+      - generic [ref=f4e21]:
+        - heading "Personal OS" [level=1] [ref=f4e22]
+        - paragraph [ref=f4e24]: Chief Ghost Online
+      - navigation [ref=f4e25]:
+        - button "AI Chief" [ref=f4e26] [cursor=pointer]
+        - button "Jobs & Careers M1" [ref=f4e43] [cursor=pointer]:
+          - generic [ref=f4e47]: Jobs & Careers
+          - generic [ref=f4e48]: M1
+        - button "Finance Ledger M2" [ref=f4e49] [cursor=pointer]:
+          - generic [ref=f4e53]: Finance Ledger
+          - generic [ref=f4e54]: M2
+        - button "Shopping Scout M2" [ref=f4e55] [cursor=pointer]:
+          - generic [ref=f4e59]: Shopping Scout
+          - generic [ref=f4e60]: M2
+        - button "Safety Gate" [ref=f4e61] [cursor=pointer]
+        - button "Audit Ledger" [ref=f4e66] [cursor=pointer]
+    - generic [ref=f4e86]:
+      - generic [ref=f4e87]: Agent Sentinel
+      - generic [ref=f4e88]: Milestone 2 Active
+  - main [ref=f4e89]:
+    - generic [ref=f4e90]:
+      - generic [ref=f4e91]:
+        - heading "Chief Command Center" [level=2] [ref=f4e92]
+        - generic [ref=f4e93]: "Milestone 2: Career, Finance & Shopping Live"
+      - generic [ref=f4e94]:
+        - generic [ref=f4e95]: "Finance: Read-Only Enforced"
+        - generic [ref=f4e98]: Tool Gateway
+    - generic [ref=f4e101]:
+      - generic [ref=f4e102]:
+        - generic [ref=f4e103]: Every morning at 8:00 AM, find the 20 best backend & fullstack jobs for me.
+        - generic [ref=f4e125]:
+          - generic [ref=f4e126]:
+            - generic [ref=f4e127]: Chief Ghost
+            - generic [ref=f4e130]: 08:00 AM
+          - paragraph [ref=f4e131]: All set! I registered a recurring schedule (0 8 * * 1-5). The Job Specialist executed a dry-run and discovered top matches paired with your tailored resume.
+          - generic [ref=f4e132]:
+            - generic [ref=f4e133]: Delegated Execution Pipeline
+            - generic [ref=f4e138]:
+              - strong [ref=f4e139]: "Schedule Engine:"
+              - text: Registered cron 0 8 * * 1-5 (Mon–Fri at 8:00 AM)
+            - generic [ref=f4e144]:
+              - strong [ref=f4e145]: "Job Connectors:"
+              - text: Ingested roles from Greenhouse, Lever & Wellfound
+            - generic [ref=f4e150]:
+              - strong [ref=f4e151]: "Deduplication:"
+              - text: Removed cross-posted duplicate listings
+            - generic [ref=f4e156]:
+              - strong [ref=f4e157]: "Resume Customization:"
+              - text: Paired verified competencies with Fullstack-AWS-v3.md
+      - generic [ref=f4e158]:
+        - generic [ref=f4e159]:
+          - textbox "Tell Chief Ghost what to do (e.g. 'Should I buy this laptop?', 'Find jobs')..." [ref=f4e176]
+          - button "Dispatch" [ref=f4e177] [cursor=pointer]
+        - generic [ref=f4e182]:
+          - generic [ref=f4e183]: "Milestone 2 tests:"
+          - 'button "Cross-Agent: \"Should I buy this ₹90,000 laptop?\"" [ref=f4e184] [cursor=pointer]'
+          - 'button "Finance: \"Check budget & discretionary reserve\"" [ref=f4e185] [cursor=pointer]'
+          - 'button "Job Specialist: \"Find me relevant jobs\"" [ref=f4e186] [cursor=pointer]'

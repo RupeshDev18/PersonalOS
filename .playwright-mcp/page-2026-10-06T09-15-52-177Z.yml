@@ -1,0 +1,110 @@
+- generic [ref=f4e1]:
+  - generic [ref=f4e2]:
+    - complementary [ref=f4e3]:
+      - generic [ref=f4e4]:
+        - generic [ref=f4e21]:
+          - heading "Personal OS" [level=1] [ref=f4e22]
+          - paragraph [ref=f4e24]: Chief Ghost Online
+        - navigation [ref=f4e25]:
+          - button "AI Chief" [ref=f4e26] [cursor=pointer]
+          - button "Jobs & Careers M1" [ref=f4e43] [cursor=pointer]:
+            - generic [ref=f4e47]: Jobs & Careers
+            - generic [ref=f4e48]: M1
+          - button "Finance Ledger M2" [ref=f4e49] [cursor=pointer]:
+            - generic [ref=f4e53]: Finance Ledger
+            - generic [ref=f4e54]: M2
+          - button "Shopping Scout M2" [ref=f4e55] [cursor=pointer]:
+            - generic [ref=f4e59]: Shopping Scout
+            - generic [ref=f4e60]: M2
+          - button "Safety Gate 1" [ref=f4e195] [cursor=pointer]:
+            - generic [ref=f4e65]: Safety Gate
+            - generic [ref=f4e196]: "1"
+          - button "Audit Ledger" [ref=f4e66] [cursor=pointer]
+      - generic [ref=f4e86]:
+        - generic [ref=f4e87]: Agent Sentinel
+        - generic [ref=f4e88]: Milestone 2 Active
+    - main [ref=f4e89]:
+      - generic [ref=f4e90]:
+        - generic [ref=f4e91]:
+          - heading "Chief Command Center" [level=2] [ref=f4e92]
+          - generic [ref=f4e93]: "Milestone 2: Career, Finance & Shopping Live"
+        - generic [ref=f4e94]:
+          - generic [ref=f4e95]: "Finance: Read-Only Enforced"
+          - generic [ref=f4e98]: Tool Gateway
+      - generic [ref=f4e201]:
+        - generic [ref=f4e202]:
+          - generic [ref=f4e203]:
+            - heading "Financial Intelligence Ledger" [level=2] [ref=f4e204]
+            - paragraph [ref=f4e205]: Strictly Read-Only Access • Categorized Monthly Trends & Affordability Guardrails
+          - generic [ref=f4e206]:
+            - generic [ref=f4e207]: Money Transfers Disabled
+            - button [ref=f4e208] [cursor=pointer]
+        - generic [ref=f4e214]:
+          - generic [ref=f4e215]:
+            - text: Monthly Cash Inflow
+            - generic [ref=f4e216]: ₹240,000
+            - text: Verified salary credit
+          - generic [ref=f4e217]:
+            - text: Total Month Spend
+            - generic [ref=f4e218]: ₹51,999
+            - generic [ref=f4e219]: ₹45,799 recurring commitments
+          - generic [ref=f4e220]:
+            - text: Discretionary Reserve
+            - generic [ref=f4e221]: ₹188,001
+            - text: Safe unallocated buffer
+        - generic [ref=f4e222]:
+          - generic [ref=f4e223]:
+            - heading "Purchase Affordability Simulator" [level=3] [ref=f4e227]
+            - generic [ref=f4e228]: Evaluated by Finance Specialist
+          - generic [ref=f4e229]:
+            - generic [ref=f4e230]:
+              - generic [ref=f4e231]: ₹
+              - spinbutton [ref=f4e232]: "89990"
+            - button "Evaluate" [active] [ref=f4e233] [cursor=pointer]
+        - generic [ref=f4e234]:
+          - heading "Recent Ledger Transactions" [level=3] [ref=f4e235]
+          - generic [ref=f4e236]:
+            - generic [ref=f4e237]:
+              - generic [ref=f4e238]:
+                - generic [ref=f4e239]: Apartment Maintenance & Rent
+                - generic [ref=f4e240]:
+                  - text: "Monthly flat rent and maintenance • Category:"
+                  - strong [ref=f4e241]: housing
+              - generic [ref=f4e242]:
+                - generic [ref=f4e243]: ₹32,000
+                - text: Recurring
+            - generic [ref=f4e244]:
+              - generic [ref=f4e245]:
+                - generic [ref=f4e246]: Tata Power & ACT Broadband
+                - generic [ref=f4e247]:
+                  - text: "Electricity and gigabit fiber bill • Category:"
+                  - strong [ref=f4e248]: utilities
+              - generic [ref=f4e249]:
+                - generic [ref=f4e250]: ₹8,500
+                - text: Recurring
+            - generic [ref=f4e251]:
+              - generic [ref=f4e252]:
+                - generic [ref=f4e253]: AWS Cloud Services
+                - generic [ref=f4e254]:
+                  - text: "Developer personal infrastructure lab • Category:"
+                  - strong [ref=f4e255]: subscriptions
+              - generic [ref=f4e256]:
+                - generic [ref=f4e257]: ₹3,800
+                - text: Recurring
+            - generic [ref=f4e258]:
+              - generic [ref=f4e259]:
+                - generic [ref=f4e260]: Nature Basket Grocery
+                - generic [ref=f4e261]:
+                  - text: "Weekly household groceries • Category:"
+                  - strong [ref=f4e262]: food_and_dining
+              - generic [ref=f4e263]: ₹6,200
+            - generic [ref=f4e265]:
+              - generic [ref=f4e266]:
+                - generic [ref=f4e267]: Netflix & Spotify Premium
+                - generic [ref=f4e268]:
+                  - text: "Streaming entertainment services • Category:"
+                  - strong [ref=f4e269]: subscriptions
+              - generic [ref=f4e270]:
+                - generic [ref=f4e271]: ₹1,499
+                - text: Recurring
+  - alert [ref=f4e272]

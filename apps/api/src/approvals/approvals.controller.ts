@@ -3,8 +3,14 @@ import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { ApprovalStatus } from '@personal-os/shared';
 import { ApprovalsService } from './approvals.service';
 
+import { IsIn, IsOptional, IsString } from 'class-validator';
+
 export class DecideApprovalDto {
+  @IsIn(['approve', 'reject'])
   decision: 'approve' | 'reject';
+
+  @IsOptional()
+  @IsString()
   note?: string;
 }
 

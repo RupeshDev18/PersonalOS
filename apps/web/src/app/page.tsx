@@ -10,16 +10,19 @@ import {
   ShieldCheck,
   Activity,
   Send,
-  CheckCircle2,
   Sparkles,
   Clock,
   RefreshCw,
   X,
   FileText,
   Play,
-  ArrowUpRight,
-  Sliders,
   Check,
+  ArrowRight,
+  Calculator,
+  Search,
+  ExternalLink,
+  DollarSign,
+  AlertCircle,
 } from 'lucide-react';
 
 interface ChatMessage {
@@ -78,12 +81,19 @@ interface JobItem {
 }
 
 export default function Dashboard() {
-  const [activeTab, setActiveTab] = useState<'chat' | 'jobs' | 'approvals' | 'audit'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'jobs' | 'finance' | 'shopping' | 'approvals' | 'audit'>('chat');
   const [inputValue, setInputValue] = useState('');
   const [loading, setLoading] = useState(false);
   const [approvals, setApprovals] = useState<ApprovalItem[]>([]);
   const [auditEvents, setAuditEvents] = useState<AuditItem[]>([]);
   const [jobs, setJobs] = useState<JobItem[]>([]);
+  const [financeOverview, setFinanceOverview] = useState<any>(null);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [affordabilitySimPrice, setAffordabilitySimPrice] = useState(89990);
+  const [affordabilityResult, setAffordabilityResult] = useState<any>(null);
+  const [shoppingQuery, setShoppingQuery] = useState('MacBook Air M2');
+  const [shoppingResult, setShoppingResult] = useState<any>(null);
+
   const [selectedResumeModal, setSelectedResumeModal] = useState<{
     jobTitle: string;
     company: string;
@@ -116,26 +126,29 @@ export default function Dashboard() {
   const fetchLiveData = async () => {
     try {
       const jobRes = await fetch('http://localhost:4000/api/jobs');
-      if (jobRes.ok) {
-        const data = await jobRes.json();
-        setJobs(data);
-      }
+      if (jobRes.ok) setJobs(await jobRes.json());
     } catch {}
 
     try {
       const appRes = await fetch('http://localhost:4000/api/approvals');
-      if (appRes.ok) {
-        const data = await appRes.json();
-        setApprovals(data);
-      }
+      if (appRes.ok) setApprovals(await appRes.json());
     } catch {}
 
     try {
       const audRes = await fetch('http://localhost:4000/api/audit?limit=30');
-      if (audRes.ok) {
-        const data = await audRes.json();
-        setAuditEvents(data);
-      }
+      if (audRes.ok) setAuditEvents(await audRes.json());
+    } catch {}
+
+    try {
+      const finRes = await fetch('http://localhost:4000/api/finance/overview');
+      if (finRes.ok) setFinanceOverview(await finRes.json());
+      const txRes = await fetch('http://localhost:4000/api/finance/transactions');
+      if (txRes.ok) setTransactions(await txRes.json());
+    } catch {}
+
+    try {
+      const shopRes = await fetch(`http://localhost:4000/api/shopping/compare?query=${encodeURIComponent(shoppingQuery)}`);
+      if (shopRes.ok) setShoppingResult(await shopRes.json());
     } catch {}
   };
 
@@ -144,6 +157,23 @@ export default function Dashboard() {
     const interval = setInterval(fetchLiveData, 4000);
     return () => clearInterval(interval);
   }, []);
+
+  const runAffordabilityCheck = async (price: number) => {
+    try {
+      const res = await fetch('http://localhost:4000/api/finance/affordability', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ price }),
+      });
+      if (res.ok) setAffordabilityResult(await res.json());
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    runAffordabilityCheck(affordabilitySimPrice);
+  }, [affordabilitySimPrice]);
 
   const handleSendMessage = async (promptToSend?: string) => {
     const text = promptToSend || inputValue;
@@ -281,6 +311,36 @@ export default function Dashboard() {
             </button>
 
             <button
+              onClick={() => setActiveTab('finance')}
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-poppins font-medium transition-all ${
+                activeTab === 'finance'
+                  ? 'bg-brand-teal text-white border-2 border-brand-teal font-semibold'
+                  : 'text-slate-300 hover:text-white hover:bg-surfaceHover'
+              }`}
+            >
+              <Wallet className="w-4 h-4 text-brand-tealLight" />
+              <span>Finance Ledger</span>
+              <span className="ml-auto text-[10px] bg-brand-teal/20 text-brand-tealLight px-2 py-0.5 rounded-full font-bold">
+                M2
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('shopping')}
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-poppins font-medium transition-all ${
+                activeTab === 'shopping'
+                  ? 'bg-brand-coral text-white border-2 border-brand-coral font-semibold'
+                  : 'text-slate-300 hover:text-white hover:bg-surfaceHover'
+              }`}
+            >
+              <ShoppingBag className="w-4 h-4 text-rose-300" />
+              <span>Shopping Scout</span>
+              <span className="ml-auto text-[10px] bg-rose-500/20 text-rose-300 px-2 py-0.5 rounded-full font-bold">
+                M2
+              </span>
+            </button>
+
+            <button
               onClick={() => setActiveTab('approvals')}
               className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-poppins font-medium transition-all ${
                 activeTab === 'approvals'
@@ -308,41 +368,6 @@ export default function Dashboard() {
               <Activity className="w-4 h-4 text-brand-lime" />
               <span>Audit Ledger</span>
             </button>
-
-            <div className="pt-5 pb-2 px-3 text-[11px] font-sora font-bold tracking-wider text-slate-400 uppercase">
-              Specialist Squad
-            </div>
-
-            <div
-              onClick={() => handleSendMessage('Analyze my current month financial budget and spending.')}
-              className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-poppins font-medium text-slate-300 hover:bg-surfaceHover hover:text-white cursor-pointer transition-colors"
-            >
-              <div className="w-6 h-6 rounded-lg bg-emerald-950/80 border border-emerald-500/40 flex items-center justify-center">
-                <Wallet className="w-3.5 h-3.5 text-brand-tealLight" />
-              </div>
-              <span>Finance Specialist</span>
-              <span className="ml-auto text-[10px] text-slate-400">Read-only</span>
-            </div>
-
-            <div
-              onClick={() => handleSendMessage('Search and compare alternatives for Sony WH-1000XM5 headphones.')}
-              className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-poppins font-medium text-slate-300 hover:bg-surfaceHover hover:text-white cursor-pointer transition-colors"
-            >
-              <div className="w-6 h-6 rounded-lg bg-rose-950/80 border border-rose-500/40 flex items-center justify-center">
-                <ShoppingBag className="w-3.5 h-3.5 text-brand-coral" />
-              </div>
-              <span>Shopping Specialist</span>
-            </div>
-
-            <div
-              onClick={() => handleSendMessage('Check for important unread communications and summarize.')}
-              className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-poppins font-medium text-slate-300 hover:bg-surfaceHover hover:text-white cursor-pointer transition-colors"
-            >
-              <div className="w-6 h-6 rounded-lg bg-sky-950/80 border border-sky-500/40 flex items-center justify-center">
-                <Mail className="w-3.5 h-3.5 text-brand-blueLight" />
-              </div>
-              <span>Communication Specialist</span>
-            </div>
           </nav>
         </div>
 
@@ -351,7 +376,7 @@ export default function Dashboard() {
           <GhostMascot size="sm" mood={loading ? 'thinking' : 'happy'} />
           <div className="space-y-0.5">
             <div className="font-sora font-bold text-white text-[12px]">Agent Sentinel</div>
-            <div className="text-[11px] text-slate-400 font-manrope">Zero unapproved actions</div>
+            <div className="text-[11px] text-slate-400 font-manrope">Milestone 2 Active</div>
           </div>
         </div>
       </aside>
@@ -363,14 +388,14 @@ export default function Dashboard() {
           <div className="flex items-center gap-3">
             <h2 className="font-sora font-extrabold text-base text-white">Chief Command Center</h2>
             <span className="text-[11px] font-poppins font-semibold px-2.5 py-0.5 rounded-full bg-brand-teal/20 text-brand-tealLight border border-brand-teal/40">
-              Autonomous Team Ready
+              Milestone 2: Career, Finance &amp; Shopping Live
             </span>
           </div>
 
           <div className="flex items-center gap-3 text-xs font-poppins">
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-card border border-border text-slate-300">
-              <span className="w-2 h-2 rounded-full bg-brand-lime" />
-              <span>BullMQ Scheduler</span>
+              <span className="w-2 h-2 rounded-full bg-brand-teal" />
+              <span>Finance: Read-Only Enforced</span>
             </div>
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-card border border-border text-slate-300">
               <span className="w-2 h-2 rounded-full bg-brand-blue" />
@@ -457,7 +482,7 @@ export default function Dashboard() {
                   type="text"
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
-                  placeholder="Tell Chief Ghost what to do (e.g. 'Find me jobs', 'Should I buy this laptop?')..."
+                  placeholder="Tell Chief Ghost what to do (e.g. 'Should I buy this laptop?', 'Find jobs')..."
                   className="w-full bg-transparent border-0 px-3 py-2 text-sm font-manrope text-white placeholder-slate-400 focus:outline-none"
                 />
                 <button
@@ -472,25 +497,267 @@ export default function Dashboard() {
 
               {/* Quick Prompt Pills */}
               <div className="flex items-center gap-2 mt-2.5 px-1 text-xs overflow-x-auto pb-1">
-                <span className="text-[11px] font-poppins font-semibold text-slate-400">Try asking:</span>
+                <span className="text-[11px] font-poppins font-semibold text-slate-400">Milestone 2 tests:</span>
                 <button
                   onClick={() => handleSendMessage('Should I buy a ₹90,000 MacBook Air M2 based on my recent finances?')}
                   className="px-3 py-1 rounded-xl bg-card hover:bg-surfaceHover text-slate-200 text-[11px] font-poppins font-medium border border-border whitespace-nowrap transition-colors"
                 >
-                  Shopping + Finance: &quot;Should I buy this?&quot;
+                  Cross-Agent: &quot;Should I buy this ₹90,000 laptop?&quot;
                 </button>
                 <button
-                  onClick={() => handleSendMessage('Every morning at 8:00 AM, find the 20 best backend & fullstack jobs for me.')}
+                  onClick={() => handleSendMessage('Analyze my current month financial budget and spending.')}
                   className="px-3 py-1 rounded-xl bg-card hover:bg-surfaceHover text-slate-200 text-[11px] font-poppins font-medium border border-border whitespace-nowrap transition-colors"
                 >
-                  Job Specialist: &quot;Daily job search at 8 AM&quot;
+                  Finance: &quot;Check budget &amp; discretionary reserve&quot;
+                </button>
+                <button
+                  onClick={() => handleSendMessage('Find me relevant jobs.')}
+                  className="px-3 py-1 rounded-xl bg-card hover:bg-surfaceHover text-slate-200 text-[11px] font-poppins font-medium border border-border whitespace-nowrap transition-colors"
+                >
+                  Job Specialist: &quot;Find me relevant jobs&quot;
                 </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* View 2: Jobs Feed */}
+        {/* View 2: Finance Ledger & Affordability */}
+        {activeTab === 'finance' && (
+          <div className="flex-1 overflow-y-auto p-6 max-w-4xl mx-auto w-full space-y-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="font-sora font-extrabold text-lg text-white">Financial Intelligence Ledger</h2>
+                <p className="text-xs text-slate-400 font-manrope">
+                  Strictly Read-Only Access • Categorized Monthly Trends &amp; Affordability Guardrails
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs px-2.5 py-1 rounded-xl bg-emerald-950/80 border border-emerald-500/40 text-brand-tealLight font-poppins font-bold">
+                  Money Transfers Disabled
+                </span>
+                <button onClick={fetchLiveData} className="p-2 rounded-xl bg-card border border-border text-slate-300 hover:text-white">
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Financial Metrics Cards */}
+            {financeOverview && (
+              <div className="grid grid-cols-3 gap-3.5">
+                <div className="playful-card p-4 space-y-1">
+                  <span className="text-[11px] font-poppins font-semibold text-slate-400">Monthly Cash Inflow</span>
+                  <div className="font-sora font-extrabold text-xl text-white">
+                    ₹{financeOverview.totalIncome?.toLocaleString()}
+                  </div>
+                  <span className="text-[11px] text-slate-400 font-manrope">Verified salary credit</span>
+                </div>
+
+                <div className="playful-card p-4 space-y-1">
+                  <span className="text-[11px] font-poppins font-semibold text-slate-400">Total Month Spend</span>
+                  <div className="font-sora font-extrabold text-xl text-brand-amber">
+                    ₹{financeOverview.totalExpense?.toLocaleString()}
+                  </div>
+                  <span className="text-[11px] text-slate-400 font-manrope">
+                    ₹{financeOverview.recurringCommitments?.toLocaleString()} recurring commitments
+                  </span>
+                </div>
+
+                <div className="playful-card p-4 space-y-1 border-brand-teal">
+                  <span className="text-[11px] font-poppins font-semibold text-brand-tealLight">Discretionary Reserve</span>
+                  <div className="font-sora font-extrabold text-xl text-brand-tealLight">
+                    ₹{financeOverview.remainingDiscretionary?.toLocaleString()}
+                  </div>
+                  <span className="text-[11px] text-emerald-400 font-manrope">Safe unallocated buffer</span>
+                </div>
+              </div>
+            )}
+
+            {/* Affordability Simulator */}
+            <div className="playful-card p-5 space-y-3.5 border-2 border-border">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Calculator className="w-4 h-4 text-brand-amber" />
+                  <h3 className="font-sora font-bold text-white text-sm">Purchase Affordability Simulator</h3>
+                </div>
+                <span className="text-xs text-slate-400 font-poppins">Evaluated by Finance Specialist</span>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="relative flex-1">
+                  <span className="absolute left-3.5 top-2.5 text-sm font-bold text-slate-400">₹</span>
+                  <input
+                    type="number"
+                    value={affordabilitySimPrice}
+                    onChange={(e) => setAffordabilitySimPrice(Number(e.target.value))}
+                    className="w-full bg-card border-2 border-border rounded-xl pl-8 pr-4 py-2 text-sm font-sora font-bold text-white focus:outline-none focus:border-brand-amber"
+                  />
+                </div>
+                <button
+                  onClick={() => runAffordabilityCheck(affordabilitySimPrice)}
+                  className="px-4 py-2 rounded-xl bg-brand-amber text-slate-950 font-poppins font-bold text-xs playful-button"
+                >
+                  Evaluate
+                </button>
+              </div>
+
+              {affordabilityResult && (
+                <div className={`p-4 rounded-xl border-2 space-y-1.5 ${
+                  affordabilityResult.verdict === 'comfortable'
+                    ? 'border-brand-teal bg-emerald-950/20'
+                    : affordabilityResult.verdict === 'stretch'
+                    ? 'border-brand-amber bg-amber-950/20'
+                    : 'border-brand-coral bg-rose-950/20'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <span className="font-sora font-bold text-xs uppercase tracking-wider text-white">
+                      Verdict: {affordabilityResult.verdict.toUpperCase().replace('_', ' ')}
+                    </span>
+                    <span className="font-poppins text-xs text-slate-300">
+                      Remaining Buffer: ₹{affordabilityResult.postPurchaseRemaining?.toLocaleString()}
+                    </span>
+                  </div>
+                  <p className="text-xs font-manrope text-slate-200">{affordabilityResult.advice}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Read-Only Ingested Transactions */}
+            <div className="space-y-3">
+              <h3 className="font-sora font-bold text-white text-sm">Recent Ledger Transactions</h3>
+              <div className="space-y-2">
+                {transactions.map((tx) => (
+                  <div key={tx.id} className="p-3.5 rounded-xl bg-card border border-border flex items-center justify-between text-xs">
+                    <div>
+                      <div className="font-sora font-bold text-white text-sm">{tx.merchant}</div>
+                      <div className="text-slate-400 font-manrope mt-0.5">
+                        {tx.description} • Category: <strong className="text-slate-300">{tx.category}</strong>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-sora font-bold text-white text-sm">₹{tx.amount.toLocaleString()}</div>
+                      {tx.isRecurring && (
+                        <span className="text-[10px] font-poppins font-semibold bg-surface px-2 py-0.5 rounded-full border border-border text-brand-amber">
+                          Recurring
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* View 3: Shopping Scout & Alternatives */}
+        {activeTab === 'shopping' && (
+          <div className="flex-1 overflow-y-auto p-6 max-w-4xl mx-auto w-full space-y-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="font-sora font-extrabold text-lg text-white">Shopping Scout &amp; Deal Comparator</h2>
+                <p className="text-xs text-slate-400 font-manrope">
+                  Multi-Merchant Pricing • Verified Reviews • Alternative Model Benchmarks
+                </p>
+              </div>
+              <button onClick={fetchLiveData} className="p-2 rounded-xl bg-card border border-border text-slate-300 hover:text-white">
+                <RefreshCw className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Product Search Query */}
+            <div className="flex items-center gap-2 p-2 rounded-2xl bg-surface border-2 border-border">
+              <Search className="w-4 h-4 text-brand-coral ml-2" />
+              <input
+                type="text"
+                value={shoppingQuery}
+                onChange={(e) => setShoppingQuery(e.target.value)}
+                placeholder="Search product (e.g. 'MacBook Air M2', 'Sony Headphones')..."
+                className="w-full bg-transparent border-0 px-2 py-1.5 text-sm font-manrope text-white placeholder-slate-400 focus:outline-none"
+              />
+              <button
+                onClick={fetchLiveData}
+                className="px-4 py-2 rounded-xl bg-brand-coral text-white font-poppins font-bold text-xs playful-button"
+              >
+                Scout Deals
+              </button>
+            </div>
+
+            {/* Primary Product Card */}
+            {shoppingResult && (
+              <div className="space-y-4">
+                <div className="playful-card p-5 border-2 border-brand-coral space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <span className="text-[10px] font-poppins font-bold px-2 py-0.5 rounded-full bg-rose-950/80 text-rose-300 border border-rose-500/40">
+                        Primary Target
+                      </span>
+                      <h3 className="font-sora font-bold text-white text-base mt-1">
+                        {shoppingResult.primaryProduct.name}
+                      </h3>
+                      <p className="text-xs text-slate-300 font-manrope mt-1">
+                        Best Merchant: <strong className="text-white">{shoppingResult.primaryProduct.bestMerchant}</strong>
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-sora font-extrabold text-xl text-white">
+                        ₹{shoppingResult.primaryProduct.targetPrice.toLocaleString()}
+                      </div>
+                      <div className="text-xs font-poppins text-brand-amber">
+                        Rating: {shoppingResult.primaryProduct.rating} / 5.0
+                      </div>
+                    </div>
+                  </div>
+
+                  <p className="text-xs font-manrope text-slate-300 bg-card p-3 rounded-xl border border-border leading-relaxed">
+                    {shoppingResult.primaryProduct.reviewSummary}
+                  </p>
+
+                  <div className="flex items-center justify-between pt-1 border-t border-border">
+                    <span className="text-xs text-slate-400 font-manrope">
+                      {shoppingResult.dealAssessment}
+                    </span>
+                    <button
+                      onClick={() => {
+                        setActiveTab('finance');
+                        setAffordabilitySimPrice(shoppingResult.primaryProduct.targetPrice);
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-card hover:bg-surfaceHover border border-border text-xs font-poppins font-semibold text-slate-200 flex items-center gap-1.5"
+                    >
+                      <span>Check Budget Impact</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Discovered Alternatives */}
+                <div className="space-y-3">
+                  <h3 className="font-sora font-bold text-white text-sm">Discovered Viable Alternatives</h3>
+                  <div className="grid grid-cols-1 gap-3">
+                    {shoppingResult.alternatives.map((alt: any) => (
+                      <div key={alt.id} className="playful-card p-4 space-y-2">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <h4 className="font-sora font-bold text-white text-sm">{alt.name}</h4>
+                            <p className="text-xs text-slate-400 font-manrope mt-0.5">
+                              {alt.brand} • {alt.merchant} • {alt.reviewCount} customer reviews
+                            </p>
+                          </div>
+                          <div className="text-right font-sora font-bold text-sm text-brand-tealLight">
+                            ₹{alt.price.toLocaleString()}
+                          </div>
+                        </div>
+                        <p className="text-xs text-slate-300 font-manrope bg-card p-2.5 rounded-lg border border-border">
+                          {alt.highlight}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* View 4: Jobs Feed */}
         {activeTab === 'jobs' && (
           <div className="flex-1 overflow-y-auto p-6 max-w-4xl mx-auto w-full space-y-4">
             <div className="flex items-center justify-between mb-2">
@@ -509,10 +776,7 @@ export default function Dashboard() {
                   <Play className="w-3.5 h-3.5" />
                   <span>Run Pipeline</span>
                 </button>
-                <button
-                  onClick={fetchLiveData}
-                  className="p-2 rounded-xl bg-card border border-border text-slate-300 hover:text-white"
-                >
+                <button onClick={fetchLiveData} className="p-2 rounded-xl bg-card border border-border text-slate-300 hover:text-white">
                   <RefreshCw className="w-4 h-4" />
                 </button>
               </div>
@@ -531,9 +795,7 @@ export default function Dashboard() {
                       <div className="flex items-center gap-2.5">
                         <h3 className="font-sora font-bold text-white text-base">{job.title}</h3>
                         <span className={`text-xs px-2.5 py-0.5 rounded-full font-poppins font-bold ${
-                          job.matchScore >= 90
-                            ? 'bg-brand-teal text-white'
-                            : 'bg-brand-blue text-white'
+                          job.matchScore >= 90 ? 'bg-brand-teal text-white' : 'bg-brand-blue text-white'
                         }`}>
                           {job.matchScore}% Match
                         </span>
@@ -610,7 +872,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* View 3: Safety Approvals Gate */}
+        {/* View 5: Safety Approvals Gate */}
         {activeTab === 'approvals' && (
           <div className="flex-1 overflow-y-auto p-6 max-w-4xl mx-auto w-full space-y-4">
             <div className="flex items-center justify-between mb-3">
@@ -620,10 +882,7 @@ export default function Dashboard() {
                   Principle 2.4: Human Control. High-risk agent actions stay blocked until approved.
                 </p>
               </div>
-              <button
-                onClick={fetchLiveData}
-                className="p-2 rounded-xl bg-card border border-border text-slate-300 hover:text-white"
-              >
+              <button onClick={fetchLiveData} className="p-2 rounded-xl bg-card border border-border text-slate-300 hover:text-white">
                 <RefreshCw className="w-4 h-4" />
               </button>
             </div>
@@ -685,7 +944,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* View 4: Audit Ledger */}
+        {/* View 6: Audit Ledger */}
         {activeTab === 'audit' && (
           <div className="flex-1 overflow-y-auto p-6 max-w-4xl mx-auto w-full space-y-3">
             <div className="flex items-center justify-between mb-3">
@@ -695,10 +954,7 @@ export default function Dashboard() {
                   Principle 2.3: Every meaningful agent step, decision, and tool invocation is recorded.
                 </p>
               </div>
-              <button
-                onClick={fetchLiveData}
-                className="p-2 rounded-xl bg-card border border-border text-slate-300 hover:text-white"
-              >
+              <button onClick={fetchLiveData} className="p-2 rounded-xl bg-card border border-border text-slate-300 hover:text-white">
                 <RefreshCw className="w-4 h-4" />
               </button>
             </div>

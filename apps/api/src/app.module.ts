@@ -8,6 +8,8 @@ import { ToolsModule } from './tools/tools.module';
 import { AgentsModule } from './agents/agents.module';
 import { TasksModule } from './tasks/tasks.module';
 import { JobsModule } from './jobs/jobs.module';
+import { FinanceModule } from './finance/finance.module';
+import { ShoppingModule } from './shopping/shopping.module';
 
 @Module({
   imports: [
@@ -21,6 +23,8 @@ import { JobsModule } from './jobs/jobs.module';
     AgentsModule,
     TasksModule,
     JobsModule,
+    FinanceModule,
+    ShoppingModule,
   ],
   controllers: [AppController],
   providers: [AppService],
