@@ -7,6 +7,7 @@
     "packages/*"
   ],
   "scripts": {
+    "dev": "concurrently -n \"api,web,workers\" -c \"blue,green,magenta\" \"npm run dev:api\" \"npm run dev:web\" \"npm run dev:workers\"",
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "dev:api": "npm run start:dev --workspace=@personal-os/api",
@@ -14,6 +15,7 @@
     "dev:workers": "npm run start:dev --workspace=@personal-os/workers"
   },
   "devDependencies": {
+    "concurrently": "^10.0.5",
     "typescript": "^5.4.5"
   }
 }
