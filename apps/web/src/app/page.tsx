@@ -17,8 +17,10 @@ import {
   Clock,
   Terminal,
   RefreshCw,
-  XCircle,
+  X,
+  FileText,
   AlertTriangle,
+  Play,
 } from 'lucide-react';
 
 interface ChatMessage {
@@ -54,12 +56,41 @@ interface AuditItem {
   timestamp: string;
 }
 
+interface JobItem {
+  id: string;
+  title: string;
+  company: string;
+  location: string[];
+  remote: boolean;
+  minSalary?: number;
+  maxSalary?: number;
+  source: string;
+  skills: string[];
+  matchScore: number;
+  matchBreakdown?: {
+    overallScore: number;
+    skillMatch: number;
+    roleMatch: number;
+    reasons: string[];
+    concerns: string[];
+  };
+  recommendedResumeId?: string;
+  lifecycleStatus: string;
+}
+
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<'chat' | 'jobs' | 'approvals' | 'audit'>('chat');
   const [inputValue, setInputValue] = useState('');
   const [loading, setLoading] = useState(false);
   const [approvals, setApprovals] = useState<ApprovalItem[]>([]);
   const [auditEvents, setAuditEvents] = useState<AuditItem[]>([]);
+  const [jobs, setJobs] = useState<JobItem[]>([]);
+  const [selectedResumeModal, setSelectedResumeModal] = useState<{
+    jobTitle: string;
+    company: string;
+    content: string;
+  } | null>(null);
+
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'init-1',
@@ -70,21 +101,31 @@ export default function Dashboard() {
     {
       id: 'init-2',
       sender: 'chief',
-      text: 'I have scheduled this recurring task (0 8 * * 1-5). The Job Specialist pipeline executed an initial trial run and verified 20 ranked opportunities tailored to your profile.',
+      text: 'I have scheduled this recurring task (0 8 * * 1-5). The Job Specialist pipeline executed an initial trial run and verified ranked opportunities tailored to your profile.',
       plan: {
         steps: [
           { name: 'Scheduler Engine', agentType: 'scheduler', description: 'Registered cron 0 8 * * 1-5 (Mon-Fri 8:00 AM)' },
-          { name: 'Discover Jobs', agentType: 'job', description: 'Queried LinkedIn, Wellfound, Greenhouse (147 raw jobs)' },
-          { name: 'Deduplication', agentType: 'job', description: 'Filtered 62 cross-board duplicate postings' },
-          { name: 'Resume Customization', agentType: 'job', description: 'Paired top 20 with Fullstack-AWS-v3.md' },
+          { name: 'Discover Jobs', agentType: 'job', description: 'Queried Greenhouse, Lever, Wellfound (4 raw jobs ingested)' },
+          { name: 'Deduplication', agentType: 'job', description: 'Filtered 1 cross-board duplicate posting' },
+          { name: 'Resume Customization', agentType: 'job', description: 'Paired top matches with Fullstack-AWS-v3.md' },
         ],
       },
       timestamp: '10:00 AM',
     },
   ]);
 
-  // Load live approvals and audit logs
+  // Load live jobs, approvals, and audit logs
   const fetchLiveData = async () => {
+    try {
+      const jobRes = await fetch('http://localhost:4000/api/jobs');
+      if (jobRes.ok) {
+        const data = await jobRes.json();
+        setJobs(data);
+      }
+    } catch {
+      // API restarting
+    }
+
     try {
       const appRes = await fetch('http://localhost:4000/api/approvals');
       if (appRes.ok) {
@@ -92,17 +133,17 @@ export default function Dashboard() {
         setApprovals(data);
       }
     } catch {
-      // API may be restarting
+      // API restarting
     }
 
     try {
-      const audRes = await fetch('http://localhost:4000/api/audit?limit=25');
+      const audRes = await fetch('http://localhost:4000/api/audit?limit=30');
       if (audRes.ok) {
         const data = await audRes.json();
         setAuditEvents(data);
       }
     } catch {
-      // API may be restarting
+      // API restarting
     }
   };
 
@@ -177,6 +218,32 @@ export default function Dashboard() {
     }
   };
 
+  const handlePreviewResume = async (job: JobItem) => {
+    try {
+      const res = await fetch(`http://localhost:4000/api/jobs/${job.id}/resume`);
+      if (res.ok) {
+        const data = await res.json();
+        setSelectedResumeModal({
+          jobTitle: job.title,
+          company: job.company,
+          content: data.tailoredMarkdown,
+        });
+      }
+    } catch (err) {
+      console.error('Failed to preview resume:', err);
+    }
+  };
+
+  const handleTriggerDiscovery = async () => {
+    setLoading(true);
+    try {
+      await fetch('http://localhost:4000/api/jobs/discover', { method: 'POST' });
+      await fetchLiveData();
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background text-gray-100">
       {/* Sidebar */}
@@ -217,7 +284,7 @@ export default function Dashboard() {
             >
               <Briefcase className="w-4 h-4 text-blue-400" />
               <span>Jobs & Careers</span>
-              <span className="ml-auto text-[10px] bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded">M1</span>
+              <span className="ml-auto text-[10px] bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded">M1 Live</span>
             </button>
 
             <button
@@ -253,21 +320,21 @@ export default function Dashboard() {
               Specialists
             </div>
 
-            <div 
+            <div
               onClick={() => handleSendMessage('Analyze my current month financial budget and spending.')}
               className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-400 hover:bg-gray-800/40 hover:text-gray-200 cursor-pointer"
             >
               <Wallet className="w-4 h-4 text-emerald-400" />
               <span>Finance (Read-only)</span>
             </div>
-            <div 
+            <div
               onClick={() => handleSendMessage('Search and compare alternatives for Sony WH-1000XM5 headphones.')}
               className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-400 hover:bg-gray-800/40 hover:text-gray-200 cursor-pointer"
             >
               <ShoppingBag className="w-4 h-4 text-pink-400" />
               <span>Shopping</span>
             </div>
-            <div 
+            <div
               onClick={() => handleSendMessage('Check for high priority messages or emails needing response.')}
               className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-400 hover:bg-gray-800/40 hover:text-gray-200 cursor-pointer"
             >
@@ -282,11 +349,11 @@ export default function Dashboard() {
           <div className="flex items-center justify-between text-gray-400">
             <span className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              API: 4000 / Web: 3000
+              Port: 3000 (UI) / 4000 (API)
             </span>
-            <span className="text-emerald-400 font-mono text-[11px]">Online</span>
+            <span className="text-emerald-400 font-mono text-[11px]">Ready</span>
           </div>
-          <div className="text-[11px] text-gray-500">Least-privilege Policy: Enforced</div>
+          <div className="text-[11px] text-gray-500">Milestone 1 Active</div>
         </div>
       </aside>
 
@@ -296,8 +363,8 @@ export default function Dashboard() {
         <header className="h-14 border-b border-border bg-surface/30 px-6 flex items-center justify-between backdrop-blur-md shrink-0">
           <div className="flex items-center gap-3">
             <span className="text-sm font-semibold text-gray-200">Personal AI Operating System</span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20">
-              Phase 1 &amp; 2 Live
+            <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
+              Phase 3 / Milestone 1: Job Agent Live
             </span>
           </div>
 
@@ -313,10 +380,9 @@ export default function Dashboard() {
           </div>
         </header>
 
-        {/* View Content */}
+        {/* View Content: AI Chief Chat */}
         {activeTab === 'chat' && (
           <div className="flex-1 flex flex-col overflow-hidden p-6 max-w-5xl mx-auto w-full gap-6">
-            {/* Conversation Timeline */}
             <div className="flex-1 overflow-y-auto space-y-5 pr-2">
               {messages.map((msg) => (
                 <div key={msg.id}>
@@ -339,7 +405,6 @@ export default function Dashboard() {
                           </p>
                           <p className="text-gray-300 leading-relaxed whitespace-pre-wrap">{msg.text}</p>
 
-                          {/* Multi-Agent Delegation Plan */}
                           {msg.plan && msg.plan.steps && (
                             <div className="rounded-xl bg-background/60 border border-border p-3 space-y-2 mt-2">
                               <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
@@ -373,7 +438,6 @@ export default function Dashboard() {
               )}
             </div>
 
-            {/* Input Bar */}
             <div className="relative pt-2">
               <form
                 onSubmit={(e) => {
@@ -398,7 +462,6 @@ export default function Dashboard() {
                 </button>
               </form>
 
-              {/* Quick suggestion pills */}
               <div className="flex items-center gap-2 mt-2 px-1 text-xs text-gray-400 overflow-x-auto py-1">
                 <span className="text-[11px] text-gray-500">Quick tests:</span>
                 <button
@@ -408,100 +471,132 @@ export default function Dashboard() {
                   Shopping + Finance: &quot;Should I buy this?&quot;
                 </button>
                 <button
-                  onClick={() => handleSendMessage('Every morning at 8:00 AM, find the 20 best backend & fullstack jobs for me.')}
+                  onClick={() => handleSendMessage('Find me relevant jobs.')}
                   className="px-2.5 py-1 rounded-full bg-gray-800/80 hover:bg-gray-700 text-gray-300 text-[11px] whitespace-nowrap border border-gray-700"
                 >
-                  Job Agent: &quot;Find me jobs daily at 8 AM&quot;
+                  Job Agent: &quot;Find me relevant jobs&quot;
                 </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* Jobs Tab */}
+        {/* View Content: Jobs & Career Intelligence */}
         {activeTab === 'jobs' && (
           <div className="flex-1 overflow-y-auto p-6 max-w-5xl mx-auto w-full space-y-4">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-2">
               <div>
                 <h2 className="text-lg font-bold text-white">Daily Job Intelligence Feed</h2>
-                <p className="text-xs text-gray-400">Pipeline: Ingestion → Deduplication → Match Scoring → Resume Customization</p>
+                <p className="text-xs text-gray-400">
+                  Pipeline: Greenhouse + Lever + Wellfound Ingestion → Deduplication → Deterministic Matching → Non-fabricating Resume Tailoring
+                </p>
               </div>
-              <span className="px-3 py-1 rounded-full text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                20 Jobs Processed
-              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleTriggerDiscovery}
+                  disabled={loading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors"
+                >
+                  <Play className="w-3 h-3" />
+                  <span>Run Discovery Pipeline</span>
+                </button>
+                <button
+                  onClick={fetchLiveData}
+                  className="p-1.5 rounded-lg bg-gray-800 text-gray-300 hover:text-white"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
-            {/* Job Card 1 */}
-            <div className="glass-panel rounded-xl p-5 border border-border space-y-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-white">Senior Full Stack Developer</h3>
-                    <span className="text-xs px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 font-mono">94% Match</span>
+            {jobs.length === 0 ? (
+              <div className="p-12 text-center text-gray-500 text-sm glass-panel rounded-xl">
+                No jobs currently discovered. Click &quot;Run Discovery Pipeline&quot; to fetch and score postings.
+              </div>
+            ) : (
+              jobs.map((job) => (
+                <div key={job.id} className="glass-panel rounded-xl p-5 border border-border space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-white">{job.title}</h3>
+                        <span className={`text-xs px-2 py-0.5 rounded font-mono ${
+                          job.matchScore >= 90 ? 'bg-purple-500/20 text-purple-300' : 'bg-blue-500/20 text-blue-300'
+                        }`}>
+                          {job.matchScore}% Match
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {job.company} • {job.location.join(', ')} {job.remote ? '(Remote)' : ''} •{' '}
+                        {job.minSalary ? `₹${(job.minSalary / 100000).toFixed(0)}–${(job.maxSalary! / 100000).toFixed(0)} LPA` : 'Competitive'} • Source: {job.source}
+                      </p>
+                    </div>
+                    <span className="text-xs text-gray-500 flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5" />
+                      <span>Live match</span>
+                    </span>
                   </div>
-                  <p className="text-xs text-gray-400 mt-0.5">Stripe • Remote • ₹24–32 LPA</p>
-                </div>
-                <div className="text-xs text-gray-500 flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5" />
-                  <span>Discovered 10m ago</span>
-                </div>
-              </div>
 
-              <div className="text-xs text-gray-300 bg-background/50 p-3 rounded-lg space-y-1">
-                <p className="font-medium text-emerald-400">Why this matches your profile:</p>
-                <ul className="list-disc list-inside space-y-0.5 text-gray-400">
-                  <li>8/8 core technologies matched (React, TypeScript, Node.js, PostgreSQL)</li>
-                  <li>Recommended tailored resume profile: <strong className="text-gray-200">Fullstack-AWS-v3.md</strong></li>
-                  <li>Location preference satisfies 100% remote criteria</li>
-                </ul>
-              </div>
+                  {job.matchBreakdown && (
+                    <div className="text-xs bg-background/50 p-3 rounded-lg space-y-1.5">
+                      <p className="font-medium text-emerald-400">Why this is relevant:</p>
+                      <ul className="list-disc list-inside space-y-0.5 text-gray-300">
+                        {job.matchBreakdown.reasons.map((r, i) => (
+                          <li key={i}>{r}</li>
+                        ))}
+                      </ul>
 
-              <div className="flex items-center justify-between pt-1">
-                <span className="text-xs text-gray-500">Status: RECOMMENDED</span>
-                <div className="flex gap-2">
-                  <button className="px-3 py-1.5 text-xs rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700">
-                    Preview Tailored Resume
-                  </button>
-                  <button 
-                    onClick={() => {
-                      setActiveTab('approvals');
-                    }}
-                    className="px-3 py-1.5 text-xs rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium"
-                  >
-                    Prepare Application
-                  </button>
-                </div>
-              </div>
-            </div>
+                      {job.matchBreakdown.concerns.length > 0 && (
+                        <div className="pt-1">
+                          <p className="font-medium text-amber-400">Potential notes / concerns:</p>
+                          <ul className="list-disc list-inside space-y-0.5 text-gray-400">
+                            {job.matchBreakdown.concerns.map((c, i) => (
+                              <li key={i}>{c}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
-            {/* Job Card 2 */}
-            <div className="glass-panel rounded-xl p-5 border border-border space-y-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-white">Staff Backend Engineer</h3>
-                    <span className="text-xs px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-mono">91% Match</span>
+                  <div className="flex items-center justify-between pt-1">
+                    <div className="flex items-center gap-2 text-xs text-gray-400">
+                      <span>Recommended resume:</span>
+                      <strong className="text-gray-200 font-mono bg-gray-800/80 px-2 py-0.5 rounded">
+                        {job.recommendedResumeId || 'Fullstack-AWS-v3.md'}
+                      </strong>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handlePreviewResume(job)}
+                        className="px-3 py-1.5 text-xs rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 flex items-center gap-1.5"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        <span>Preview Tailored Resume</span>
+                      </button>
+                      <button
+                        onClick={async () => {
+                          await fetch('http://localhost:4000/api/chat', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ prompt: `Apply for ${job.title} at ${job.company}` }),
+                          });
+                          setActiveTab('approvals');
+                        }}
+                        className="px-3 py-1.5 text-xs rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium"
+                      >
+                        Prepare Application
+                      </button>
+                    </div>
                   </div>
-                  <p className="text-xs text-gray-400 mt-0.5">Postman • Bengaluru / Remote • ₹35–45 LPA</p>
                 </div>
-                <div className="text-xs text-gray-500 flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5" />
-                  <span>Discovered 25m ago</span>
-                </div>
-              </div>
-
-              <div className="text-xs text-gray-300 bg-background/50 p-3 rounded-lg space-y-1">
-                <p className="font-medium text-blue-400">Why this matches your profile:</p>
-                <ul className="list-disc list-inside space-y-0.5 text-gray-400">
-                  <li>High demand for distributed architectures &amp; microservices</li>
-                  <li>Recommended tailored resume: <strong className="text-gray-200">Backend-Systems-v2.md</strong></li>
-                </ul>
-              </div>
-            </div>
+              ))
+            )}
           </div>
         )}
 
-        {/* Approvals Tab */}
+        {/* View Content: Approvals */}
         {activeTab === 'approvals' && (
           <div className="flex-1 overflow-y-auto p-6 max-w-5xl mx-auto w-full space-y-4">
             <div className="flex items-center justify-between mb-4">
@@ -509,7 +604,7 @@ export default function Dashboard() {
                 <h2 className="text-lg font-bold text-white">Universal Safety Approval Gate</h2>
                 <p className="text-xs text-gray-400">Principle 2.4: Human Control. High-risk actions require explicit consent.</p>
               </div>
-              <button 
+              <button
                 onClick={fetchLiveData}
                 className="p-1.5 rounded-lg bg-gray-800 text-gray-300 hover:text-white"
               >
@@ -523,8 +618,8 @@ export default function Dashboard() {
               </div>
             ) : (
               approvals.map((app) => (
-                <div 
-                  key={app.id} 
+                <div
+                  key={app.id}
                   className={`glass-panel rounded-xl p-5 border ${
                     app.status === 'pending'
                       ? 'border-amber-500/30 bg-amber-950/10'
@@ -544,16 +639,16 @@ export default function Dashboard() {
                   </div>
                   <h3 className="font-semibold text-white">{app.title}</h3>
                   <p className="text-xs text-gray-300">{app.description}</p>
-                  
+
                   {app.status === 'pending' && (
                     <div className="flex gap-2 pt-2">
-                      <button 
+                      <button
                         onClick={() => handleDecideApproval(app.id, 'approve')}
                         className="px-3 py-1.5 text-xs rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium"
                       >
                         Approve Action
                       </button>
-                      <button 
+                      <button
                         onClick={() => handleDecideApproval(app.id, 'reject')}
                         className="px-3 py-1.5 text-xs rounded-lg bg-red-600/20 hover:bg-red-600/30 text-red-300 border border-red-500/30"
                       >
@@ -567,7 +662,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Audit Tab */}
+        {/* View Content: Audit */}
         {activeTab === 'audit' && (
           <div className="flex-1 overflow-y-auto p-6 max-w-5xl mx-auto w-full space-y-3">
             <div className="flex items-center justify-between mb-4">
@@ -575,7 +670,7 @@ export default function Dashboard() {
                 <h2 className="text-lg font-bold text-white">Immutable Event &amp; Audit Ledger</h2>
                 <p className="text-xs text-gray-400">Principle 2.3: Everything important is auditable.</p>
               </div>
-              <button 
+              <button
                 onClick={fetchLiveData}
                 className="p-1.5 rounded-lg bg-gray-800 text-gray-300 hover:text-white"
               >
@@ -608,6 +703,39 @@ export default function Dashboard() {
           </div>
         )}
       </main>
+
+      {/* Tailored Resume Preview Modal */}
+      {selectedResumeModal && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="glass-panel bg-surface/95 border border-border rounded-2xl max-w-2xl w-full max-h-[80vh] flex flex-col shadow-2xl">
+            <div className="p-4 border-b border-border flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-white">Tailored Non-Fabricating Resume</h3>
+                <p className="text-xs text-gray-400">
+                  Target: {selectedResumeModal.jobTitle} at {selectedResumeModal.company}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedResumeModal(null)}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto font-mono text-xs text-gray-200 leading-relaxed whitespace-pre-wrap bg-background/50">
+              {selectedResumeModal.content}
+            </div>
+            <div className="p-4 border-t border-border flex justify-end">
+              <button
+                onClick={() => setSelectedResumeModal(null)}
+                className="px-4 py-2 text-xs rounded-lg bg-gray-800 hover:bg-gray-700 text-white"
+              >
+                Close Preview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

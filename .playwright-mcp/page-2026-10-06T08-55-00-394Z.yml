@@ -1,0 +1,118 @@
+- generic [ref=f1e1]:
+  - generic [ref=f1e2]:
+    - complementary [ref=f1e3]:
+      - generic [ref=f1e4]:
+        - generic [ref=f1e10]:
+          - heading "Personal OS" [level=1] [ref=f1e11]
+          - paragraph [ref=f1e12]: Chief Agent Active
+        - navigation [ref=f1e13]:
+          - button "AI Chief" [ref=f1e14] [cursor=pointer]
+          - button "Jobs & Careers M1 Live" [active] [ref=f1e19] [cursor=pointer]:
+            - generic [ref=f1e23]: Jobs & Careers
+            - generic [ref=f1e24]: M1 Live
+          - button "Approvals 1" [ref=f1e124] [cursor=pointer]:
+            - generic [ref=f1e29]: Approvals
+            - generic [ref=f1e125]: "1"
+          - button "Audit Trail" [ref=f1e30] [cursor=pointer]
+          - generic [ref=f1e34]: Specialists
+          - generic [ref=f1e35] [cursor=pointer]: Finance (Read-only)
+          - generic [ref=f1e40] [cursor=pointer]: Shopping
+          - generic [ref=f1e45] [cursor=pointer]: Communication
+      - generic [ref=f1e50]:
+        - generic [ref=f1e51]:
+          - generic [ref=f1e52]: "Port: 3000 (UI) / 4000 (API)"
+          - generic [ref=f1e54]: Ready
+        - generic [ref=f1e55]: Milestone 1 Active
+    - main [ref=f1e56]:
+      - generic [ref=f1e57]:
+        - generic [ref=f1e58]:
+          - generic [ref=f1e59]: Personal AI Operating System
+          - generic [ref=f1e60]: "Phase 3 / Milestone 1: Job Agent Live"
+        - generic [ref=f1e61]:
+          - generic [ref=f1e62]: "Scheduler: Ready"
+          - generic [ref=f1e66]: "Tool Gateway: Enforced"
+      - generic [ref=f1e126]:
+        - generic [ref=f1e127]:
+          - generic [ref=f1e128]:
+            - heading "Daily Job Intelligence Feed" [level=2] [ref=f1e129]
+            - paragraph [ref=f1e130]: "Pipeline: Greenhouse + Lever + Wellfound Ingestion → Deduplication → Deterministic Matching → Non-fabricating Resume Tailoring"
+          - generic [ref=f1e131]:
+            - button "Run Discovery Pipeline" [ref=f1e132] [cursor=pointer]
+            - button [ref=f1e136] [cursor=pointer]
+        - generic [ref=f1e142]:
+          - generic [ref=f1e143]:
+            - generic [ref=f1e144]:
+              - generic [ref=f1e145]:
+                - heading "Senior Full Stack Developer" [level=3] [ref=f1e146]
+                - generic [ref=f1e147]: 97% Match
+              - paragraph [ref=f1e148]: "Stripe • Remote (Remote) • ₹28–36 LPA • Source: Greenhouse (Stripe)"
+            - generic [ref=f1e149]: Live match
+          - generic [ref=f1e154]:
+            - paragraph [ref=f1e155]: "Why this is relevant:"
+            - list [ref=f1e156]:
+              - listitem [ref=f1e157]: "Target role match: \"Senior Full Stack Developer\" aligns directly with your preferred career path."
+              - listitem [ref=f1e158]: 5/5 key technical skills match (React, TypeScript, Node.js, PostgreSQL, AWS).
+              - listitem [ref=f1e159]: Remote flexibility matches your 100% remote preference.
+              - listitem [ref=f1e160]: Your 3.5+ years experience satisfies the candidate seniority expectations.
+              - listitem [ref=f1e161]: Offered compensation meets or exceeds your baseline expectation.
+          - generic [ref=f1e162]:
+            - generic [ref=f1e163]:
+              - generic [ref=f1e164]: "Recommended resume:"
+              - strong [ref=f1e165]: Fullstack-AWS-v3.md
+            - generic [ref=f1e166]:
+              - button "Preview Tailored Resume" [ref=f1e167] [cursor=pointer]
+              - button "Prepare Application" [ref=f1e172] [cursor=pointer]
+        - generic [ref=f1e173]:
+          - generic [ref=f1e174]:
+            - generic [ref=f1e175]:
+              - generic [ref=f1e176]:
+                - heading "Staff Backend Engineer" [level=3] [ref=f1e177]
+                - generic [ref=f1e178]: 92% Match
+              - paragraph [ref=f1e179]: "Postman • Bengaluru, Remote (Remote) • ₹35–45 LPA • Source: Lever (Postman)"
+            - generic [ref=f1e180]: Live match
+          - generic [ref=f1e185]:
+            - paragraph [ref=f1e186]: "Why this is relevant:"
+            - list [ref=f1e187]:
+              - listitem [ref=f1e188]: "Target role match: \"Staff Backend Engineer\" aligns directly with your preferred career path."
+              - listitem [ref=f1e189]: 4/5 key technical skills match (Node.js, NestJS, PostgreSQL, Redis).
+              - listitem [ref=f1e190]: Remote flexibility matches your 100% remote preference.
+              - listitem [ref=f1e191]: Your 3.5+ years experience satisfies the candidate seniority expectations.
+              - listitem [ref=f1e192]: Offered compensation meets or exceeds your baseline expectation.
+            - generic [ref=f1e193]:
+              - paragraph [ref=f1e194]: "Potential notes / concerns:"
+              - list [ref=f1e195]:
+                - listitem [ref=f1e196]: Job mentions Distributed Systems, which are not strongly emphasized in your profile.
+          - generic [ref=f1e197]:
+            - generic [ref=f1e198]:
+              - generic [ref=f1e199]: "Recommended resume:"
+              - strong [ref=f1e200]: Backend-Systems-v2.md
+            - generic [ref=f1e201]:
+              - button "Preview Tailored Resume" [ref=f1e202] [cursor=pointer]
+              - button "Prepare Application" [ref=f1e207] [cursor=pointer]
+        - generic [ref=f1e208]:
+          - generic [ref=f1e209]:
+            - generic [ref=f1e210]:
+              - generic [ref=f1e211]:
+                - heading "Full Stack Engineer - Cloud Observability" [level=3] [ref=f1e212]
+                - generic [ref=f1e213]: 90% Match
+              - paragraph [ref=f1e214]: "Datadog • Remote (Remote) • ₹26–34 LPA • Source: Wellfound (Datadog)"
+            - generic [ref=f1e215]: Live match
+          - generic [ref=f1e220]:
+            - paragraph [ref=f1e221]: "Why this is relevant:"
+            - list [ref=f1e222]:
+              - listitem [ref=f1e223]: 4/4 key technical skills match (React, TypeScript, Docker, AWS).
+              - listitem [ref=f1e224]: Remote flexibility matches your 100% remote preference.
+              - listitem [ref=f1e225]: Your 3.5+ years experience satisfies the candidate seniority expectations.
+              - listitem [ref=f1e226]: Offered compensation meets or exceeds your baseline expectation.
+            - generic [ref=f1e227]:
+              - paragraph [ref=f1e228]: "Potential notes / concerns:"
+              - list [ref=f1e229]:
+                - listitem [ref=f1e230]: Job title "Full Stack Engineer - Cloud Observability" differs slightly from your target roles (Full Stack Developer, Backend Engineer, Distributed Systems).
+          - generic [ref=f1e231]:
+            - generic [ref=f1e232]:
+              - generic [ref=f1e233]: "Recommended resume:"
+              - strong [ref=f1e234]: Fullstack-AWS-v3.md
+            - generic [ref=f1e235]:
+              - button "Preview Tailored Resume" [ref=f1e236] [cursor=pointer]
+              - button "Prepare Application" [ref=f1e241] [cursor=pointer]
+  - alert [ref=f1e242]

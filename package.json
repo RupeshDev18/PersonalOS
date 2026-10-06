@@ -10,9 +10,9 @@
     "dev": "concurrently -n \"api,web,workers\" -c \"blue,green,magenta\" \"npm run dev:api\" \"npm run dev:web\" \"npm run dev:workers\"",
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "dev:api": "npm run start:dev --workspace=@personal-os/api",
-    "dev:web": "npm run dev --workspace=@personal-os/web",
-    "dev:workers": "npm run start:dev --workspace=@personal-os/workers"
+    "dev:api": "npm --prefix apps/api run start:dev",
+    "dev:web": "npm --prefix apps/web run dev",
+    "dev:workers": "npm --prefix apps/workers run start:dev"
   },
   "devDependencies": {
     "concurrently": "^10.0.5",

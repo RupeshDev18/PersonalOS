@@ -1,0 +1,58 @@
+- generic [ref=f1e2]:
+  - complementary [ref=f1e3]:
+    - generic [ref=f1e4]:
+      - generic [ref=f1e10]:
+        - heading "Personal OS" [level=1] [ref=f1e11]
+        - paragraph [ref=f1e12]: Chief Agent Active
+      - navigation [ref=f1e13]:
+        - button "AI Chief" [ref=f1e14] [cursor=pointer]
+        - button "Jobs & Careers M1 Live" [ref=f1e19] [cursor=pointer]:
+          - generic [ref=f1e23]: Jobs & Careers
+          - generic [ref=f1e24]: M1 Live
+        - button "Approvals" [ref=f1e25] [cursor=pointer]
+        - button "Audit Trail" [ref=f1e30] [cursor=pointer]
+        - generic [ref=f1e34]: Specialists
+        - generic [ref=f1e35] [cursor=pointer]: Finance (Read-only)
+        - generic [ref=f1e40] [cursor=pointer]: Shopping
+        - generic [ref=f1e45] [cursor=pointer]: Communication
+    - generic [ref=f1e50]:
+      - generic [ref=f1e51]:
+        - generic [ref=f1e52]: "Port: 3000 (UI) / 4000 (API)"
+        - generic [ref=f1e54]: Ready
+      - generic [ref=f1e55]: Milestone 1 Active
+  - main [ref=f1e56]:
+    - generic [ref=f1e57]:
+      - generic [ref=f1e58]:
+        - generic [ref=f1e59]: Personal AI Operating System
+        - generic [ref=f1e60]: "Phase 3 / Milestone 1: Job Agent Live"
+      - generic [ref=f1e61]:
+        - generic [ref=f1e62]: "Scheduler: Ready"
+        - generic [ref=f1e66]: "Tool Gateway: Enforced"
+    - generic [ref=f1e70]:
+      - generic [ref=f1e71]:
+        - generic [ref=f1e72]: Every morning at 8:00 AM, find the 20 best backend & fullstack jobs for me.
+        - generic [ref=f1e82]:
+          - paragraph [ref=f1e83]: Chief Agent Response
+          - paragraph [ref=f1e86]: I have scheduled this recurring task (0 8 * * 1-5). The Job Specialist pipeline executed an initial trial run and verified ranked opportunities tailored to your profile.
+          - generic [ref=f1e87]:
+            - generic [ref=f1e88]: Multi-Agent Delegation Plan
+            - generic [ref=f1e93]:
+              - strong [ref=f1e94]: "[scheduler]"
+              - text: "Scheduler Engine: Registered cron 0 8 * * 1-5 (Mon-Fri 8:00 AM)"
+            - generic [ref=f1e99]:
+              - strong [ref=f1e100]: "[job]"
+              - text: "Discover Jobs: Queried Greenhouse, Lever, Wellfound (4 raw jobs ingested)"
+            - generic [ref=f1e105]:
+              - strong [ref=f1e106]: "[job]"
+              - text: "Deduplication: Filtered 1 cross-board duplicate posting"
+            - generic [ref=f1e111]:
+              - strong [ref=f1e112]: "[job]"
+              - text: "Resume Customization: Paired top matches with Fullstack-AWS-v3.md"
+      - generic [ref=f1e113]:
+        - generic [ref=f1e114]:
+          - textbox "Ask Chief Agent anything (e.g. 'Should I buy this laptop?', 'Find jobs', 'Analyze my budget')..." [ref=f1e115]
+          - button [ref=f1e116] [cursor=pointer]
+        - generic [ref=f1e120]:
+          - generic [ref=f1e121]: "Quick tests:"
+          - 'button "Shopping + Finance: \"Should I buy this?\"" [ref=f1e122] [cursor=pointer]'
+          - 'button "Job Agent: \"Find me relevant jobs\"" [ref=f1e123] [cursor=pointer]'

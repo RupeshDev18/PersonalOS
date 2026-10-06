@@ -38,6 +38,7 @@ export interface Job {
   skills: string[];
   url: string;
   dedupHash: string;
+  matchScore?: number;
   matchBreakdown?: JobMatchBreakdown;
   lifecycleStatus: JobLifecycleStatus;
   recommendedResumeId?: string;
@@ -56,4 +57,35 @@ export interface ResumeProfile {
   isDefault: boolean;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface UserCareerProfile {
+  userId: string;
+  targetRoles: string[];
+  skills: string[];
+  yearsExperience: number;
+  preferredLocations: string[];
+  workModePreference: 'remote' | 'hybrid' | 'onsite' | 'any';
+  minSalary?: number;
+  preferredSalary?: number;
+  currency?: string;
+  excludedCompanies?: string[];
+  preferredIndustries?: string[];
+  resumes: ResumeProfile[];
+}
+
+export interface JobQuery {
+  roles?: string[];
+  skills?: string[];
+  remote?: boolean;
+  location?: string;
+  minSalary?: number;
+  limit?: number;
+}
+
+export interface JobSource {
+  readonly id: string;
+  readonly name: string;
+  search(query: JobQuery): Promise<Job[]>;
+  getJob(id: string): Promise<Job | null>;
 }

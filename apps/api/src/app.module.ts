@@ -7,6 +7,7 @@ import { ApprovalsModule } from './approvals/approvals.module';
 import { ToolsModule } from './tools/tools.module';
 import { AgentsModule } from './agents/agents.module';
 import { TasksModule } from './tasks/tasks.module';
+import { JobsModule } from './jobs/jobs.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { TasksModule } from './tasks/tasks.module';
     ToolsModule,
     AgentsModule,
     TasksModule,
+    JobsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
