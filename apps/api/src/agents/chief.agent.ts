@@ -66,18 +66,25 @@ export class ChiefAgent extends AbstractAgent {
         const llmIntent = await this.geminiService.understandIntentWithLLM(input.prompt);
         if (llmIntent) {
           const mapAgent = (a: string): AgentType => {
-            const lower = a.toLowerCase();
+            const lower = (a || '').toLowerCase();
+            if (lower === 'chief' || lower.includes('chat') || lower.includes('conversation')) return AgentType.CHIEF;
             if (lower.includes('job') || lower.includes('career')) return AgentType.JOB;
             if (lower.includes('finance') || lower.includes('budget')) return AgentType.FINANCE;
-            if (lower.includes('shop') || lower.includes('buy')) return AgentType.SHOPPING;
-            return AgentType.RESEARCH;
+            if (lower.includes('shop') || lower.includes('buy') || lower.includes('product')) return AgentType.SHOPPING;
+            if (lower.includes('research') || lower.includes('search')) return AgentType.RESEARCH;
+            return AgentType.CHIEF;
           };
+
+          const primaryAgent = mapAgent(llmIntent.primaryAgent);
+          const requiredAgents = (llmIntent.requiredAgents || [])
+            .map(mapAgent)
+            .filter((ag) => ag !== AgentType.CHIEF);
 
           return {
             taskType: llmIntent.taskType || 'immediate',
             scheduleExpression: llmIntent.taskType === 'recurring' ? '0 8 * * 1-5' : undefined,
-            primaryAgent: mapAgent(llmIntent.primaryAgent),
-            requiredAgents: (llmIntent.requiredAgents || []).map(mapAgent),
+            primaryAgent,
+            requiredAgents: primaryAgent === AgentType.CHIEF ? [] : requiredAgents,
             summary: llmIntent.summary || 'Chief intent parsed via Gemini LLM',
             rawInput: input.prompt,
           };
@@ -88,6 +95,27 @@ export class ChiefAgent extends AbstractAgent {
     }
 
     // 2. Deterministic Rule Classifier Fallback
+    // Check for conversational greetings, small talk, or meta questions first
+    const cleanPrompt = text.trim().replace(/[!.,?]/g, '');
+    const greetings = [
+      'hi', 'hello', 'hey', 'good morning', 'good afternoon', 'good evening',
+      'who are you', 'what can you do', 'how are you', 'help', 'sup', 'yo',
+      'thanks', 'thank you', 'ok', 'okay', 'nice', 'cool'
+    ];
+    const isDirectConversation = greetings.some(
+      (g) => cleanPrompt === g || cleanPrompt.startsWith(g + ' ')
+    );
+
+    if (isDirectConversation) {
+      return {
+        taskType: 'immediate',
+        primaryAgent: AgentType.CHIEF,
+        requiredAgents: [],
+        summary: 'Direct conversational engagement with Chief Agent',
+        rawInput: input.prompt,
+      };
+    }
+
     const isRecurring = text.includes('every morning') || text.includes('every day') || text.includes('daily') || text.includes('every');
     const isScheduled = text.includes('tomorrow') || text.includes('at ') || text.includes('schedule');
 
@@ -125,13 +153,34 @@ export class ChiefAgent extends AbstractAgent {
       };
     }
 
-    // Default to research / assistant
+    if (text.includes('budget') || text.includes('spend') || text.includes('afford') || text.includes('balance') || text.includes('ledger') || text.includes('transaction')) {
+      return {
+        taskType,
+        scheduleExpression,
+        primaryAgent: AgentType.FINANCE,
+        requiredAgents: [AgentType.FINANCE],
+        summary: 'Discretionary budget check and financial ledger analysis',
+        rawInput: input.prompt,
+      };
+    }
+
+    if (text.includes('search for') || text.includes('research') || text.includes('look up') || text.includes('find info')) {
+      return {
+        taskType,
+        scheduleExpression,
+        primaryAgent: AgentType.RESEARCH,
+        requiredAgents: [AgentType.RESEARCH],
+        summary: 'Targeted web research and review aggregation',
+        rawInput: input.prompt,
+      };
+    }
+
+    // Default to direct Chief conversation (NO accidental web searches)
     return {
-      taskType,
-      scheduleExpression,
-      primaryAgent: AgentType.RESEARCH,
-      requiredAgents: [AgentType.RESEARCH],
-      summary: 'Information research and synthesis',
+      taskType: 'immediate',
+      primaryAgent: AgentType.CHIEF,
+      requiredAgents: [],
+      summary: 'Direct conversational response from Chief Agent',
       rawInput: input.prompt,
     };
   }
@@ -141,6 +190,11 @@ export class ChiefAgent extends AbstractAgent {
    */
   async plan(input: AgentInput, intent: Intent): Promise<ChiefPlan> {
     const steps: ChiefPlan['steps'] = [];
+
+    // If direct Chief conversation, do NOT trigger any external tools
+    if (intent.primaryAgent === AgentType.CHIEF || intent.requiredAgents.length === 0) {
+      return { intent, steps: [] };
+    }
 
     if (intent.primaryAgent === AgentType.JOB) {
       steps.push({
@@ -174,7 +228,15 @@ export class ChiefAgent extends AbstractAgent {
           payload: {},
         },
       );
-    } else {
+    } else if (intent.primaryAgent === AgentType.FINANCE) {
+      steps.push({
+        agentType: AgentType.FINANCE,
+        name: 'Check Budget & Spend Ledger',
+        description: 'Evaluate remaining discretionary monthly budget and recurring commitments',
+        action: 'finance.transactions.read',
+        payload: {},
+      });
+    } else if (intent.primaryAgent === AgentType.RESEARCH) {
       steps.push({
         agentType: AgentType.RESEARCH,
         name: 'Conduct Live Web Research',
@@ -216,19 +278,23 @@ export class ChiefAgent extends AbstractAgent {
     const startTime = Date.now();
     const intent = await this.understand(input);
     const intentDuration = Date.now() - startTime;
+    const isDirect = intent.primaryAgent === AgentType.CHIEF || intent.requiredAgents.length === 0;
 
     orchestrationTrace.push({
       id: uuidv4(),
       stepNumber: traceStepCounter++,
       phase: 'intent_parsing',
       agent: 'Chief Agent (Coordinator)',
-      name: 'Deconstruct User Intent & Scope',
-      description: `Target domain: ${intent.primaryAgent.toUpperCase()} | Workflow: ${intent.taskType.toUpperCase()} | Required Agents: [${intent.requiredAgents.join(', ')}]`,
+      name: 'Deconstruct User Intent & Routing',
+      description: isDirect
+        ? 'Direct Conversational Query | Handled directly by Chief Ghost (No external tools needed)'
+        : `Target domain: ${intent.primaryAgent.toUpperCase()} | Workflow: ${intent.taskType.toUpperCase()} | Required Agents: [${intent.requiredAgents.join(', ')}]`,
       status: 'completed',
       durationMs: intentDuration,
       timestamp: new Date().toLocaleTimeString(),
       details: {
-        engine: this.geminiService?.hasApiKey() ? 'Google Gemini 1.5 Flash' : 'Deterministic Rule Engine',
+        engine: this.geminiService?.hasApiKey() ? 'Google Gemini (2.5 Flash / Latest)' : 'Deterministic Intent Engine',
+        routingVerdict: isDirect ? 'Direct conversation (Zero external search needed)' : `Delegated to [${intent.requiredAgents.join(', ')}]`,
         summary: intent.summary,
         taskType: intent.taskType,
         scheduleExpression: intent.scheduleExpression,
@@ -243,17 +309,21 @@ export class ChiefAgent extends AbstractAgent {
       phase: 'policy_check',
       agent: 'Policy Engine (Gateway)',
       name: 'Least-Privilege Capability Verification',
-      description: `Verified required permissions for [${intent.requiredAgents.join(', ')}]. Money transfer strictly prohibited.`,
+      description: isDirect
+        ? 'Verified Safe: Standard conversational interaction. Zero external network or financial tools invoked.'
+        : `Verified required permissions for [${intent.requiredAgents.join(', ')}]. Money transfer strictly prohibited.`,
       status: 'policy_verified',
       durationMs: Date.now() - policyStartTime + 2,
       timestamp: new Date().toLocaleTimeString(),
       details: {
-        enforcedPolicies: [
-          'jobs.search -> ALLOWED (Read-only)',
-          'research.web.search -> ALLOWED (Read-only)',
-          'finance.transactions.read -> ALLOWED (Read-only)',
-          'finance.transfer -> FORBIDDEN (No funds movement without manual approval)',
-        ],
+        enforcedPolicies: isDirect
+          ? ['chat.direct -> ALLOWED', 'external.connectors -> BYPASS (Unneeded for greeting)']
+          : [
+              'jobs.search -> ALLOWED (Read-only)',
+              'research.web.search -> ALLOWED (Read-only)',
+              'finance.transactions.read -> ALLOWED (Read-only)',
+              'finance.transfer -> FORBIDDEN (No funds movement without manual approval)',
+            ],
       },
     });
 
@@ -379,6 +449,10 @@ export class ChiefAgent extends AbstractAgent {
         finalSummary = `Based on coordination across Shopping, Web Intelligence, and Finance Specialists: The product is competitively priced with positive verified reviews. Your current monthly discretionary balance (₹83,000) affords this comfortably without stretching your budget.`;
       } else if (intent.primaryAgent === AgentType.JOB) {
         finalSummary = `Job Specialist ingested live openings from Greenhouse public boards, removed duplicate listings, and scored candidate matches against your verified tech profile.`;
+      } else if (intent.primaryAgent === AgentType.FINANCE) {
+        finalSummary = `Finance Specialist ingested your latest discretionary ledger transactions. Safe purchasing margin verified.`;
+      } else if (isDirect) {
+        finalSummary = `Hello! I'm Chief Ghost, your personal AI operating system coordinator. I can coordinate my specialized bot team for Job Discovery, Financial Ledger analysis, Shopping Scouting, and Web Research. What are you working on today?`;
       } else {
         finalSummary = `Chief Agent completed multi-agent delegation across ${executedSteps.length} specialist step(s). Verified tool results and audit trails preserved.`;
       }
@@ -389,9 +463,11 @@ export class ChiefAgent extends AbstractAgent {
       stepNumber: traceStepCounter++,
       phase: 'synthesis',
       agent: 'Chief Agent (Synthesizer)',
-      name: 'Synthesize Cross-Agent Verdict',
-      description: this.geminiService?.hasApiKey()
-        ? 'Generated contextual recommendation with Google Gemini 1.5 Flash'
+      name: isDirect ? 'Direct Chief Response' : 'Synthesize Cross-Agent Verdict',
+      description: isDirect
+        ? 'Chief Ghost responded directly without specialist agent overhead'
+        : this.geminiService?.hasApiKey()
+        ? 'Generated contextual recommendation with Google Gemini (2.5 Flash / Latest)'
         : 'Synthesized verified specialist findings into structured verdict',
       status: 'completed',
       durationMs: Date.now() - synthStartTime,

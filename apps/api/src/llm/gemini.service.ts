@@ -197,18 +197,44 @@ export class GeminiService {
 
     try {
       const model = this.genAI.getGenerativeModel({ model: this.modelName });
-      const systemPrompt = `You are the Chief Agent in a personal AI Operating System.
-Deconstruct the user prompt into a structured multi-agent workflow.
-Available specialists: "job", "finance", "shopping", "research", "communication".
+      const systemPrompt = `You are the Chief Coordinator Agent in a personal AI Operating System.
+Your job is to accurately classify whether the user prompt requires specialist agents, or if it is a direct conversational message that Chief can answer directly.
+
+ROUTING RULES:
+1. GREETINGS & CASUAL TALK ("hi", "hello", "hey", "who are you?", "what can you do?", small talk, general chit-chat):
+   - Set "primaryAgent": "chief"
+   - Set "requiredAgents": []
+   - Set "steps": []
+   - CRITICAL: Never trigger web search for simple greetings! Chief handles this directly.
+2. JOBS & CAREERS ("find jobs", "resume", "openings at Stripe", "career advice"):
+   - Set "primaryAgent": "job"
+   - Set "requiredAgents": ["job"]
+   - Set "steps": [{ "agent": "job", "action": "jobs.search", "description": "Search active career boards" }]
+3. SHOPPING & PURCHASES ("buy laptop", "price comparison", "should I buy X?"):
+   - Set "primaryAgent": "shopping"
+   - Set "requiredAgents": ["shopping", "research", "finance"]
+   - Set "steps": [
+       { "agent": "shopping", "action": "shopping.search", "description": "Compare merchant prices" },
+       { "agent": "research", "action": "research.web.search", "description": "Gather product review benchmarks" },
+       { "agent": "finance", "action": "finance.transactions.read", "description": "Evaluate discretionary budget" }
+     ]
+4. FINANCE & BUDGET ("check spending", "monthly balance", "can I afford"):
+   - Set "primaryAgent": "finance"
+   - Set "requiredAgents": ["finance"]
+   - Set "steps": [{ "agent": "finance", "action": "finance.transactions.read", "description": "Read monthly ledger" }]
+5. RESEARCH (ONLY for explicit research questions or topics genuinely needing web search):
+   - Set "primaryAgent": "research"
+   - Set "requiredAgents": ["research"]
+   - Set "steps": [{ "agent": "research", "action": "research.web.search", "description": "Search web intelligence" }]
 
 Respond strictly with valid JSON conforming to this schema:
 {
   "taskType": "immediate" | "scheduled" | "recurring",
-  "primaryAgent": "job" | "finance" | "shopping" | "research" | "communication",
-  "requiredAgents": ["job", "research", ...],
+  "primaryAgent": "chief" | "job" | "finance" | "shopping" | "research",
+  "requiredAgents": string[],
   "summary": "Brief 1-sentence goal",
   "steps": [
-    { "agent": "shopping", "action": "search_prices", "description": "Search product prices" }
+    { "agent": string, "action": string, "description": string }
   ]
 }
 
@@ -230,7 +256,7 @@ User prompt: "${prompt}"`;
   }
 
   /**
-   * Use Gemini to synthesize cross-specialist outputs into a unified verdict
+   * Use Gemini to synthesize cross-specialist outputs into a unified verdict or friendly conversational response
    */
   public async synthesizeResponseWithLLM(
     prompt: string,
@@ -240,7 +266,16 @@ User prompt: "${prompt}"`;
 
     try {
       const model = this.genAI.getGenerativeModel({ model: this.modelName });
-      const promptText = `You are the Chief Agent in a Personal AI OS.
+      const hasSpecialistData = Object.keys(specialistData || {}).length > 0;
+
+      let promptText = '';
+      if (!hasSpecialistData) {
+        promptText = `You are the Chief Ghost Agent in a Personal AI Operating System.
+The user said: "${prompt}"
+
+Reply warmly, helpfully, and concisely as Chief Ghost. Introduce your role as the central coordinator and mention your specialized bot team (Job & Career Specialist, Finance Ledger, Shopping Scout, Web Intelligence). Ask how you can assist them today. Do NOT mention any search results or irrelevant facts. Keep it punchy and playful.`;
+      } else {
+        promptText = `You are the Chief Ghost Agent in a Personal AI OS.
 The user asked: "${prompt}"
 
 Specialist Agents provided the following verified data:
@@ -248,6 +283,7 @@ ${JSON.stringify(specialistData, null, 2)}
 
 Provide a concise, direct, personalized recommendation to the user.
 Explain the rationale clearly (e.g. price vs affordability vs benchmarks) and give a clear verdict. Keep it conversational and friendly.`;
+      }
 
       const response = await model.generateContent(promptText);
       return response.response.text().trim();
