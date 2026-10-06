@@ -1,0 +1,17 @@
+{
+  "name": "@personal-os/permissions",
+  "version": "1.0.0",
+  "description": "Capability-based policy and permission engine for Personal AI OS",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w"
+  },
+  "dependencies": {
+    "@personal-os/shared": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

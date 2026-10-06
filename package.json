@@ -1,0 +1,19 @@
+{
+  "name": "personal-ai-os-root",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "dev:api": "npm run start:dev --workspace=@personal-os/api",
+    "dev:web": "npm run dev --workspace=@personal-os/web",
+    "dev:workers": "npm run start:dev --workspace=@personal-os/workers"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

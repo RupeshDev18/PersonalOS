@@ -1,0 +1,218 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id              String           @id @default(uuid())
+  email           String           @unique
+  name            String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  tasks           Task[]
+  auditEvents     AuditEvent[]
+  approvals       Approval[]
+  schedules       Schedule[]
+  resumeProfiles  ResumeProfile[]
+  jobs            Job[]
+  conversations   Conversation[]
+  memories        Memory[]
+
+  @@map("users")
+}
+
+model Task {
+  id              String           @id @default(uuid())
+  userId          String
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title           String
+  inputPrompt     String           @db.Text
+  status          String           @default("pending") // pending, planning, in_progress, waiting_for_approval, completed, failed
+  priority        String           @default("normal")  // low, normal, high, critical
+  assignedAgents  String[]
+  chiefIntent     Json?
+  finalSummary    String?          @db.Text
+  scheduledAt     DateTime?
+  recurringCron   String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  completedAt     DateTime?
+  steps           TaskStep[]
+  auditEvents     AuditEvent[]
+  approvals       Approval[]
+
+  @@map("tasks")
+}
+
+model TaskStep {
+  id               String          @id @default(uuid())
+  taskId           String
+  task             Task            @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  agentType        String
+  sequenceOrder    Int
+  name             String
+  description      String          @db.Text
+  action           String
+  payload          Json            @default("{}")
+  status           String          @default("pending")
+  dependsOnStepIds String[]
+  result           Json?
+  error            String?         @db.Text
+  startedAt        DateTime?
+  completedAt      DateTime?
+  auditEvents      AuditEvent[]
+  approvals        Approval[]
+
+  @@map("task_steps")
+}
+
+model AuditEvent {
+  id            String          @id @default(uuid())
+  taskId        String
+  task          Task            @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  stepId        String?
+  step          TaskStep?       @relation(fields: [stepId], references: [id], onDelete: SetNull)
+  agentId       String?
+  userId        String
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventType     String          // TASK_CREATED, TOOL_CALLED, etc.
+  toolName      String?
+  inputPayload  Json?
+  outputPayload Json?
+  rationale     String?         @db.Text
+  durationMs    Int?
+  timestamp     DateTime        @default(now())
+
+  @@index([taskId])
+  @@index([userId])
+  @@index([eventType])
+  @@map("audit_events")
+}
+
+model Approval {
+  id                 String       @id @default(uuid())
+  taskId             String
+  task               Task         @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  stepId             String
+  step               TaskStep     @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  userId             String
+  user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  actionType         String
+  capabilityRequired String
+  title              String
+  description        String       @db.Text
+  payload            Json         @default("{}")
+  status             String       @default("pending") // pending, approved, rejected, expired
+  userDecisionNote   String?      @db.Text
+  createdAt          DateTime     @default(now())
+  decidedAt          DateTime?
+
+  @@index([userId, status])
+  @@map("approvals")
+}
+
+model Schedule {
+  id          String           @id @default(uuid())
+  userId      String
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agentType   String
+  workflow    String
+  cron        String
+  timezone    String           @default("Asia/Kolkata")
+  enabled     Boolean          @default(true)
+  lastRunAt   DateTime?
+  nextRunAt   DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@map("schedules")
+}
+
+model ResumeProfile {
+  id              String        @id @default(uuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title           String
+  fileName        String
+  targetRole      String
+  tags            String[]
+  contentMarkdown String        @db.Text
+  isDefault       Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@map("resume_profiles")
+}
+
+model Job {
+  id                  String       @id @default(uuid())
+  userId              String
+  user                User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  externalJobId       String?
+  source              String
+  title               String
+  normalizedTitle     String
+  company             String
+  location            String[]
+  remote              Boolean      @default(false)
+  minSalary           Int?
+  maxSalary           Int?
+  currency            String?
+  description         String       @db.Text
+  skills              String[]
+  url                 String
+  dedupHash           String       @unique
+  matchScore          Int?
+  matchBreakdown      Json?
+  lifecycleStatus     String       @default("DISCOVERED")
+  recommendedResumeId String?
+  postedAt            DateTime?
+  discoveredAt        DateTime     @default(now())
+
+  @@index([userId, lifecycleStatus])
+  @@map("jobs")
+}
+
+model Conversation {
+  id        String             @id @default(uuid())
+  userId    String
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String             @default("New Conversation")
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  messages  Message[]
+
+  @@map("conversations")
+}
+
+model Message {
+  id             String        @id @default(uuid())
+  conversationId String
+  conversation   Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String        // user, assistant, system
+  content        String        @db.Text
+  agentType      String?
+  metadata       Json?
+  createdAt      DateTime      @default(now())
+
+  @@index([conversationId])
+  @@map("messages")
+}
+
+model Memory {
+  id        String             @id @default(uuid())
+  userId    String
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String             // structured, semantic, preference
+  key       String
+  value     Json
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  @@index([userId, type, key])
+  @@map("memories")
+}

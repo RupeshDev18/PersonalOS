@@ -1,0 +1,19 @@
+{
+  "name": "@personal-os/agents",
+  "version": "1.0.0",
+  "description": "Standard Agent interface, runtime registry and base primitives",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w"
+  },
+  "dependencies": {
+    "@personal-os/shared": "*",
+    "@personal-os/permissions": "*",
+    "@personal-os/tools": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}
