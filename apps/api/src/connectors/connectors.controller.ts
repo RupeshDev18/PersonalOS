@@ -123,4 +123,10 @@ export class ConnectorsController {
   async testGemini() {
     return this.geminiService.testConnection();
   }
+
+  @Get('gemini/diagnose')
+  @ApiOperation({ summary: 'Diagnose current Gemini key format and Google response' })
+  async diagnoseGemini() {
+    return this.geminiService.diagnoseKey();
+  }
 }

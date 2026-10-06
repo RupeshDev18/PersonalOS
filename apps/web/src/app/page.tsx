@@ -862,7 +862,7 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="font-sora font-bold text-white text-base">Google Gemini 1.5 Flash</h3>
+                      <h3 className="font-sora font-bold text-white text-base">Google Gemini (2.5 Flash / Latest)</h3>
                       <span
                         className={`text-[10px] font-poppins font-bold px-2 py-0.5 rounded-full ${
                           isGeminiLive
@@ -870,7 +870,7 @@ export default function Dashboard() {
                             : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
                         }`}
                       >
-                        {isGeminiLive ? 'ACTIVE (Generative LLM)' : 'FALLBACK MODE (No Key Set)'}
+                        {isGeminiLive ? 'ACTIVE (gemini-2.5-flash)' : 'FALLBACK MODE (No Key Set)'}
                       </span>
                     </div>
                     <p className="text-xs text-slate-300 font-manrope mt-0.5">
