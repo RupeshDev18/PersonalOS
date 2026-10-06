@@ -44,6 +44,7 @@ export class TasksService {
       summary: orchestrationResult.summary,
       steps: orchestrationResult.steps,
       details: orchestrationResult.details,
+      orchestrationTrace: orchestrationResult.orchestrationTrace,
     };
   }
 

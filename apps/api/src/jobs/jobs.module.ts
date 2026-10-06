@@ -5,9 +5,10 @@ import { DeduplicationService } from './deduplication.service';
 import { MatchingEngineService } from './matching-engine.service';
 import { ResumeCustomizerService } from './resume-customizer.service';
 import { AuditModule } from '../audit/audit.module';
+import { ConnectorsModule } from '../connectors/connectors.module';
 
 @Module({
-  imports: [AuditModule],
+  imports: [AuditModule, ConnectorsModule],
   controllers: [JobsController],
   providers: [
     JobsService,

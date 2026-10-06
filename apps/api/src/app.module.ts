@@ -10,6 +10,8 @@ import { TasksModule } from './tasks/tasks.module';
 import { JobsModule } from './jobs/jobs.module';
 import { FinanceModule } from './finance/finance.module';
 import { ShoppingModule } from './shopping/shopping.module';
+import { ConnectorsModule } from './connectors/connectors.module';
+import { LlmModule } from './llm/llm.module';
 
 @Module({
   imports: [
@@ -25,6 +27,8 @@ import { ShoppingModule } from './shopping/shopping.module';
     JobsModule,
     FinanceModule,
     ShoppingModule,
+    ConnectorsModule,
+    LlmModule,
   ],
   controllers: [AppController],
   providers: [AppService],

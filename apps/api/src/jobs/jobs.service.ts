@@ -12,6 +12,8 @@ import { AuditService } from '../audit/audit.service';
 import { AuditEventType } from '@personal-os/shared';
 import { v4 as uuidv4 } from 'uuid';
 
+import { GreenhouseConnector } from '../connectors/greenhouse.connector';
+
 @Injectable()
 export class JobsService implements OnModuleInit {
   private jobs: Map<string, Job> = new Map();
@@ -22,6 +24,7 @@ export class JobsService implements OnModuleInit {
     private readonly matchingEngineService: MatchingEngineService,
     private readonly resumeCustomizerService: ResumeCustomizerService,
     private readonly auditService: AuditService,
+    private readonly greenhouseConnector: GreenhouseConnector,
   ) {
     this.userProfile = {
       userId: 'default-user',
@@ -132,15 +135,21 @@ export class JobsService implements OnModuleInit {
   /**
    * Complete multi-stage pipeline: Connectors -> Dedup -> Scoring -> Resume Pair
    */
-  public runDiscoveryPipeline(triggerReason: string): {
+  public async runDiscoveryPipeline(triggerReason: string): Promise<{
     discovered: number;
     duplicatesRemoved: number;
     rankedCount: number;
-  } {
+  }> {
     const taskId = uuidv4();
 
-    // 1. Ingest raw listings from connectors
-    const rawJobs: Job[] = this.getMockSourceJobs();
+    // 1. Ingest raw listings from live Greenhouse boards + baseline feeds
+    let liveJobs: Job[] = [];
+    try {
+      liveJobs = await this.greenhouseConnector.search({ roles: this.userProfile.targetRoles });
+    } catch (e) {
+      // Fallback gracefully
+    }
+    const rawJobs: Job[] = [...liveJobs, ...this.getMockSourceJobs()];
 
     // 2. Deduplicate
     const existingHashes = new Set(Array.from(this.jobs.values()).map((j) => j.dedupHash));

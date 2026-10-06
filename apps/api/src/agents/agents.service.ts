@@ -2,6 +2,7 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import { AgentRegistry } from '@personal-os/agents';
 import { ToolsService } from '../tools/tools.service';
 import { AuditService } from '../audit/audit.service';
+import { GeminiService } from '../llm/gemini.service';
 import { JobAgent } from './specialists/job.agent';
 import { FinanceAgent, ResearchAgent, ShoppingAgent } from './specialists/other.agents';
 import { ChiefAgent } from './chief.agent';
@@ -14,6 +15,7 @@ export class AgentsService implements OnModuleInit {
   constructor(
     private readonly toolsService: ToolsService,
     private readonly auditService: AuditService,
+    private readonly geminiService: GeminiService,
   ) {}
 
   onModuleInit() {
@@ -30,8 +32,8 @@ export class AgentsService implements OnModuleInit {
     this.registry.register(financeAgent);
     this.registry.register(shoppingAgent);
 
-    // 2. Register Chief Agent
-    this.chiefAgent = new ChiefAgent(gateway, this.registry, this.auditService);
+    // 2. Register Chief Agent with Gemini LLM reasoning
+    this.chiefAgent = new ChiefAgent(gateway, this.registry, this.auditService, this.geminiService);
     this.registry.register(this.chiefAgent);
   }
 
