@@ -2,41 +2,63 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #090d16;
-  --foreground: #f3f4f6;
-}
-
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: #f1f5f9;
+  background-color: #0d1117;
+  font-family: var(--font-manrope), sans-serif;
   overflow-x: hidden;
 }
 
-/* Custom scrollbars */
+h1, h2, h3, h4, .font-heading {
+  font-family: var(--font-sora), sans-serif;
+}
+
+button, .font-button, .font-badge {
+  font-family: var(--font-poppins), sans-serif;
+}
+
+/* Playful tactile card and border style (Zero gradients, crisp solid look) */
+.playful-card {
+  background-color: #161d27;
+  border: 2px solid #273344;
+  border-radius: 1rem;
+}
+
+.playful-card-interactive {
+  background-color: #161d27;
+  border: 2px solid #273344;
+  border-radius: 1rem;
+  transition: all 0.15s ease-in-out;
+}
+
+.playful-card-interactive:hover {
+  border-color: #38bdf8;
+  transform: translateY(-2px);
+}
+
+.playful-button {
+  font-family: var(--font-poppins), sans-serif;
+  font-weight: 600;
+  border-radius: 0.75rem;
+  transition: all 0.15s ease-in-out;
+}
+
+.playful-button:active {
+  transform: scale(0.97);
+}
+
+/* Scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
 }
 ::-webkit-scrollbar-track {
-  background: #0d1322;
+  background: #0d1117;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1f293d;
-  border-radius: 3px;
+  background: #273344;
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #374151;
-}
-
-/* Glassmorphism helpers */
-.glass-panel {
-  background: rgba(17, 24, 39, 0.7);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.glass-glow {
-  box-shadow: 0 0 25px -5px rgba(59, 130, 246, 0.2);
+  background: #3b495f;
 }

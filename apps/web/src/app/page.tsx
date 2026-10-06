@@ -1,26 +1,25 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import GhostMascot from '@/components/GhostMascot';
 import {
-  Bot,
   Briefcase,
   Wallet,
   ShoppingBag,
   Mail,
   ShieldCheck,
   Activity,
-  Calendar,
   Send,
   CheckCircle2,
   Sparkles,
-  ArrowRight,
   Clock,
-  Terminal,
   RefreshCw,
   X,
   FileText,
-  AlertTriangle,
   Play,
+  ArrowUpRight,
+  Sliders,
+  Check,
 } from 'lucide-react';
 
 interface ChatMessage {
@@ -96,25 +95,24 @@ export default function Dashboard() {
       id: 'init-1',
       sender: 'user',
       text: 'Every morning at 8:00 AM, find the 20 best backend & fullstack jobs for me.',
-      timestamp: '10:00 AM',
+      timestamp: '08:00 AM',
     },
     {
       id: 'init-2',
       sender: 'chief',
-      text: 'I have scheduled this recurring task (0 8 * * 1-5). The Job Specialist pipeline executed an initial trial run and verified ranked opportunities tailored to your profile.',
+      text: 'All set! I registered a recurring schedule (0 8 * * 1-5). The Job Specialist executed a dry-run and discovered top matches paired with your tailored resume.',
       plan: {
         steps: [
-          { name: 'Scheduler Engine', agentType: 'scheduler', description: 'Registered cron 0 8 * * 1-5 (Mon-Fri 8:00 AM)' },
-          { name: 'Discover Jobs', agentType: 'job', description: 'Queried Greenhouse, Lever, Wellfound (4 raw jobs ingested)' },
-          { name: 'Deduplication', agentType: 'job', description: 'Filtered 1 cross-board duplicate posting' },
-          { name: 'Resume Customization', agentType: 'job', description: 'Paired top matches with Fullstack-AWS-v3.md' },
+          { name: 'Schedule Engine', agentType: 'scheduler', description: 'Registered cron 0 8 * * 1-5 (Mon–Fri at 8:00 AM)' },
+          { name: 'Job Connectors', agentType: 'job', description: 'Ingested roles from Greenhouse, Lever & Wellfound' },
+          { name: 'Deduplication', agentType: 'job', description: 'Removed cross-posted duplicate listings' },
+          { name: 'Resume Customization', agentType: 'job', description: 'Paired verified competencies with Fullstack-AWS-v3.md' },
         ],
       },
-      timestamp: '10:00 AM',
+      timestamp: '08:00 AM',
     },
   ]);
 
-  // Load live jobs, approvals, and audit logs
   const fetchLiveData = async () => {
     try {
       const jobRes = await fetch('http://localhost:4000/api/jobs');
@@ -122,9 +120,7 @@ export default function Dashboard() {
         const data = await jobRes.json();
         setJobs(data);
       }
-    } catch {
-      // API restarting
-    }
+    } catch {}
 
     try {
       const appRes = await fetch('http://localhost:4000/api/approvals');
@@ -132,9 +128,7 @@ export default function Dashboard() {
         const data = await appRes.json();
         setApprovals(data);
       }
-    } catch {
-      // API restarting
-    }
+    } catch {}
 
     try {
       const audRes = await fetch('http://localhost:4000/api/audit?limit=30');
@@ -142,9 +136,7 @@ export default function Dashboard() {
         const data = await audRes.json();
         setAuditEvents(data);
       }
-    } catch {
-      // API restarting
-    }
+    } catch {}
   };
 
   useEffect(() => {
@@ -189,14 +181,12 @@ export default function Dashboard() {
         };
         setMessages((prev) => [...prev, chiefMsg]);
         fetchLiveData();
-      } else {
-        throw new Error('API request failed');
       }
     } catch {
       const fallbackMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         sender: 'chief',
-        text: `Understood: "${text}". Chief Agent orchestrated execution plan across registered specialists.`,
+        text: `Got it! Chief Ghost delegated "${text}" across specialist agents.`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, fallbackMsg]);
@@ -214,7 +204,7 @@ export default function Dashboard() {
       });
       fetchLiveData();
     } catch (err) {
-      console.error('Error deciding approval:', err);
+      console.error(err);
     }
   };
 
@@ -230,7 +220,7 @@ export default function Dashboard() {
         });
       }
     } catch (err) {
-      console.error('Failed to preview resume:', err);
+      console.error(err);
     }
   };
 
@@ -245,60 +235,63 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-background text-gray-100">
-      {/* Sidebar */}
-      <aside className="w-64 border-r border-border bg-surface/50 backdrop-blur-md flex flex-col justify-between p-4 shrink-0">
+    <div className="flex h-screen w-screen overflow-hidden bg-background text-slate-100 font-manrope">
+      {/* Sidebar Navigation */}
+      <aside className="w-64 border-r-2 border-border bg-surface flex flex-col justify-between p-4 shrink-0">
         <div>
-          {/* Logo / Brand */}
-          <div className="flex items-center gap-3 px-2 py-3 mb-6">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-purple-600 to-blue-500 flex items-center justify-center shadow-lg shadow-purple-500/20">
-              <Bot className="w-5 h-5 text-white" />
-            </div>
+          {/* Playful Ghost Brand Header */}
+          <div className="flex items-center gap-3 px-2 py-3 mb-6 bg-card rounded-2xl border-2 border-border">
+            <GhostMascot size="sm" mood={loading ? 'thinking' : 'happy'} />
             <div>
-              <h1 className="font-bold text-sm tracking-wide text-white">Personal OS</h1>
-              <p className="text-xs text-purple-400 font-medium">Chief Agent Active</p>
+              <h1 className="font-sora font-extrabold text-sm tracking-tight text-white flex items-center gap-1.5">
+                Personal OS
+                <span className="w-2 h-2 rounded-full bg-brand-teal inline-block" />
+              </h1>
+              <p className="text-[11px] font-poppins text-brand-tealLight font-medium">Chief Ghost Online</p>
             </div>
           </div>
 
-          {/* Navigation Links */}
-          <nav className="space-y-1">
+          {/* Navigation Items */}
+          <nav className="space-y-1.5">
             <button
               onClick={() => setActiveTab('chat')}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-poppins font-medium transition-all ${
                 activeTab === 'chat'
-                  ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30'
-                  : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/40'
+                  ? 'bg-brand-teal text-white border-2 border-brand-teal font-semibold'
+                  : 'text-slate-300 hover:text-white hover:bg-surfaceHover'
               }`}
             >
-              <Bot className="w-4 h-4 text-purple-400" />
+              <GhostMascot size="sm" className="scale-75 -my-2 -ml-1" />
               <span>AI Chief</span>
             </button>
 
             <button
               onClick={() => setActiveTab('jobs')}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-poppins font-medium transition-all ${
                 activeTab === 'jobs'
-                  ? 'bg-blue-600/20 text-blue-300 border border-blue-500/30'
-                  : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/40'
+                  ? 'bg-brand-blue text-white border-2 border-brand-blue font-semibold'
+                  : 'text-slate-300 hover:text-white hover:bg-surfaceHover'
               }`}
             >
-              <Briefcase className="w-4 h-4 text-blue-400" />
+              <Briefcase className="w-4 h-4 text-brand-blueLight" />
               <span>Jobs & Careers</span>
-              <span className="ml-auto text-[10px] bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded">M1 Live</span>
+              <span className="ml-auto text-[10px] bg-brand-blueLight/20 text-brand-blueLight px-2 py-0.5 rounded-full font-bold">
+                M1
+              </span>
             </button>
 
             <button
               onClick={() => setActiveTab('approvals')}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-poppins font-medium transition-all ${
                 activeTab === 'approvals'
-                  ? 'bg-amber-600/20 text-amber-300 border border-amber-500/30'
-                  : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/40'
+                  ? 'bg-brand-amber text-slate-900 border-2 border-brand-amber font-semibold'
+                  : 'text-slate-300 hover:text-white hover:bg-surfaceHover'
               }`}
             >
-              <ShieldCheck className="w-4 h-4 text-amber-400" />
-              <span>Approvals</span>
+              <ShieldCheck className="w-4 h-4 text-brand-amber" />
+              <span>Safety Gate</span>
               {approvals.filter((a) => a.status === 'pending').length > 0 && (
-                <span className="ml-auto text-[10px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-mono">
+                <span className="ml-auto text-[10px] bg-brand-amber text-slate-950 px-2 py-0.5 rounded-full font-bold">
                   {approvals.filter((a) => a.status === 'pending').length}
                 </span>
               )}
@@ -306,116 +299,128 @@ export default function Dashboard() {
 
             <button
               onClick={() => setActiveTab('audit')}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-poppins font-medium transition-all ${
                 activeTab === 'audit'
-                  ? 'bg-emerald-600/20 text-emerald-300 border border-emerald-500/30'
-                  : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/40'
+                  ? 'bg-brand-lime text-slate-950 border-2 border-brand-lime font-semibold'
+                  : 'text-slate-300 hover:text-white hover:bg-surfaceHover'
               }`}
             >
-              <Activity className="w-4 h-4 text-emerald-400" />
-              <span>Audit Trail</span>
+              <Activity className="w-4 h-4 text-brand-lime" />
+              <span>Audit Ledger</span>
             </button>
 
-            <div className="pt-4 pb-2 px-3 text-[11px] font-semibold tracking-wider text-gray-500 uppercase">
-              Specialists
+            <div className="pt-5 pb-2 px-3 text-[11px] font-sora font-bold tracking-wider text-slate-400 uppercase">
+              Specialist Squad
             </div>
 
             <div
               onClick={() => handleSendMessage('Analyze my current month financial budget and spending.')}
-              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-400 hover:bg-gray-800/40 hover:text-gray-200 cursor-pointer"
+              className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-poppins font-medium text-slate-300 hover:bg-surfaceHover hover:text-white cursor-pointer transition-colors"
             >
-              <Wallet className="w-4 h-4 text-emerald-400" />
-              <span>Finance (Read-only)</span>
+              <div className="w-6 h-6 rounded-lg bg-emerald-950/80 border border-emerald-500/40 flex items-center justify-center">
+                <Wallet className="w-3.5 h-3.5 text-brand-tealLight" />
+              </div>
+              <span>Finance Specialist</span>
+              <span className="ml-auto text-[10px] text-slate-400">Read-only</span>
             </div>
+
             <div
               onClick={() => handleSendMessage('Search and compare alternatives for Sony WH-1000XM5 headphones.')}
-              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-400 hover:bg-gray-800/40 hover:text-gray-200 cursor-pointer"
+              className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-poppins font-medium text-slate-300 hover:bg-surfaceHover hover:text-white cursor-pointer transition-colors"
             >
-              <ShoppingBag className="w-4 h-4 text-pink-400" />
-              <span>Shopping</span>
+              <div className="w-6 h-6 rounded-lg bg-rose-950/80 border border-rose-500/40 flex items-center justify-center">
+                <ShoppingBag className="w-3.5 h-3.5 text-brand-coral" />
+              </div>
+              <span>Shopping Specialist</span>
             </div>
+
             <div
-              onClick={() => handleSendMessage('Check for high priority messages or emails needing response.')}
-              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-400 hover:bg-gray-800/40 hover:text-gray-200 cursor-pointer"
+              onClick={() => handleSendMessage('Check for important unread communications and summarize.')}
+              className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-poppins font-medium text-slate-300 hover:bg-surfaceHover hover:text-white cursor-pointer transition-colors"
             >
-              <Mail className="w-4 h-4 text-sky-400" />
-              <span>Communication</span>
+              <div className="w-6 h-6 rounded-lg bg-sky-950/80 border border-sky-500/40 flex items-center justify-center">
+                <Mail className="w-3.5 h-3.5 text-brand-blueLight" />
+              </div>
+              <span>Communication Specialist</span>
             </div>
           </nav>
         </div>
 
-        {/* System Status Footprint */}
-        <div className="p-3 rounded-xl bg-gray-900/60 border border-gray-800 text-xs space-y-2">
-          <div className="flex items-center justify-between text-gray-400">
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              Port: 3000 (UI) / 4000 (API)
-            </span>
-            <span className="text-emerald-400 font-mono text-[11px]">Ready</span>
+        {/* Playful Mascot Status Card */}
+        <div className="p-3.5 rounded-2xl bg-card border-2 border-border text-xs flex items-center gap-3">
+          <GhostMascot size="sm" mood={loading ? 'thinking' : 'happy'} />
+          <div className="space-y-0.5">
+            <div className="font-sora font-bold text-white text-[12px]">Agent Sentinel</div>
+            <div className="text-[11px] text-slate-400 font-manrope">Zero unapproved actions</div>
           </div>
-          <div className="text-[11px] text-gray-500">Milestone 1 Active</div>
         </div>
       </aside>
 
-      {/* Main Content Area */}
+      {/* Main Experience Viewport */}
       <main className="flex-1 flex flex-col h-full overflow-hidden">
-        {/* Top Header Bar */}
-        <header className="h-14 border-b border-border bg-surface/30 px-6 flex items-center justify-between backdrop-blur-md shrink-0">
+        {/* Top Header */}
+        <header className="h-16 border-b-2 border-border bg-surface px-6 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <span className="text-sm font-semibold text-gray-200">Personal AI Operating System</span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
-              Phase 3 / Milestone 1: Job Agent Live
+            <h2 className="font-sora font-extrabold text-base text-white">Chief Command Center</h2>
+            <span className="text-[11px] font-poppins font-semibold px-2.5 py-0.5 rounded-full bg-brand-teal/20 text-brand-tealLight border border-brand-teal/40">
+              Autonomous Team Ready
             </span>
           </div>
 
-          <div className="flex items-center gap-4 text-xs text-gray-400">
-            <div className="flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5 text-purple-400" />
-              <span>Scheduler: Ready</span>
+          <div className="flex items-center gap-3 text-xs font-poppins">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-card border border-border text-slate-300">
+              <span className="w-2 h-2 rounded-full bg-brand-lime" />
+              <span>BullMQ Scheduler</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <Terminal className="w-3.5 h-3.5 text-blue-400" />
-              <span>Tool Gateway: Enforced</span>
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-card border border-border text-slate-300">
+              <span className="w-2 h-2 rounded-full bg-brand-blue" />
+              <span>Tool Gateway</span>
             </div>
           </div>
         </header>
 
-        {/* View Content: AI Chief Chat */}
+        {/* View 1: AI Chief Conversation */}
         {activeTab === 'chat' && (
-          <div className="flex-1 flex flex-col overflow-hidden p-6 max-w-5xl mx-auto w-full gap-6">
-            <div className="flex-1 overflow-y-auto space-y-5 pr-2">
+          <div className="flex-1 flex flex-col overflow-hidden p-6 max-w-4xl mx-auto w-full gap-5">
+            <div className="flex-1 overflow-y-auto space-y-4 pr-2">
               {messages.map((msg) => (
                 <div key={msg.id}>
                   {msg.sender === 'user' ? (
                     <div className="flex justify-end">
-                      <div className="max-w-xl bg-purple-600/20 border border-purple-500/30 text-purple-100 rounded-2xl rounded-tr-sm px-4 py-3 text-sm">
+                      <div className="max-w-xl bg-surfaceHover border-2 border-border text-white rounded-2xl rounded-tr-xs px-4 py-3 text-sm font-manrope shadow-xs">
                         {msg.text}
                       </div>
                     </div>
                   ) : (
-                    <div className="flex gap-3 max-w-3xl">
-                      <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-purple-600 to-blue-500 flex items-center justify-center shrink-0">
-                        <Bot className="w-4 h-4 text-white" />
+                    <div className="flex gap-3 max-w-2xl">
+                      <div className="shrink-0 pt-1">
+                        <GhostMascot size="sm" mood={loading ? 'thinking' : 'happy'} />
                       </div>
-                      <div className="space-y-3 flex-1">
-                        <div className="bg-surface border border-border text-gray-200 rounded-2xl rounded-tl-sm px-4 py-3.5 text-sm space-y-3">
-                          <p className="font-medium text-white flex items-center gap-2">
-                            <Sparkles className="w-4 h-4 text-purple-400" />
-                            Chief Agent Response
-                          </p>
-                          <p className="text-gray-300 leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                      <div className="space-y-2.5 flex-1">
+                        <div className="playful-card p-4 space-y-3">
+                          <div className="flex items-center justify-between border-b border-border pb-2">
+                            <span className="font-sora font-bold text-xs text-brand-tealLight uppercase tracking-wider flex items-center gap-1.5">
+                              <Sparkles className="w-3.5 h-3.5" />
+                              Chief Ghost
+                            </span>
+                            <span className="text-[10px] font-poppins text-slate-400">{msg.timestamp}</span>
+                          </div>
+
+                          <p className="text-slate-200 text-sm leading-relaxed">{msg.text}</p>
 
                           {msg.plan && msg.plan.steps && (
-                            <div className="rounded-xl bg-background/60 border border-border p-3 space-y-2 mt-2">
-                              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                                Multi-Agent Delegation Plan
+                            <div className="rounded-xl bg-card border border-border p-3 space-y-2 mt-2">
+                              <div className="text-[11px] font-sora font-bold text-brand-amber uppercase tracking-wider">
+                                Delegated Execution Pipeline
                               </div>
                               {msg.plan.steps.map((st: any, idx: number) => (
-                                <div key={idx} className="flex items-start gap-2 text-xs text-gray-300">
-                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                                <div key={idx} className="flex items-start gap-2.5 text-xs text-slate-300">
+                                  <div className="w-4 h-4 rounded-full bg-brand-teal/20 text-brand-tealLight flex items-center justify-center shrink-0 mt-0.5">
+                                    <Check className="w-3 h-3" />
+                                  </div>
                                   <div>
-                                    <strong className="text-purple-300">[{st.agentType || 'specialist'}]</strong> {st.name || st.action}:{' '}
-                                    <span className="text-gray-400">{st.description}</span>
+                                    <strong className="font-poppins text-white">{st.name || st.action}:</strong>{' '}
+                                    <span className="text-slate-300 font-manrope">{st.description}</span>
                                   </div>
                                 </div>
                               ))}
@@ -429,80 +434,84 @@ export default function Dashboard() {
               ))}
 
               {loading && (
-                <div className="flex items-center gap-3 text-xs text-purple-300">
-                  <div className="w-6 h-6 rounded-lg bg-purple-600/30 flex items-center justify-center animate-spin">
-                    <RefreshCw className="w-3.5 h-3.5 text-purple-400" />
-                  </div>
-                  <span>Chief Agent is evaluating policies and delegating to specialist agents...</span>
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-card border-2 border-border text-xs font-poppins text-brand-amber">
+                  <GhostMascot size="sm" mood="thinking" />
+                  <span>Chief Ghost is consulting policy engine &amp; specialists...</span>
                 </div>
               )}
             </div>
 
-            <div className="relative pt-2">
+            {/* Chat Input Bar */}
+            <div className="pt-2">
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
                   handleSendMessage();
                 }}
-                className="glass-panel rounded-2xl p-2 flex items-center gap-2 focus-within:border-purple-500/50 transition-colors"
+                className="flex items-center gap-2 p-2 rounded-2xl bg-surface border-2 border-border focus-within:border-brand-teal transition-colors"
               >
+                <div className="pl-2">
+                  <GhostMascot size="sm" mood={loading ? 'thinking' : 'happy'} />
+                </div>
                 <input
                   type="text"
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
-                  placeholder="Ask Chief Agent anything (e.g. 'Should I buy this laptop?', 'Find jobs', 'Analyze my budget')..."
-                  className="w-full bg-transparent border-0 px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none"
+                  placeholder="Tell Chief Ghost what to do (e.g. 'Find me jobs', 'Should I buy this laptop?')..."
+                  className="w-full bg-transparent border-0 px-3 py-2 text-sm font-manrope text-white placeholder-slate-400 focus:outline-none"
                 />
                 <button
                   type="submit"
                   disabled={loading}
-                  className="p-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white transition-colors shrink-0 shadow-md shadow-purple-600/20 disabled:opacity-50"
+                  className="px-4 py-2.5 rounded-xl bg-brand-teal hover:bg-brand-tealLight text-white font-poppins font-bold text-xs playful-button shrink-0 flex items-center gap-1.5 disabled:opacity-50"
                 >
-                  <Send className="w-4 h-4" />
+                  <span>Dispatch</span>
+                  <Send className="w-3.5 h-3.5" />
                 </button>
               </form>
 
-              <div className="flex items-center gap-2 mt-2 px-1 text-xs text-gray-400 overflow-x-auto py-1">
-                <span className="text-[11px] text-gray-500">Quick tests:</span>
+              {/* Quick Prompt Pills */}
+              <div className="flex items-center gap-2 mt-2.5 px-1 text-xs overflow-x-auto pb-1">
+                <span className="text-[11px] font-poppins font-semibold text-slate-400">Try asking:</span>
                 <button
                   onClick={() => handleSendMessage('Should I buy a ₹90,000 MacBook Air M2 based on my recent finances?')}
-                  className="px-2.5 py-1 rounded-full bg-gray-800/80 hover:bg-gray-700 text-gray-300 text-[11px] whitespace-nowrap border border-gray-700"
+                  className="px-3 py-1 rounded-xl bg-card hover:bg-surfaceHover text-slate-200 text-[11px] font-poppins font-medium border border-border whitespace-nowrap transition-colors"
                 >
                   Shopping + Finance: &quot;Should I buy this?&quot;
                 </button>
                 <button
-                  onClick={() => handleSendMessage('Find me relevant jobs.')}
-                  className="px-2.5 py-1 rounded-full bg-gray-800/80 hover:bg-gray-700 text-gray-300 text-[11px] whitespace-nowrap border border-gray-700"
+                  onClick={() => handleSendMessage('Every morning at 8:00 AM, find the 20 best backend & fullstack jobs for me.')}
+                  className="px-3 py-1 rounded-xl bg-card hover:bg-surfaceHover text-slate-200 text-[11px] font-poppins font-medium border border-border whitespace-nowrap transition-colors"
                 >
-                  Job Agent: &quot;Find me relevant jobs&quot;
+                  Job Specialist: &quot;Daily job search at 8 AM&quot;
                 </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* View Content: Jobs & Career Intelligence */}
+        {/* View 2: Jobs Feed */}
         {activeTab === 'jobs' && (
-          <div className="flex-1 overflow-y-auto p-6 max-w-5xl mx-auto w-full space-y-4">
+          <div className="flex-1 overflow-y-auto p-6 max-w-4xl mx-auto w-full space-y-4">
             <div className="flex items-center justify-between mb-2">
               <div>
-                <h2 className="text-lg font-bold text-white">Daily Job Intelligence Feed</h2>
-                <p className="text-xs text-gray-400">
-                  Pipeline: Greenhouse + Lever + Wellfound Ingestion → Deduplication → Deterministic Matching → Non-fabricating Resume Tailoring
+                <h2 className="font-sora font-extrabold text-lg text-white">Daily Job Intelligence Feed</h2>
+                <p className="text-xs text-slate-400 font-manrope">
+                  Deduplicated from Greenhouse, Lever &amp; Wellfound • Ranked by Career Algorithm
                 </p>
               </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleTriggerDiscovery}
                   disabled={loading}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-brand-blue hover:bg-brand-blueLight text-white text-xs font-poppins font-bold playful-button transition-colors"
                 >
-                  <Play className="w-3 h-3" />
-                  <span>Run Discovery Pipeline</span>
+                  <Play className="w-3.5 h-3.5" />
+                  <span>Run Pipeline</span>
                 </button>
                 <button
                   onClick={fetchLiveData}
-                  className="p-1.5 rounded-lg bg-gray-800 text-gray-300 hover:text-white"
+                  className="p-2 rounded-xl bg-card border border-border text-slate-300 hover:text-white"
                 >
                   <RefreshCw className="w-4 h-4" />
                 </button>
@@ -510,46 +519,51 @@ export default function Dashboard() {
             </div>
 
             {jobs.length === 0 ? (
-              <div className="p-12 text-center text-gray-500 text-sm glass-panel rounded-xl">
-                No jobs currently discovered. Click &quot;Run Discovery Pipeline&quot; to fetch and score postings.
+              <div className="p-12 text-center text-slate-400 text-sm playful-card flex flex-col items-center gap-3">
+                <GhostMascot size="lg" mood="alert" />
+                <p>No jobs discovered yet. Click &quot;Run Pipeline&quot; to fetch postings.</p>
               </div>
             ) : (
               jobs.map((job) => (
-                <div key={job.id} className="glass-panel rounded-xl p-5 border border-border space-y-3">
+                <div key={job.id} className="playful-card p-5 space-y-3.5">
                   <div className="flex items-start justify-between">
                     <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-white">{job.title}</h3>
-                        <span className={`text-xs px-2 py-0.5 rounded font-mono ${
-                          job.matchScore >= 90 ? 'bg-purple-500/20 text-purple-300' : 'bg-blue-500/20 text-blue-300'
+                      <div className="flex items-center gap-2.5">
+                        <h3 className="font-sora font-bold text-white text-base">{job.title}</h3>
+                        <span className={`text-xs px-2.5 py-0.5 rounded-full font-poppins font-bold ${
+                          job.matchScore >= 90
+                            ? 'bg-brand-teal text-white'
+                            : 'bg-brand-blue text-white'
                         }`}>
                           {job.matchScore}% Match
                         </span>
                       </div>
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        {job.company} • {job.location.join(', ')} {job.remote ? '(Remote)' : ''} •{' '}
+                      <p className="text-xs font-manrope text-slate-300 mt-1">
+                        <strong className="text-white">{job.company}</strong> • {job.location.join(', ')}{' '}
+                        {job.remote ? '(Remote)' : ''} •{' '}
                         {job.minSalary ? `₹${(job.minSalary / 100000).toFixed(0)}–${(job.maxSalary! / 100000).toFixed(0)} LPA` : 'Competitive'} • Source: {job.source}
                       </p>
                     </div>
-                    <span className="text-xs text-gray-500 flex items-center gap-1">
-                      <Clock className="w-3.5 h-3.5" />
+
+                    <div className="text-xs text-slate-400 font-poppins flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5 text-brand-amber" />
                       <span>Live match</span>
-                    </span>
+                    </div>
                   </div>
 
                   {job.matchBreakdown && (
-                    <div className="text-xs bg-background/50 p-3 rounded-lg space-y-1.5">
-                      <p className="font-medium text-emerald-400">Why this is relevant:</p>
-                      <ul className="list-disc list-inside space-y-0.5 text-gray-300">
+                    <div className="text-xs bg-card p-3.5 rounded-xl border border-border space-y-2">
+                      <p className="font-sora font-bold text-brand-tealLight">Why this aligns:</p>
+                      <ul className="list-disc list-inside space-y-1 text-slate-200 font-manrope">
                         {job.matchBreakdown.reasons.map((r, i) => (
                           <li key={i}>{r}</li>
                         ))}
                       </ul>
 
                       {job.matchBreakdown.concerns.length > 0 && (
-                        <div className="pt-1">
-                          <p className="font-medium text-amber-400">Potential notes / concerns:</p>
-                          <ul className="list-disc list-inside space-y-0.5 text-gray-400">
+                        <div className="pt-1.5 border-t border-border">
+                          <p className="font-sora font-bold text-brand-amber">Considerations:</p>
+                          <ul className="list-disc list-inside space-y-1 text-slate-300 font-manrope">
                             {job.matchBreakdown.concerns.map((c, i) => (
                               <li key={i}>{c}</li>
                             ))}
@@ -560,9 +574,9 @@ export default function Dashboard() {
                   )}
 
                   <div className="flex items-center justify-between pt-1">
-                    <div className="flex items-center gap-2 text-xs text-gray-400">
-                      <span>Recommended resume:</span>
-                      <strong className="text-gray-200 font-mono bg-gray-800/80 px-2 py-0.5 rounded">
+                    <div className="flex items-center gap-2 text-xs font-poppins text-slate-300">
+                      <span>Tailored resume:</span>
+                      <strong className="text-white bg-card px-2.5 py-1 rounded-lg border border-border font-mono">
                         {job.recommendedResumeId || 'Fullstack-AWS-v3.md'}
                       </strong>
                     </div>
@@ -570,10 +584,10 @@ export default function Dashboard() {
                     <div className="flex gap-2">
                       <button
                         onClick={() => handlePreviewResume(job)}
-                        className="px-3 py-1.5 text-xs rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 flex items-center gap-1.5"
+                        className="px-3 py-1.5 text-xs font-poppins font-medium rounded-xl bg-card hover:bg-surfaceHover text-slate-200 border border-border flex items-center gap-1.5 transition-colors"
                       >
-                        <FileText className="w-3.5 h-3.5" />
-                        <span>Preview Tailored Resume</span>
+                        <FileText className="w-3.5 h-3.5 text-brand-blueLight" />
+                        <span>Inspect Resume</span>
                       </button>
                       <button
                         onClick={async () => {
@@ -584,7 +598,7 @@ export default function Dashboard() {
                           });
                           setActiveTab('approvals');
                         }}
-                        className="px-3 py-1.5 text-xs rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium"
+                        className="px-3.5 py-1.5 text-xs font-poppins font-bold rounded-xl bg-brand-blue hover:bg-brand-blueLight text-white playful-button"
                       >
                         Prepare Application
                       </button>
@@ -596,61 +610,70 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* View Content: Approvals */}
+        {/* View 3: Safety Approvals Gate */}
         {activeTab === 'approvals' && (
-          <div className="flex-1 overflow-y-auto p-6 max-w-5xl mx-auto w-full space-y-4">
-            <div className="flex items-center justify-between mb-4">
+          <div className="flex-1 overflow-y-auto p-6 max-w-4xl mx-auto w-full space-y-4">
+            <div className="flex items-center justify-between mb-3">
               <div>
-                <h2 className="text-lg font-bold text-white">Universal Safety Approval Gate</h2>
-                <p className="text-xs text-gray-400">Principle 2.4: Human Control. High-risk actions require explicit consent.</p>
+                <h2 className="font-sora font-extrabold text-lg text-white">Universal Safety Gate</h2>
+                <p className="text-xs text-slate-400 font-manrope">
+                  Principle 2.4: Human Control. High-risk agent actions stay blocked until approved.
+                </p>
               </div>
               <button
                 onClick={fetchLiveData}
-                className="p-1.5 rounded-lg bg-gray-800 text-gray-300 hover:text-white"
+                className="p-2 rounded-xl bg-card border border-border text-slate-300 hover:text-white"
               >
                 <RefreshCw className="w-4 h-4" />
               </button>
             </div>
 
             {approvals.length === 0 ? (
-              <div className="p-8 text-center text-gray-500 text-sm glass-panel rounded-xl">
-                No approval requests pending. The system operates autonomously within safe boundaries.
+              <div className="p-12 text-center text-slate-400 text-sm playful-card flex flex-col items-center gap-3">
+                <GhostMascot size="lg" mood="happy" />
+                <p>No actions pending approval. Ghost agents are operating within autonomous safety limits.</p>
               </div>
             ) : (
               approvals.map((app) => (
                 <div
                   key={app.id}
-                  className={`glass-panel rounded-xl p-5 border ${
+                  className={`playful-card p-5 border-2 space-y-3.5 ${
                     app.status === 'pending'
-                      ? 'border-amber-500/30 bg-amber-950/10'
+                      ? 'border-brand-amber bg-card'
                       : app.status === 'approved'
-                      ? 'border-emerald-500/30 bg-emerald-950/10'
-                      : 'border-red-500/30 bg-red-950/10'
-                  } space-y-3`}
+                      ? 'border-brand-teal bg-card'
+                      : 'border-brand-coral bg-card'
+                  }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded ${
-                      app.status === 'pending' ? 'bg-amber-500/20 text-amber-300' :
-                      app.status === 'approved' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'
-                    }`}>
+                    <span
+                      className={`text-xs font-poppins font-bold px-2.5 py-0.5 rounded-full ${
+                        app.status === 'pending'
+                          ? 'bg-brand-amber text-slate-950'
+                          : app.status === 'approved'
+                          ? 'bg-brand-teal text-white'
+                          : 'bg-brand-coral text-white'
+                      }`}
+                    >
                       {app.status.toUpperCase()}
                     </span>
-                    <span className="text-xs text-gray-400 font-mono">{app.actionType}</span>
+                    <span className="text-xs font-mono text-slate-400">{app.actionType}</span>
                   </div>
-                  <h3 className="font-semibold text-white">{app.title}</h3>
-                  <p className="text-xs text-gray-300">{app.description}</p>
+
+                  <h3 className="font-sora font-bold text-white text-base">{app.title}</h3>
+                  <p className="text-xs text-slate-300 font-manrope leading-relaxed">{app.description}</p>
 
                   {app.status === 'pending' && (
-                    <div className="flex gap-2 pt-2">
+                    <div className="flex gap-2.5 pt-2">
                       <button
                         onClick={() => handleDecideApproval(app.id, 'approve')}
-                        className="px-3 py-1.5 text-xs rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium"
+                        className="px-4 py-2 text-xs font-poppins font-bold rounded-xl bg-brand-teal hover:bg-brand-tealLight text-white playful-button"
                       >
-                        Approve Action
+                        Approve &amp; Execute
                       </button>
                       <button
                         onClick={() => handleDecideApproval(app.id, 'reject')}
-                        className="px-3 py-1.5 text-xs rounded-lg bg-red-600/20 hover:bg-red-600/30 text-red-300 border border-red-500/30"
+                        className="px-4 py-2 text-xs font-poppins font-semibold rounded-xl bg-card hover:bg-surfaceHover text-brand-coral border-2 border-brand-coral/40"
                       >
                         Reject Action
                       </button>
@@ -662,39 +685,41 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* View Content: Audit */}
+        {/* View 4: Audit Ledger */}
         {activeTab === 'audit' && (
-          <div className="flex-1 overflow-y-auto p-6 max-w-5xl mx-auto w-full space-y-3">
-            <div className="flex items-center justify-between mb-4">
+          <div className="flex-1 overflow-y-auto p-6 max-w-4xl mx-auto w-full space-y-3">
+            <div className="flex items-center justify-between mb-3">
               <div>
-                <h2 className="text-lg font-bold text-white">Immutable Event &amp; Audit Ledger</h2>
-                <p className="text-xs text-gray-400">Principle 2.3: Everything important is auditable.</p>
+                <h2 className="font-sora font-extrabold text-lg text-white">Immutable Event Ledger</h2>
+                <p className="text-xs text-slate-400 font-manrope">
+                  Principle 2.3: Every meaningful agent step, decision, and tool invocation is recorded.
+                </p>
               </div>
               <button
                 onClick={fetchLiveData}
-                className="p-1.5 rounded-lg bg-gray-800 text-gray-300 hover:text-white"
+                className="p-2 rounded-xl bg-card border border-border text-slate-300 hover:text-white"
               >
                 <RefreshCw className="w-4 h-4" />
               </button>
             </div>
 
             {auditEvents.length === 0 ? (
-              <div className="p-8 text-center text-gray-500 text-sm glass-panel rounded-xl">
-                No audit events recorded yet.
+              <div className="p-8 text-center text-slate-400 text-sm playful-card">
+                No events in ledger yet.
               </div>
             ) : (
               auditEvents.map((item) => (
-                <div key={item.id} className="flex items-center justify-between p-3 rounded-lg bg-surface border border-border text-xs">
+                <div key={item.id} className="flex items-center justify-between p-3.5 rounded-xl bg-card border border-border text-xs">
                   <div className="flex items-center gap-3">
-                    <span className="font-mono text-gray-500 text-[11px]">
+                    <span className="font-mono text-slate-400 text-[11px]">
                       {new Date(item.timestamp).toLocaleTimeString()}
                     </span>
-                    <span className="font-medium text-purple-400">
-                      [{item.agentId || item.toolName || 'System'}]
+                    <span className="font-poppins font-bold text-brand-tealLight">
+                      [{item.agentId || item.toolName || 'Chief'}]
                     </span>
-                    <span className="text-gray-300">{item.rationale || `Executed ${item.eventType}`}</span>
+                    <span className="text-slate-200 font-manrope">{item.rationale || `Executed ${item.eventType}`}</span>
                   </div>
-                  <span className="font-mono text-[10px] bg-gray-800 text-gray-400 px-2 py-0.5 rounded">
+                  <span className="font-poppins font-semibold text-[10px] bg-surface text-slate-300 border border-border px-2 py-0.5 rounded-full">
                     {item.eventType}
                   </span>
                 </div>
@@ -704,31 +729,31 @@ export default function Dashboard() {
         )}
       </main>
 
-      {/* Tailored Resume Preview Modal */}
+      {/* Tailored Resume Modal */}
       {selectedResumeModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="glass-panel bg-surface/95 border border-border rounded-2xl max-w-2xl w-full max-h-[80vh] flex flex-col shadow-2xl">
-            <div className="p-4 border-b border-border flex items-center justify-between">
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <div className="playful-card bg-surface border-2 border-border rounded-2xl max-w-2xl w-full max-h-[80vh] flex flex-col shadow-2xl">
+            <div className="p-4 border-b-2 border-border flex items-center justify-between">
               <div>
-                <h3 className="font-semibold text-white">Tailored Non-Fabricating Resume</h3>
-                <p className="text-xs text-gray-400">
+                <h3 className="font-sora font-bold text-white text-sm">Tailored Non-Fabricating Resume</h3>
+                <p className="text-xs font-manrope text-slate-400">
                   Target: {selectedResumeModal.jobTitle} at {selectedResumeModal.company}
                 </p>
               </div>
               <button
                 onClick={() => setSelectedResumeModal(null)}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800"
+                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-card"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="p-6 overflow-y-auto font-mono text-xs text-gray-200 leading-relaxed whitespace-pre-wrap bg-background/50">
+            <div className="p-6 overflow-y-auto font-mono text-xs text-slate-200 leading-relaxed whitespace-pre-wrap bg-card">
               {selectedResumeModal.content}
             </div>
-            <div className="p-4 border-t border-border flex justify-end">
+            <div className="p-4 border-t-2 border-border flex justify-end">
               <button
                 onClick={() => setSelectedResumeModal(null)}
-                className="px-4 py-2 text-xs rounded-lg bg-gray-800 hover:bg-gray-700 text-white"
+                className="px-4 py-2 text-xs font-poppins font-bold rounded-xl bg-card hover:bg-surfaceHover text-white border border-border"
               >
                 Close Preview
               </button>

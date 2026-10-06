@@ -1,0 +1,56 @@
+- generic [ref=f2e2]:
+  - complementary [ref=f2e3]:
+    - generic [ref=f2e4]:
+      - generic [ref=f2e21]:
+        - heading "Personal OS" [level=1] [ref=f2e22]
+        - paragraph [ref=f2e23]: Chief Ghost Online
+      - navigation [ref=f2e24]:
+        - button [ref=f2e25]
+        - button "Jobs & CareersM1" [ref=f2e41]
+        - button "Safety Gate" [ref=f2e45]
+        - button "Audit Ledger" [ref=f2e49]
+        - generic [ref=f2e52]: Specialist Squad
+        - generic [ref=f2e53]: Finance SpecialistRead-only
+        - generic [ref=f2e58]: Shopping Specialist
+        - generic [ref=f2e63]: Communication Specialist
+    - generic [ref=f2e84]:
+      - generic [ref=f2e85]: Agent Sentinel
+      - generic [ref=f2e86]: Zero unapproved actions
+  - main [ref=f2e87]:
+    - generic [ref=f2e88]:
+      - generic [ref=f2e89]:
+        - heading "Chief Command Center" [level=2] [ref=f2e90]
+        - text: Autonomous Team Ready
+      - generic [ref=f2e91]:
+        - generic [ref=f2e92]: BullMQ Scheduler
+        - generic [ref=f2e93]: Tool Gateway
+    - generic [ref=f2e94]:
+      - generic [ref=f2e95]:
+        - generic [ref=f2e96]: Every morning at 8:00 AM, find the 20 best backend & fullstack jobs for me.
+        - generic [ref=f2e118]:
+          - generic [ref=f2e119]:
+            - generic [ref=f2e120]: Chief Ghost
+            - text: 08:00 AM
+          - paragraph [ref=f2e123]: All set! I registered a recurring schedule (0 8 * * 1-5). The Job Specialist executed a dry-run and discovered top matches paired with your tailored resume.
+          - generic [ref=f2e124]:
+            - generic [ref=f2e125]: Delegated Execution Pipeline
+            - generic [ref=f2e130]:
+              - strong [ref=f2e131]: "Schedule Engine:"
+              - text: Registered cron 0 8 * * 1-5 (Mon–Fri at 8:00 AM)
+            - generic [ref=f2e136]:
+              - strong [ref=f2e137]: "Job Connectors:"
+              - text: Ingested roles from Greenhouse, Lever & Wellfound
+            - generic [ref=f2e142]:
+              - strong [ref=f2e143]: "Deduplication:"
+              - text: Removed cross-posted duplicate listings
+            - generic [ref=f2e148]:
+              - strong [ref=f2e149]: "Resume Customization:"
+              - text: Paired verified competencies with Fullstack-AWS-v3.md
+      - generic [ref=f2e150]:
+        - generic [ref=f2e151]:
+          - textbox "Tell Chief Ghost what to do (e.g. 'Find me jobs', 'Should I buy this laptop?')..." [ref=f2e168]
+          - button "Dispatch" [ref=f2e169]
+        - generic [ref=f2e173]:
+          - text: "Try asking:"
+          - 'button "Shopping + Finance: \"Should I buy this?\"" [ref=f2e174]'
+          - 'button "Job Specialist: \"Daily job search at 8 AM\"" [ref=f2e175]'
