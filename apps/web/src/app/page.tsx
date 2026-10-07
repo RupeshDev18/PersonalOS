@@ -247,34 +247,34 @@ export default function Dashboard() {
     try {
       const jobRes = await fetch('http://localhost:4000/api/jobs');
       if (jobRes.ok) setJobs(await jobRes.json());
-    } catch {}
+    } catch { }
 
     try {
       const connRes = await fetch('http://localhost:4000/api/connectors');
       if (connRes.ok) setConnectors(await connRes.json());
-    } catch {}
+    } catch { }
 
     try {
       const appRes = await fetch('http://localhost:4000/api/approvals');
       if (appRes.ok) setApprovals(await appRes.json());
-    } catch {}
+    } catch { }
 
     try {
       const audRes = await fetch('http://localhost:4000/api/audit?limit=30');
       if (audRes.ok) setAuditEvents(await audRes.json());
-    } catch {}
+    } catch { }
 
     try {
       const finRes = await fetch('http://localhost:4000/api/finance/overview');
       if (finRes.ok) setFinanceOverview(await finRes.json());
       const txRes = await fetch('http://localhost:4000/api/finance/transactions');
       if (txRes.ok) setTransactions(await txRes.json());
-    } catch {}
+    } catch { }
 
     try {
       const shopRes = await fetch(`http://localhost:4000/api/shopping/compare?query=${encodeURIComponent(shoppingQuery)}`);
       if (shopRes.ok) setShoppingResult(await shopRes.json());
-    } catch {}
+    } catch { }
   };
 
   useEffect(() => {
@@ -455,11 +455,10 @@ export default function Dashboard() {
           <nav className="space-y-1.5">
             <button
               onClick={() => setActiveTab('chat')}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-poppins font-medium transition-all ${
-                activeTab === 'chat'
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-poppins font-medium transition-all ${activeTab === 'chat'
                   ? 'bg-brand-teal text-white border-2 border-brand-teal font-semibold'
                   : 'text-slate-300 hover:text-white hover:bg-surfaceHover'
-              }`}
+                }`}
             >
               <GhostMascot size="sm" className="scale-75 -my-2 -ml-1" />
               <span>AI Chief</span>
@@ -467,18 +466,16 @@ export default function Dashboard() {
 
             <button
               onClick={() => setActiveTab('connectors')}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-poppins font-medium transition-all ${
-                activeTab === 'connectors'
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-poppins font-medium transition-all ${activeTab === 'connectors'
                   ? 'bg-brand-blue text-white border-2 border-brand-blue font-semibold'
                   : 'text-slate-300 hover:text-white hover:bg-surfaceHover'
-              }`}
+                }`}
             >
               <Cpu className="w-4 h-4 text-sky-400" />
               <span>Connectors &amp; LLM</span>
               <span
-                className={`ml-auto text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                  isGeminiLive ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'
-                }`}
+                className={`ml-auto text-[10px] px-2 py-0.5 rounded-full font-bold ${isGeminiLive ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'
+                  }`}
               >
                 {isGeminiLive ? 'Gemini Live' : 'Connect'}
               </span>
@@ -486,11 +483,10 @@ export default function Dashboard() {
 
             <button
               onClick={() => setActiveTab('jobs')}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-poppins font-medium transition-all ${
-                activeTab === 'jobs'
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-poppins font-medium transition-all ${activeTab === 'jobs'
                   ? 'bg-brand-blue text-white border-2 border-brand-blue font-semibold'
                   : 'text-slate-300 hover:text-white hover:bg-surfaceHover'
-              }`}
+                }`}
             >
               <Briefcase className="w-4 h-4 text-brand-blueLight" />
               <span>Jobs &amp; Careers</span>
@@ -501,11 +497,10 @@ export default function Dashboard() {
 
             <button
               onClick={() => setActiveTab('finance')}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-poppins font-medium transition-all ${
-                activeTab === 'finance'
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-poppins font-medium transition-all ${activeTab === 'finance'
                   ? 'bg-brand-teal text-white border-2 border-brand-teal font-semibold'
                   : 'text-slate-300 hover:text-white hover:bg-surfaceHover'
-              }`}
+                }`}
             >
               <Wallet className="w-4 h-4 text-brand-tealLight" />
               <span>Finance Ledger</span>
@@ -516,11 +511,10 @@ export default function Dashboard() {
 
             <button
               onClick={() => setActiveTab('shopping')}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-poppins font-medium transition-all ${
-                activeTab === 'shopping'
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-poppins font-medium transition-all ${activeTab === 'shopping'
                   ? 'bg-brand-coral text-white border-2 border-brand-coral font-semibold'
                   : 'text-slate-300 hover:text-white hover:bg-surfaceHover'
-              }`}
+                }`}
             >
               <ShoppingBag className="w-4 h-4 text-rose-300" />
               <span>Shopping Scout</span>
@@ -531,11 +525,10 @@ export default function Dashboard() {
 
             <button
               onClick={() => setActiveTab('approvals')}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-poppins font-medium transition-all ${
-                activeTab === 'approvals'
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-poppins font-medium transition-all ${activeTab === 'approvals'
                   ? 'bg-brand-amber text-slate-900 border-2 border-brand-amber font-semibold'
                   : 'text-slate-300 hover:text-white hover:bg-surfaceHover'
-              }`}
+                }`}
             >
               <ShieldCheck className="w-4 h-4 text-brand-amber" />
               <span>Safety Gate</span>
@@ -548,11 +541,10 @@ export default function Dashboard() {
 
             <button
               onClick={() => setActiveTab('audit')}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-poppins font-medium transition-all ${
-                activeTab === 'audit'
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-poppins font-medium transition-all ${activeTab === 'audit'
                   ? 'bg-brand-lime text-slate-950 border-2 border-brand-lime font-semibold'
                   : 'text-slate-300 hover:text-white hover:bg-surfaceHover'
-              }`}
+                }`}
             >
               <Activity className="w-4 h-4 text-brand-lime" />
               <span>Audit Ledger</span>
@@ -586,14 +578,13 @@ export default function Dashboard() {
           <div className="flex items-center gap-3 text-xs font-poppins">
             <button
               onClick={() => setActiveTab('connectors')}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition-colors ${
-                isGeminiLive
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition-colors ${isGeminiLive
                   ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/20'
                   : 'bg-amber-500/10 border-amber-500/40 text-amber-300 hover:bg-amber-500/20'
-              }`}
+                }`}
             >
               <span className={`w-2 h-2 rounded-full ${isGeminiLive ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-              <span>{isGeminiLive ? 'Gemini 1.5 Flash Live' : 'Gemini Key Needed (Click)'}</span>
+              <span>{isGeminiLive ? 'Gemini 2.5 Flash Live' : 'Gemini Key Needed (Click)'}</span>
             </button>
 
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-card border border-border text-slate-300">
@@ -659,17 +650,16 @@ export default function Dashboard() {
                                     <div className="flex items-start justify-between gap-2">
                                       <div className="flex items-start gap-2.5">
                                         <span
-                                          className={`w-5 h-5 rounded-full flex items-center justify-center font-poppins font-bold text-[10px] shrink-0 mt-0.5 ${
-                                            tr.phase === 'intent_parsing'
+                                          className={`w-5 h-5 rounded-full flex items-center justify-center font-poppins font-bold text-[10px] shrink-0 mt-0.5 ${tr.phase === 'intent_parsing'
                                               ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40'
                                               : tr.phase === 'policy_check'
-                                              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                                              : tr.phase === 'connector_fetch'
-                                              ? 'bg-teal-500/20 text-teal-300 border border-teal-500/40'
-                                              : tr.phase === 'synthesis'
-                                              ? 'bg-lime-500/20 text-lime-300 border border-lime-500/40'
-                                              : 'bg-slate-700 text-slate-200'
-                                          }`}
+                                                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                                                : tr.phase === 'connector_fetch'
+                                                  ? 'bg-teal-500/20 text-teal-300 border border-teal-500/40'
+                                                  : tr.phase === 'synthesis'
+                                                    ? 'bg-lime-500/20 text-lime-300 border border-lime-500/40'
+                                                    : 'bg-slate-700 text-slate-200'
+                                            }`}
                                         >
                                           {tr.stepNumber}
                                         </span>
@@ -677,15 +667,14 @@ export default function Dashboard() {
                                           <div className="flex items-center gap-2">
                                             <span className="font-poppins font-bold text-white text-[12px]">{tr.name}</span>
                                             <span
-                                              className={`text-[10px] font-poppins px-1.5 py-0.2 rounded font-medium ${
-                                                tr.phase === 'policy_check'
+                                              className={`text-[10px] font-poppins px-1.5 py-0.2 rounded font-medium ${tr.phase === 'policy_check'
                                                   ? 'bg-amber-500/20 text-amber-300'
                                                   : tr.phase === 'connector_fetch'
-                                                  ? 'bg-teal-500/20 text-teal-300'
-                                                  : tr.phase === 'intent_parsing'
-                                                  ? 'bg-sky-500/20 text-sky-300'
-                                                  : 'bg-slate-700 text-slate-300'
-                                              }`}
+                                                    ? 'bg-teal-500/20 text-teal-300'
+                                                    : tr.phase === 'intent_parsing'
+                                                      ? 'bg-sky-500/20 text-sky-300'
+                                                      : 'bg-slate-700 text-slate-300'
+                                                }`}
                                             >
                                               {tr.agent}
                                             </span>
@@ -864,11 +853,10 @@ export default function Dashboard() {
                     <div className="flex items-center gap-2">
                       <h3 className="font-sora font-bold text-white text-base">Google Gemini (2.5 Flash / Latest)</h3>
                       <span
-                        className={`text-[10px] font-poppins font-bold px-2 py-0.5 rounded-full ${
-                          isGeminiLive
+                        className={`text-[10px] font-poppins font-bold px-2 py-0.5 rounded-full ${isGeminiLive
                             ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
                             : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                        }`}
+                          }`}
                       >
                         {isGeminiLive ? 'ACTIVE (gemini-2.5-flash)' : 'FALLBACK MODE (No Key Set)'}
                       </span>
@@ -917,11 +905,10 @@ export default function Dashboard() {
 
                 {geminiTestStatus && (
                   <div
-                    className={`p-2.5 rounded-lg text-xs font-manrope flex items-center gap-2 ${
-                      geminiTestStatus.success
+                    className={`p-2.5 rounded-lg text-xs font-manrope flex items-center gap-2 ${geminiTestStatus.success
                         ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300'
                         : 'bg-rose-500/10 border border-rose-500/30 text-rose-300'
-                    }`}
+                      }`}
                   >
                     {geminiTestStatus.success ? <Check className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
                     <span>{geminiTestStatus.message}</span>
@@ -1120,23 +1107,21 @@ export default function Dashboard() {
 
               {affordabilityResult && (
                 <div
-                  className={`p-4 rounded-xl border-2 space-y-1.5 ${
-                    affordabilityResult.verdict === 'comfortable'
+                  className={`p-4 rounded-xl border-2 space-y-1.5 ${affordabilityResult.verdict === 'comfortable'
                       ? 'bg-card border-brand-teal'
                       : affordabilityResult.verdict === 'stretch'
-                      ? 'bg-card border-brand-amber'
-                      : 'bg-card border-brand-coral'
-                  }`}
+                        ? 'bg-card border-brand-amber'
+                        : 'bg-card border-brand-coral'
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <span
-                      className={`text-xs font-poppins font-bold px-2.5 py-0.5 rounded-full uppercase ${
-                        affordabilityResult.verdict === 'comfortable'
+                      className={`text-xs font-poppins font-bold px-2.5 py-0.5 rounded-full uppercase ${affordabilityResult.verdict === 'comfortable'
                           ? 'bg-brand-teal text-white'
                           : affordabilityResult.verdict === 'stretch'
-                          ? 'bg-brand-amber text-slate-950'
-                          : 'bg-brand-coral text-white'
-                      }`}
+                            ? 'bg-brand-amber text-slate-950'
+                            : 'bg-brand-coral text-white'
+                        }`}
                     >
                       Verdict: {affordabilityResult.verdict}
                     </span>
@@ -1398,23 +1383,21 @@ export default function Dashboard() {
               approvals.map((app) => (
                 <div
                   key={app.id}
-                  className={`playful-card p-5 border-2 space-y-3.5 ${
-                    app.status === 'pending'
+                  className={`playful-card p-5 border-2 space-y-3.5 ${app.status === 'pending'
                       ? 'border-brand-amber bg-card'
                       : app.status === 'approved'
-                      ? 'border-brand-teal bg-card'
-                      : 'border-brand-coral bg-card'
-                  }`}
+                        ? 'border-brand-teal bg-card'
+                        : 'border-brand-coral bg-card'
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <span
-                      className={`text-xs font-poppins font-bold px-2.5 py-0.5 rounded-full ${
-                        app.status === 'pending'
+                      className={`text-xs font-poppins font-bold px-2.5 py-0.5 rounded-full ${app.status === 'pending'
                           ? 'bg-brand-amber text-slate-950'
                           : app.status === 'approved'
-                          ? 'bg-brand-teal text-white'
-                          : 'bg-brand-coral text-white'
-                      }`}
+                            ? 'bg-brand-teal text-white'
+                            : 'bg-brand-coral text-white'
+                        }`}
                     >
                       {app.status.toUpperCase()}
                     </span>
