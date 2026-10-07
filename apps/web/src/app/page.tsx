@@ -39,6 +39,7 @@ import {
   PanelRight,
   Database,
   Bot,
+  CheckCircle2,
 } from 'lucide-react';
 
 interface OrchestrationStepTrace {
@@ -216,7 +217,7 @@ export default function Dashboard() {
   const [importingDriveFileId, setImportingDriveFileId] = useState<string | null>(null);
   const [driveImportSuccess, setDriveImportSuccess] = useState<string | null>(null);
   const [selectedEmailDetail, setSelectedEmailDetail] = useState<any | null>(null);
-  const [showContextDrawer, setShowContextDrawer] = useState(true);
+  const [showContextDrawer, setShowContextDrawer] = useState(false);
 
   const [selectedResumeModal, setSelectedResumeModal] = useState<{
     jobTitle: string;
@@ -758,521 +759,173 @@ export default function Dashboard() {
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#fbfbfa] text-slate-900 font-manrope selection:bg-indigo-100 selection:text-indigo-900">
       {/* ========================================================================= */}
-      {/* 3-PANE LEFT RAIL: Executive Dock (w-64)                                   */}
+      {/* MINIMALIST LEFT NAVIGATION RAIL (w-60)                                    */}
       {/* ========================================================================= */}
-      <aside className="w-64 border-r border-slate-200/90 bg-[#f8fafc] flex flex-col justify-between p-3.5 shrink-0 z-30">
+      <aside className="w-60 border-r border-slate-200/80 bg-white flex flex-col justify-between p-3 shrink-0 z-30">
         <div className="space-y-4">
-          {/* Executive Brand & Identity */}
-          <div className="flex items-center justify-between p-2.5 rounded-xl bg-white border border-slate-200/90 shadow-xs">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-200/70 flex items-center justify-center relative shadow-xs">
-                <GhostMascot size="sm" mood={loading ? 'thinking' : 'happy'} className="scale-90" />
-                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-indigo-500 animate-ping" />
-                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-indigo-600" />
-              </div>
-              <div>
-                <h1 className="font-sora font-bold text-xs tracking-wider text-slate-900 flex items-center gap-1.5">
-                  AETHER // OS
-                  <span className="text-[9px] px-1 py-0.2 rounded bg-indigo-50 text-indigo-700 font-mono border border-indigo-100">v2.4</span>
-                </h1>
-                <div className="text-[10px] font-mono text-emerald-700 font-medium flex items-center gap-1 mt-0.5">
-                  <Database className="w-2.5 h-2.5" />
-                  <span>PostgreSQL: Live (5432)</span>
-                </div>
+          {/* Brand Identity */}
+          <div className="flex items-center gap-2.5 px-3 py-2">
+            <div className="w-8 h-8 rounded-xl bg-indigo-50 border border-indigo-200/60 flex items-center justify-center shrink-0">
+              <GhostMascot size="sm" mood={loading ? 'thinking' : 'happy'} className="scale-90" />
+            </div>
+            <div>
+              <h1 className="font-sora font-bold text-sm tracking-tight text-slate-900">PersonalOS</h1>
+              <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-manrope">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                <span>Online</span>
               </div>
             </div>
           </div>
 
-          {/* Navigation Items with Executive Active State */}
-          <nav className="space-y-1">
-            <button
-              onClick={() => setActiveTab('chat')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-poppins font-medium transition-all ${
-                activeTab === 'chat'
-                  ? 'bg-white text-indigo-700 border-l-2 border-indigo-600 font-semibold shadow-xs border border-slate-200/70'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-              }`}
-            >
-              <Bot className="w-4 h-4 text-indigo-600" />
-              <span>AI Chief &amp; Flow</span>
-              <span className="ml-auto text-[9px] font-mono px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200/60 font-semibold">
-                Swarm
-              </span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('connectors')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-poppins font-medium transition-all ${
-                activeTab === 'connectors'
-                  ? 'bg-white text-indigo-700 border-l-2 border-indigo-600 font-semibold shadow-xs border border-slate-200/70'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-              }`}
-            >
-              <Cpu className="w-4 h-4 text-sky-600" />
-              <span>Connectors &amp; LLM</span>
-              <span
-                className={`ml-auto text-[9px] px-1.5 py-0.2 rounded font-mono font-bold ${
-                  isGeminiLive ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60' : 'bg-amber-50 text-amber-700 border border-amber-200/60'
-                }`}
-              >
-                {isGeminiLive ? 'Gemini 2.5' : 'Key Set'}
-              </span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('jobs')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-poppins font-medium transition-all ${
-                activeTab === 'jobs'
-                  ? 'bg-white text-indigo-700 border-l-2 border-indigo-600 font-semibold shadow-xs border border-slate-200/70'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-              }`}
-            >
-              <Briefcase className="w-4 h-4 text-cyan-600" />
-              <span>Jobs &amp; ATS</span>
-              <span className="ml-auto text-[9px] bg-cyan-50 text-cyan-700 border border-cyan-200/60 px-1.5 py-0.2 rounded font-mono font-bold">
-                {jobs.length} Matches
-              </span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('finance')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-poppins font-medium transition-all ${
-                activeTab === 'finance'
-                  ? 'bg-white text-indigo-700 border-l-2 border-indigo-600 font-semibold shadow-xs border border-slate-200/70'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-              }`}
-            >
-              <Wallet className="w-4 h-4 text-emerald-600" />
-              <span>Capital Ledger</span>
-              <span className="ml-auto text-[9px] bg-emerald-50 text-emerald-700 border border-emerald-200/60 px-1.5 py-0.2 rounded font-mono font-bold">
-                Live DB
-              </span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('shopping')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-poppins font-medium transition-all ${
-                activeTab === 'shopping'
-                  ? 'bg-white text-indigo-700 border-l-2 border-indigo-600 font-semibold shadow-xs border border-slate-200/70'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-              }`}
-            >
-              <ShoppingBag className="w-4 h-4 text-rose-600" />
-              <span>Product Scout</span>
-              <span className="ml-auto text-[9px] bg-rose-50 text-rose-700 border border-rose-200/60 px-1.5 py-0.2 rounded font-mono font-bold">
-                Intel
-              </span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('approvals')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-poppins font-medium transition-all ${
-                activeTab === 'approvals'
-                  ? 'bg-white text-indigo-700 border-l-2 border-indigo-600 font-semibold shadow-xs border border-slate-200/70'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-              }`}
-            >
-              <ShieldCheck className="w-4 h-4 text-amber-600" />
-              <span>Safety Gateway</span>
-              {approvals.filter((a) => a.status === 'pending').length > 0 && (
-                <span className="ml-auto text-[9px] bg-amber-500 text-white px-1.5 py-0.2 rounded-full font-mono font-bold">
-                  {approvals.filter((a) => a.status === 'pending').length}
-                </span>
-              )}
-            </button>
-
-            <button
-              onClick={() => setActiveTab('audit')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-poppins font-medium transition-all ${
-                activeTab === 'audit'
-                  ? 'bg-white text-indigo-700 border-l-2 border-indigo-600 font-semibold shadow-xs border border-slate-200/70'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-              }`}
-            >
-              <Activity className="w-4 h-4 text-lime-600" />
-              <span>Audit Trail</span>
-              <span className="ml-auto text-[9px] bg-lime-50 text-lime-700 border border-lime-200/60 px-1.5 py-0.2 rounded font-mono font-medium">
-                SHA-256
-              </span>
-            </button>
+          {/* Clean Navigation Links */}
+          <nav className="space-y-0.5">
+            {[
+              { id: 'chat', label: 'Assistant', icon: Bot },
+              { id: 'jobs', label: 'Career & Jobs', icon: Briefcase },
+              { id: 'finance', label: 'Finance & Ledger', icon: Wallet },
+              { id: 'shopping', label: 'Product Scout', icon: ShoppingBag },
+              {
+                id: 'approvals',
+                label: 'Approvals',
+                icon: ShieldCheck,
+                badge: approvals.filter((a) => a.status === 'pending').length || undefined,
+              },
+              { id: 'audit', label: 'Activity Log', icon: Activity },
+              { id: 'connectors', label: 'Integrations', icon: Cpu },
+            ].map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id as any)}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-poppins transition-all ${
+                    isActive
+                      ? 'bg-indigo-50/70 text-indigo-700 font-semibold'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 font-normal'
+                  }`}
+                >
+                  <Icon className={`w-4 h-4 ${isActive ? 'text-indigo-600' : 'text-slate-400'}`} />
+                  <span>{item.label}</span>
+                  {item.badge && item.badge > 0 && (
+                    <span className="ml-auto text-[10px] bg-amber-500 text-white px-1.5 py-0.2 rounded-full font-mono font-bold">
+                      {item.badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </nav>
-
-          {/* Swarm Sync Telemetry Widget */}
-          <div className="p-3 rounded-xl bg-white border border-slate-200/80 shadow-xs space-y-1.5">
-            <div className="flex items-center justify-between text-[10px] font-mono text-slate-500">
-              <span className="tracking-wider">SWARM SYNC</span>
-              <span className="text-emerald-600 font-bold">99.98%</span>
-            </div>
-            <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-              <div className="h-full bg-emerald-500 w-[94%]" />
-            </div>
-            <div className="flex items-center justify-between text-[10px] font-mono text-slate-500 pt-0.5">
-              <span>EPOCH: 0842-B</span>
-              <span className="text-indigo-600 font-semibold">ISOLATED</span>
-            </div>
-          </div>
         </div>
 
-        {/* Authenticated Operator Enclave Pod */}
-        <div className="pt-2 border-t border-slate-200">
-          <div className="p-2.5 rounded-xl bg-white border border-slate-200/80 shadow-xs text-xs flex items-center justify-between">
+        {/* Operator Profile */}
+        <div className="pt-2 border-t border-slate-100">
+          <button
+            onClick={() => setShowAuthModal(true)}
+            className="w-full p-2 rounded-xl hover:bg-slate-50 text-left flex items-center justify-between transition-colors group"
+          >
             <div className="flex items-center gap-2 overflow-hidden">
               <img
                 src={currentUser?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&h=120&q=80'}
                 alt={currentUser?.name}
-                className="w-7 h-7 rounded-full object-cover border border-indigo-200 shrink-0"
+                className="w-7 h-7 rounded-full object-cover shrink-0"
               />
               <div className="overflow-hidden">
-                <div className="font-sora font-bold text-slate-900 text-[11px] truncate">{currentUser?.name || 'Rupesh Yadav'}</div>
-                <div className="text-[10px] text-slate-500 font-mono truncate">{currentUser?.email || 'ry993494787@gmail.com'}</div>
+                <div className="font-sora font-semibold text-slate-800 text-xs truncate">{currentUser?.name || 'Rupesh Yadav'}</div>
+                <div className="text-[10px] text-slate-400 font-manrope truncate">{currentUser?.email || 'ry993494787@gmail.com'}</div>
               </div>
             </div>
-            <button
-              onClick={() => setShowAuthModal(true)}
-              title="Switch Account / Auth Session"
-              className="p-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition-colors shrink-0"
-            >
-              <UserCheck className="w-3.5 h-3.5" />
-            </button>
-          </div>
+            <UserCheck className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 shrink-0" />
+          </button>
         </div>
       </aside>
 
       {/* ========================================================================= */}
-      {/* WORKSPACE MAIN WRAPPER (Top header + Central Canvas + Right Drawer)       */}
+      {/* WORKSPACE MAIN WRAPPER (Clean Header + Central Canvas + Optional Drawer)  */}
       {/* ========================================================================= */}
       <div className="flex-1 flex flex-col h-full overflow-hidden relative">
         {/* Top Header Bar */}
-        <header className="h-14 border-b border-slate-200/90 bg-white/90 backdrop-blur-md px-6 flex items-center justify-between shrink-0 z-20">
-          <div className="flex items-center gap-3">
-            <h2 className="font-sora font-semibold text-xs tracking-wider text-slate-900">
-              PROJECT ODYSSEY // EXECUTIVE WORKSPACE
-            </h2>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200/70 font-semibold">
-              PostgreSQL 5432: Live
-            </span>
-            <span className="hidden sm:inline-block text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
-              Zero-Trust: STRICT
-            </span>
-          </div>
+        <header className="h-14 border-b border-slate-200/80 bg-white px-6 flex items-center justify-between shrink-0 z-20">
+          <h2 className="font-sora font-semibold text-sm text-slate-900">
+            {activeTab === 'chat' && 'Assistant'}
+            {activeTab === 'jobs' && 'Career & Opportunities'}
+            {activeTab === 'finance' && 'Financial Ledger'}
+            {activeTab === 'shopping' && 'Product Scout'}
+            {activeTab === 'approvals' && 'Pending Approvals'}
+            {activeTab === 'audit' && 'Activity Log'}
+            {activeTab === 'connectors' && 'Integrations & Keys'}
+          </h2>
 
-          <div className="flex items-center gap-2.5 text-xs font-poppins">
-            <div className="hidden lg:flex items-center gap-2 pr-2 border-r border-slate-200">
-              <span className="font-mono text-[11px] text-slate-500 flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                24.8 tok/s
-              </span>
-            </div>
-
-            <button
-              onClick={() => { setActiveTab('connectors'); setGoogleInboxModal(true); }}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 shadow-xs transition-colors"
-            >
-              <Mail className="w-3.5 h-3.5 text-rose-600" />
-              <span className="text-[11px]">Gmail: <strong className="text-slate-900">{googleStatus?.unreadEmails || 0}</strong></span>
-            </button>
-
-            <button
-              onClick={() => { setActiveTab('connectors'); setGoogleDriveModal(true); }}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 shadow-xs transition-colors"
-            >
-              <HardDrive className="w-3.5 h-3.5 text-indigo-600" />
-              <span className="text-[11px]">Drive: <strong className="text-slate-900">{googleStatus?.indexedFilesCount || 0}</strong></span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('connectors')}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-medium shadow-xs transition-colors ${
-                isGeminiLive
-                  ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100/70'
-                  : 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100/70'
-              }`}
-            >
-              <span className={`w-1.5 h-1.5 rounded-full ${isGeminiLive ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-              <span>{isGeminiLive ? 'Gemini 2.5 Flash' : 'Setup LLM'}</span>
-            </button>
-
+          <div className="flex items-center gap-2">
             <button
               onClick={() => setShowContextDrawer(!showContextDrawer)}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-medium shadow-xs transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-poppins transition-colors ${
                 showContextDrawer
-                  ? 'bg-indigo-50 text-indigo-700 border-indigo-200 font-semibold'
+                  ? 'bg-indigo-50 text-indigo-700 border-indigo-200 font-medium'
                   : 'bg-white text-slate-600 border-slate-200 hover:text-slate-900 hover:bg-slate-50'
               }`}
-              title="Toggle Live Context &amp; Services Deck"
             >
               <PanelRight className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">Context Deck</span>
-            </button>
-
-            <button
-              onClick={() => setShowAuthModal(true)}
-              className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 shadow-xs transition-all"
-            >
-              <img
-                src={currentUser?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&h=120&q=80'}
-                alt={currentUser?.name}
-                className="w-4 h-4 rounded-full object-cover border border-slate-200"
-              />
-              <span className="font-poppins font-medium text-[11px]">{currentUser?.name?.split(' ')[0] || 'User'}</span>
+              <span>Context</span>
             </button>
           </div>
         </header>
 
         {/* WORKSPACE ROW: Central Fluid Canvas + Collapsible Right Context Deck */}
         <div className="flex-1 flex flex-row overflow-hidden relative">
-          {/* ===================================================================== */}
-          {/* CENTRAL EXPANSIVE WORKSPACE CANVAS (Single Unified Scroll Stream)      */}
-          {/* ===================================================================== */}
           <main className="flex-1 flex flex-col h-full overflow-hidden relative bg-[#fbfbfa]">
-            {/* Sub-Header: Swarm Delegation Roster & Breadcrumbs */}
-            <div className="flex-shrink-0 px-8 py-2.5 bg-white/80 border-b border-slate-200/80 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <span className="font-mono text-[10px] uppercase tracking-wider text-slate-500">SUB-TASK DISPATCH:</span>
-                <span className="font-sora text-xs font-semibold text-slate-800">
-                  WORKSPACE // {activeTab.toUpperCase()} EXECUTIVE DELEGATIONS
-                </span>
-              </div>
-
-              {/* Swarm Agent Status Chips */}
-              <div className="hidden sm:flex items-center gap-2">
-                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200/70 text-slate-700 font-mono text-[10px]">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                  <span className="font-semibold text-emerald-700">Chief Agent</span>
-                  <span className="text-slate-500">[Online]</span>
-                </div>
-                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-sky-50 border border-sky-200/70 text-sky-800 font-mono text-[10px]">
-                  <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
-                  <span>@CareerScout</span>
-                </div>
-                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200/70 text-emerald-800 font-mono text-[10px]">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                  <span>@CapitalAlloc</span>
-                </div>
-                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-indigo-50 border border-indigo-200/70 text-indigo-800 font-mono text-[10px]">
-                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                  <span>@CommDirector</span>
-                </div>
-              </div>
-            </div>
-
-            {/* UNIFIED SINGLE SCROLL STREAM (Zero nested card scrollbars) */}
-            <div className="flex-1 overflow-y-auto px-8 py-6 space-y-6 pb-36">
-              {/* View 1: AI Chief Conversation with Real-time Orchestration Stream & Bento Blocks */}
+            {/* UNIFIED SINGLE SCROLL STREAM */}
+            <div className="flex-1 overflow-y-auto px-6 py-8 space-y-6 pb-36">
+              {/* View 1: AI Chief Conversation */}
               {activeTab === 'chat' && (
-                <div className="max-w-5xl mx-auto w-full space-y-6">
-                  {/* Executive Bento Delegation Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* DELEGATE A: Career Scout */}
-                    <div className="p-4 rounded-xl bg-white border border-slate-200/90 shadow-xs hover:border-indigo-300 transition-all">
-                      <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
-                        <div className="flex items-center gap-2">
-                          <Briefcase className="w-4 h-4 text-indigo-600" />
-                          <span className="font-sora font-semibold text-xs text-slate-900">DELEGATE: CAREER SCOUT</span>
-                        </div>
-                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200/60 font-semibold">
-                          98% MATCH
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-600 font-manrope">
-                        Discovered: <strong className="text-slate-900">Staff AI Systems Lead — Stripe</strong>. Evaluated against indexed resume with zero hallucination.
-                      </p>
-                      <div className="mt-3 flex items-center justify-between pt-2 border-t border-slate-100">
-                        <span className="text-[10px] font-mono text-slate-500">Greenhouse ATS • Remote</span>
-                        <button
-                          onClick={() => {
-                            const stripeJob = jobs.find((j) => j.company.toLowerCase().includes('stripe')) || jobs[0];
-                            if (stripeJob) handlePreviewResume(stripeJob);
-                          }}
-                          className="px-2.5 py-1 text-xs font-poppins font-medium rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/70 transition-colors flex items-center gap-1 font-semibold"
-                        >
-                          <FileText className="w-3 h-3" />
-                          <span>Inspect Application</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* DELEGATE B: Capital Allocator */}
-                    <div className="p-4 rounded-xl bg-white border border-slate-200/90 shadow-xs hover:border-emerald-300 transition-all">
-                      <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
-                        <div className="flex items-center gap-2">
-                          <Wallet className="w-4 h-4 text-emerald-600" />
-                          <span className="font-sora font-semibold text-xs text-slate-900">DELEGATE: CAPITAL ALLOCATOR</span>
-                        </div>
-                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200/60 font-semibold">
-                          POLICIES ENFORCED
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-600 font-manrope">
-                        Discretionary headroom: <strong className="text-slate-900">₹{financeOverview?.remainingAffordability?.toLocaleString() || '1,42,500'} buffer</strong> remaining this cycle. Non-discretionary commitments isolated.
-                      </p>
-                      <div className="mt-3 flex items-center justify-between pt-2 border-t border-slate-100">
-                        <span className="text-[10px] font-mono text-slate-500">Read-Only Banking • Deterministic</span>
-                        <button
-                          onClick={() => setActiveTab('finance')}
-                          className="px-2.5 py-1 text-xs font-poppins font-medium rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/70 transition-colors flex items-center gap-1 font-semibold"
-                        >
-                          <span>Open Ledger</span>
-                          <ExternalLink className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
+                <div className="max-w-3xl mx-auto w-full space-y-5">
                   {/* Conversational Stream */}
                   <div className="space-y-4">
                     {messages.map((msg) => (
                       <div key={msg.id}>
                         {msg.sender === 'user' ? (
                           <div className="flex justify-end">
-                            <div className="max-w-xl bg-indigo-600 text-white rounded-2xl rounded-tr-xs px-4 py-3 text-xs font-manrope shadow-xs">
+                            <div className="max-w-xl bg-indigo-600 text-white rounded-2xl rounded-tr-xs px-4 py-2.5 text-xs font-manrope shadow-xs leading-relaxed">
                               {msg.text}
                             </div>
                           </div>
                         ) : (
-                          <div className="flex gap-3 max-w-4xl">
+                          <div className="flex gap-3 max-w-2xl">
                             <div className="shrink-0 pt-1">
                               <GhostMascot size="sm" mood={loading ? 'thinking' : 'happy'} />
                             </div>
-                            <div className="space-y-2.5 flex-1">
-                              <div className="p-4 rounded-xl bg-white border border-slate-200/90 shadow-xs space-y-3">
-                                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                                  <span className="font-sora font-bold text-xs text-indigo-600 uppercase tracking-wider flex items-center gap-1.5">
-                                    <Sparkles className="w-3.5 h-3.5" />
-                                    Chief Agent
-                                  </span>
-                                  <span className="text-[10px] font-mono text-slate-400">{msg.timestamp}</span>
-                                </div>
-
+                            <div className="space-y-2 flex-1">
+                              <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-xs space-y-2.5">
                                 <p className="text-slate-800 text-xs leading-relaxed font-manrope">{msg.text}</p>
 
-                                {/* Live Multi-Agent Orchestration Stream */}
-                                {msg.orchestrationTrace && msg.orchestrationTrace.length > 0 ? (
-                                  <div className="rounded-xl bg-slate-50/80 border border-slate-200 p-3.5 space-y-2.5 mt-2">
-                                    <div className="flex items-center justify-between pb-1 border-b border-slate-200/80">
-                                      <div className="text-[11px] font-sora font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1.5">
-                                        <Activity className="w-3.5 h-3.5 text-amber-600" />
-                                        Multi-Agent Orchestration Stream ({msg.orchestrationTrace.length} Steps)
-                                      </div>
-                                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white text-slate-600 border border-slate-200 shadow-2xs">
-                                        Cryptographically Sealed
-                                      </span>
-                                    </div>
+                                {/* Clean Collapsible Orchestration Summary */}
+                                {msg.orchestrationTrace && msg.orchestrationTrace.length > 0 && (
+                                  <div className="pt-1.5 border-t border-slate-100">
+                                    <button
+                                      type="button"
+                                      onClick={() => setExpandedTrace((prev) => ({ ...prev, [msg.id]: !prev[msg.id] }))}
+                                      className="inline-flex items-center gap-1.5 text-[11px] text-slate-500 hover:text-indigo-600 font-mono transition-colors"
+                                    >
+                                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                      <span>{msg.orchestrationTrace.length} steps executed across specialists</span>
+                                      <ChevronDown className={`w-3 h-3 transition-transform ${expandedTrace[msg.id] ? 'rotate-180' : ''}`} />
+                                    </button>
 
-                                    <div className="space-y-2 pt-1">
-                                      {msg.orchestrationTrace.map((tr) => (
-                                        <div
-                                          key={tr.id}
-                                          className="rounded-lg bg-white border border-slate-200/80 p-2.5 text-xs shadow-2xs transition-colors"
-                                        >
-                                          <div className="flex items-start justify-between gap-2">
-                                            <div className="flex items-start gap-2.5">
-                                              <span
-                                                className={`w-5 h-5 rounded-full flex items-center justify-center font-mono font-bold text-[10px] shrink-0 mt-0.5 ${
-                                                  tr.phase === 'intent_parsing'
-                                                    ? 'bg-sky-50 text-sky-700 border border-sky-200'
-                                                    : tr.phase === 'policy_check'
-                                                      ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                                                      : tr.phase === 'connector_fetch'
-                                                        ? 'bg-teal-50 text-teal-700 border border-teal-200'
-                                                        : tr.phase === 'synthesis'
-                                                          ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                                                          : 'bg-slate-100 text-slate-700 border border-slate-200'
-                                                }`}
-                                              >
-                                                {tr.stepNumber}
-                                              </span>
-                                              <div>
-                                                <div className="flex items-center gap-2">
-                                                  <span className="font-poppins font-bold text-slate-900 text-[12px]">{tr.name}</span>
-                                                  <span
-                                                    className={`text-[10px] font-mono px-1.5 py-0.2 rounded font-medium ${
-                                                      tr.phase === 'policy_check'
-                                                        ? 'bg-amber-50 text-amber-800 border border-amber-200/60'
-                                                        : tr.phase === 'connector_fetch'
-                                                          ? 'bg-teal-50 text-teal-800 border border-teal-200/60'
-                                                          : tr.phase === 'intent_parsing'
-                                                            ? 'bg-sky-50 text-sky-800 border border-sky-200/60'
-                                                            : 'bg-slate-100 text-slate-700 border border-slate-200/60'
-                                                    }`}
-                                                  >
-                                                    {tr.agent}
-                                                  </span>
-                                                </div>
-                                                <p className="text-slate-600 text-[11px] font-manrope mt-0.5">{tr.description}</p>
-                                              </div>
+                                    {expandedTrace[msg.id] && (
+                                      <div className="mt-2.5 space-y-2 pl-2 border-l-2 border-indigo-100">
+                                        {msg.orchestrationTrace.map((tr) => (
+                                          <div key={tr.id} className="text-xs">
+                                            <div className="flex items-center gap-2">
+                                              <span className="font-poppins font-medium text-slate-800 text-[11px]">{tr.name}</span>
+                                              <span className="text-[10px] text-slate-400 font-mono">({tr.agent})</span>
                                             </div>
-
-                                            <div className="flex items-center gap-2 shrink-0">
-                                              {tr.durationMs > 0 && (
-                                                <span className="text-[10px] font-mono text-slate-500 flex items-center gap-1">
-                                                  <Clock className="w-2.5 h-2.5" />
-                                                  {tr.durationMs}ms
-                                                </span>
-                                              )}
-                                              {tr.status === 'policy_verified' ? (
-                                                <span className="text-[10px] font-mono font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
-                                                  Policy OK
-                                                </span>
-                                              ) : tr.status === 'completed' ? (
-                                                <span className="text-[10px] font-mono font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                                                  <Check className="w-2.5 h-2.5" />
-                                                  Done
-                                                </span>
-                                              ) : (
-                                                <span className="text-[10px] font-mono font-semibold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded">
-                                                  {tr.status}
-                                                </span>
-                                              )}
-                                            </div>
+                                            <p className="text-slate-500 text-[11px] font-manrope mt-0.5">{tr.description}</p>
                                           </div>
-
-                                          {/* Collapsible Details */}
-                                          {tr.details && (
-                                            <div className="mt-2 pt-2 border-t border-slate-100">
-                                              <button
-                                                type="button"
-                                                onClick={() =>
-                                                  setExpandedTrace((prev) => ({ ...prev, [tr.id]: !prev[tr.id] }))
-                                                }
-                                                className="text-[10px] font-mono text-slate-500 hover:text-slate-800 flex items-center gap-1 transition-colors"
-                                              >
-                                                {expandedTrace[tr.id] ? (
-                                                  <ChevronUp className="w-3 h-3" />
-                                                ) : (
-                                                  <ChevronDown className="w-3 h-3" />
-                                                )}
-                                                <span>{expandedTrace[tr.id] ? 'Hide Payload' : 'Inspect Step Telemetry'}</span>
-                                              </button>
-                                              {expandedTrace[tr.id] && (
-                                                <pre className="mt-1.5 p-2 rounded bg-slate-50 border border-slate-200 text-[10px] font-mono text-slate-800 overflow-x-auto max-h-40">
-                                                  {JSON.stringify(tr.details, null, 2)}
-                                                </pre>
-                                              )}
-                                            </div>
-                                          )}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                ) : msg.plan && msg.plan.steps ? (
-                                  <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 space-y-2 mt-2">
-                                    <div className="text-[11px] font-sora font-bold text-amber-800 uppercase tracking-wider">
-                                      Delegated Execution Pipeline
-                                    </div>
-                                    {msg.plan.steps.map((st: any, idx: number) => (
-                                      <div key={idx} className="flex items-start gap-2.5 text-xs text-slate-700">
-                                        <div className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0 mt-0.5">
-                                          <Check className="w-3 h-3" />
-                                        </div>
-                                        <div>
-                                          <strong className="font-poppins text-slate-900">{st.name || st.action}:</strong>{' '}
-                                          <span className="text-slate-600 font-manrope">{st.description}</span>
-                                        </div>
+                                        ))}
                                       </div>
-                                    ))}
+                                    )}
                                   </div>
-                                ) : null}
+                                )}
                               </div>
                             </div>
                           </div>
@@ -1281,34 +934,11 @@ export default function Dashboard() {
                     ))}
 
                     {loading && (
-                      <div className="flex items-center gap-3 p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-xs font-poppins text-amber-900">
-                        <GhostMascot size="sm" mood="thinking" />
-                        <span>Chief Agent is evaluating policy gateway, querying PostgreSQL &amp; orchestrating agents...</span>
+                      <div className="flex items-center gap-2.5 text-xs font-manrope text-slate-500 pl-11">
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-600" />
+                        <span>Thinking &amp; executing...</span>
                       </div>
                     )}
-                  </div>
-
-                  {/* Quick Action Test Pills */}
-                  <div className="flex items-center gap-2 pt-2 text-xs overflow-x-auto pb-1">
-                    <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 shrink-0">Live triggers:</span>
-                    <button
-                      onClick={() => handleSendMessage('Find me remote engineering jobs at Stripe or Cloudflare.')}
-                      className="px-3 py-1 rounded-lg bg-white hover:bg-slate-50 text-slate-700 text-[11px] font-mono border border-slate-200 shadow-2xs whitespace-nowrap transition-colors"
-                    >
-                      Greenhouse: &quot;Find Stripe &amp; Cloudflare jobs&quot;
-                    </button>
-                    <button
-                      onClick={() => handleSendMessage('Should I buy a ₹90,000 MacBook Air M2 based on my current finances?')}
-                      className="px-3 py-1 rounded-lg bg-white hover:bg-slate-50 text-slate-700 text-[11px] font-mono border border-slate-200 shadow-2xs whitespace-nowrap transition-colors"
-                    >
-                      Cross-Agent: &quot;Should I buy ₹90,000 laptop?&quot;
-                    </button>
-                    <button
-                      onClick={() => handleSendMessage('Analyze my monthly spending and discretionary reserve.')}
-                      className="px-3 py-1 rounded-lg bg-white hover:bg-slate-50 text-slate-700 text-[11px] font-mono border border-slate-200 shadow-2xs whitespace-nowrap transition-colors"
-                    >
-                      Finance: &quot;Check discretionary budget&quot;
-                    </button>
                   </div>
                 </div>
               )}
@@ -2277,51 +1907,34 @@ export default function Dashboard() {
       </div>
 
       {/* ========================================================================= */}
-      {/* FLOATING OMNI-COMMAND BAR (Bottom Docked Console)                         */}
+      {/* CLEAN MINIMAL INPUT BAR (Only on Assistant tab)                           */}
       {/* ========================================================================= */}
-      <div className="absolute bottom-4 left-8 right-8 z-20">
-        <div className="bg-white/95 border border-slate-200/90 rounded-2xl p-2.5 shadow-xl backdrop-blur-md">
+      {activeTab === 'chat' && (
+        <div className="absolute bottom-6 left-0 right-0 max-w-2xl mx-auto px-6 z-20">
           <form
             onSubmit={(e) => {
               e.preventDefault();
               handleSendMessage();
             }}
-            className="flex items-center gap-3"
+            className="flex items-center gap-3 bg-white border border-slate-200/90 rounded-2xl p-2 pl-4 shadow-lg focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100 transition-all"
           >
-            {/* Mode Indicator Badge */}
-            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-700 font-mono text-[10px]">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="font-semibold text-emerald-700">CHIEF AGENT</span>
-              <span className="text-slate-400">+ SWARM</span>
-            </div>
-
-            {/* Main Input Field */}
             <input
               type="text"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              placeholder="Instruct Chief Agent, @mention specialists, or run commands... (e.g. 'Find Stripe jobs', 'Should I buy MacBook Air?')"
-              className="flex-1 bg-transparent border-0 text-slate-900 placeholder-slate-400 text-xs font-manrope focus:outline-none px-2"
+              placeholder="Ask anything or direct your assistants..."
+              className="flex-1 bg-transparent border-0 text-slate-900 placeholder-slate-400 text-xs font-manrope focus:outline-none"
             />
-
-            {/* Quick Model Pill */}
-            <div className="hidden md:flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200 font-mono text-[10px] text-indigo-700">
-              <span>{selectedGeminiModel}</span>
-              <span className="text-slate-400">• 5432 DB</span>
-            </div>
-
-            {/* Dispatch Action Button */}
             <button
               type="submit"
-              disabled={loading}
-              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-poppins font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm hover:shadow-md disabled:opacity-50"
+              disabled={loading || !inputValue.trim()}
+              className="p-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white transition-colors disabled:opacity-40"
             >
-              <span>Dispatch</span>
               <Send className="w-3.5 h-3.5" />
             </button>
           </form>
         </div>
-      </div>
+      )}
     </main>
 
     {/* ========================================================================= */}
