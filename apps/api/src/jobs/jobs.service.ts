@@ -13,6 +13,7 @@ import { AuditEventType } from '@personal-os/shared';
 import { v4 as uuidv4 } from 'uuid';
 
 import { GreenhouseConnector } from '../connectors/greenhouse.connector';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class JobsService implements OnModuleInit {
@@ -26,6 +27,7 @@ export class JobsService implements OnModuleInit {
     private readonly auditService: AuditService,
     @Inject(forwardRef(() => GreenhouseConnector))
     private readonly greenhouseConnector: GreenhouseConnector,
+    private readonly prisma: PrismaService,
   ) {
     this.userProfile = {
       userId: 'default-user',
@@ -77,7 +79,28 @@ export class JobsService implements OnModuleInit {
     };
   }
 
-  onModuleInit() {
+  async onModuleInit() {
+    try {
+      const dbResumes = await this.prisma.resumeProfile.findMany({
+        where: { userId: 'user-rupesh' },
+      });
+      if (dbResumes && dbResumes.length > 0) {
+        this.userProfile.resumes = dbResumes.map((r) => ({
+          id: r.id,
+          userId: r.userId,
+          title: r.title,
+          fileName: r.fileName,
+          targetRole: r.targetRole,
+          tags: r.tags,
+          contentMarkdown: r.contentMarkdown,
+          isDefault: r.isDefault,
+          createdAt: r.createdAt,
+          updatedAt: r.updatedAt,
+        }));
+      }
+    } catch {
+      // Memory fallback
+    }
     this.runDiscoveryPipeline('Initial bootstrap job discovery');
   }
 
@@ -193,6 +216,30 @@ export class JobsService implements OnModuleInit {
     }
 
     this.rescoreExistingJobs();
+
+    // Persist to PostgreSQL
+    this.prisma.resumeProfile.upsert({
+      where: { id: fullResume.id },
+      update: {
+        title: fullResume.title,
+        fileName: fullResume.fileName,
+        targetRole: fullResume.targetRole,
+        tags: fullResume.tags,
+        contentMarkdown: fullResume.contentMarkdown,
+        isDefault: fullResume.isDefault,
+      },
+      create: {
+        id: fullResume.id,
+        userId: 'user-rupesh',
+        title: fullResume.title,
+        fileName: fullResume.fileName,
+        targetRole: fullResume.targetRole,
+        tags: fullResume.tags,
+        contentMarkdown: fullResume.contentMarkdown,
+        isDefault: fullResume.isDefault,
+      },
+    }).catch(() => {});
+
     return fullResume;
   }
 
@@ -201,6 +248,7 @@ export class JobsService implements OnModuleInit {
     this.userProfile.resumes = this.userProfile.resumes.filter((r) => r.id !== id);
     if (this.userProfile.resumes.length !== initialLen) {
       this.rescoreExistingJobs();
+      this.prisma.resumeProfile.delete({ where: { id } }).catch(() => {});
       return true;
     }
     return false;

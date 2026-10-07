@@ -36,6 +36,9 @@ import {
   UserCheck,
   Download,
   Inbox,
+  PanelRight,
+  Database,
+  Bot,
 } from 'lucide-react';
 
 interface OrchestrationStepTrace {
@@ -178,6 +181,7 @@ export default function Dashboard() {
   const [geminiSaving, setGeminiSaving] = useState(false);
   const [greenhouseSyncing, setGreenhouseSyncing] = useState(false);
   const [greenhouseSyncResult, setGreenhouseSyncResult] = useState<any>(null);
+  const [selectedGeminiModel, setSelectedGeminiModel] = useState('gemini-2.5-flash');
 
   // User Authentication & Personalization State
   const [currentUser, setCurrentUser] = useState<any>({
@@ -212,6 +216,7 @@ export default function Dashboard() {
   const [importingDriveFileId, setImportingDriveFileId] = useState<string | null>(null);
   const [driveImportSuccess, setDriveImportSuccess] = useState<string | null>(null);
   const [selectedEmailDetail, setSelectedEmailDetail] = useState<any | null>(null);
+  const [showContextDrawer, setShowContextDrawer] = useState(true);
 
   const [selectedResumeModal, setSelectedResumeModal] = useState<{
     jobTitle: string;
@@ -751,105 +756,126 @@ export default function Dashboard() {
   const isGeminiLive = geminiConnector?.isLive || false;
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-background text-slate-100 font-manrope">
-      {/* Sidebar Navigation */}
-      <aside className="w-64 border-r-2 border-border bg-surface flex flex-col justify-between p-4 shrink-0">
-        <div>
-          {/* Playful Ghost Brand Header */}
-          <div className="flex items-center gap-3 px-2 py-3 mb-6 bg-card rounded-2xl border-2 border-border">
-            <GhostMascot size="sm" mood={loading ? 'thinking' : 'happy'} />
-            <div>
-              <h1 className="font-sora font-extrabold text-sm tracking-tight text-white flex items-center gap-1.5">
-                Personal OS
-                <span className="w-2 h-2 rounded-full bg-brand-teal inline-block" />
-              </h1>
-              <p className="text-[11px] font-poppins text-brand-tealLight font-medium">Chief Ghost Online</p>
+    <div className="flex h-screen w-screen overflow-hidden bg-[#090d16] text-slate-100 font-manrope selection:bg-emerald-500/30 selection:text-emerald-300">
+      {/* ========================================================================= */}
+      {/* 3-PANE LEFT RAIL: Executive Dock (w-64)                                   */}
+      {/* ========================================================================= */}
+      <aside className="w-64 border-r border-[#1e293b]/70 bg-[#0b1326] flex flex-col justify-between p-3.5 shrink-0 shadow-none z-30">
+        <div className="space-y-4">
+          {/* Executive Brand & Identity */}
+          <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#131b2e] border border-[#1e293b]/80">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-[#171f33] border border-emerald-500/40 flex items-center justify-center relative shadow-[0_0_12px_-2px_rgba(16,185,129,0.3)]">
+                <GhostMascot size="sm" mood={loading ? 'thinking' : 'happy'} className="scale-90" />
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400" />
+              </div>
+              <div>
+                <h1 className="font-sora font-bold text-xs tracking-wider text-white flex items-center gap-1.5">
+                  AETHER // OS
+                  <span className="text-[9px] px-1 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-mono">v2.4</span>
+                </h1>
+                <div className="text-[10px] font-mono text-emerald-400 font-medium flex items-center gap-1 mt-0.5">
+                  <Database className="w-2.5 h-2.5" />
+                  <span>PostgreSQL: Live (5432)</span>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Navigation Items */}
-          <nav className="space-y-1.5">
+          {/* Navigation Items with Executive Active State */}
+          <nav className="space-y-1">
             <button
               onClick={() => setActiveTab('chat')}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-poppins font-medium transition-all ${activeTab === 'chat'
-                  ? 'bg-brand-teal text-white border-2 border-brand-teal font-semibold'
-                  : 'text-slate-300 hover:text-white hover:bg-surfaceHover'
-                }`}
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-poppins font-medium transition-all ${
+                activeTab === 'chat'
+                  ? 'bg-[#171f33] text-emerald-300 border-l-2 border-emerald-400 font-semibold shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-[#131b2e]'
+              }`}
             >
-              <GhostMascot size="sm" className="scale-75 -my-2 -ml-1" />
-              <span>AI Chief</span>
+              <Bot className="w-4 h-4 text-emerald-400" />
+              <span>AI Chief &amp; Flow</span>
+              <span className="ml-auto text-[9px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                Swarm
+              </span>
             </button>
 
             <button
               onClick={() => setActiveTab('connectors')}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-poppins font-medium transition-all ${activeTab === 'connectors'
-                  ? 'bg-brand-blue text-white border-2 border-brand-blue font-semibold'
-                  : 'text-slate-300 hover:text-white hover:bg-surfaceHover'
-                }`}
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-poppins font-medium transition-all ${
+                activeTab === 'connectors'
+                  ? 'bg-[#171f33] text-sky-300 border-l-2 border-sky-400 font-semibold shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-[#131b2e]'
+              }`}
             >
               <Cpu className="w-4 h-4 text-sky-400" />
               <span>Connectors &amp; LLM</span>
               <span
-                className={`ml-auto text-[10px] px-2 py-0.5 rounded-full font-bold ${isGeminiLive ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'
-                  }`}
+                className={`ml-auto text-[9px] px-1.5 py-0.2 rounded font-mono font-bold ${
+                  isGeminiLive ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'
+                }`}
               >
-                {isGeminiLive ? 'Gemini Live' : 'Connect'}
+                {isGeminiLive ? 'Gemini 2.5' : 'Key Set'}
               </span>
             </button>
 
             <button
               onClick={() => setActiveTab('jobs')}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-poppins font-medium transition-all ${activeTab === 'jobs'
-                  ? 'bg-brand-blue text-white border-2 border-brand-blue font-semibold'
-                  : 'text-slate-300 hover:text-white hover:bg-surfaceHover'
-                }`}
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-poppins font-medium transition-all ${
+                activeTab === 'jobs'
+                  ? 'bg-[#171f33] text-sky-300 border-l-2 border-sky-400 font-semibold shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-[#131b2e]'
+              }`}
             >
-              <Briefcase className="w-4 h-4 text-brand-blueLight" />
-              <span>Jobs &amp; Careers</span>
-              <span className="ml-auto text-[10px] bg-brand-blueLight/20 text-brand-blueLight px-2 py-0.5 rounded-full font-bold">
-                Live
+              <Briefcase className="w-4 h-4 text-cyan-400" />
+              <span>Jobs &amp; ATS</span>
+              <span className="ml-auto text-[9px] bg-cyan-500/20 text-cyan-300 px-1.5 py-0.2 rounded font-mono font-bold">
+                {jobs.length} Matches
               </span>
             </button>
 
             <button
               onClick={() => setActiveTab('finance')}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-poppins font-medium transition-all ${activeTab === 'finance'
-                  ? 'bg-brand-teal text-white border-2 border-brand-teal font-semibold'
-                  : 'text-slate-300 hover:text-white hover:bg-surfaceHover'
-                }`}
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-poppins font-medium transition-all ${
+                activeTab === 'finance'
+                  ? 'bg-[#171f33] text-emerald-300 border-l-2 border-emerald-400 font-semibold shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-[#131b2e]'
+              }`}
             >
-              <Wallet className="w-4 h-4 text-brand-tealLight" />
-              <span>Finance Ledger</span>
-              <span className="ml-auto text-[10px] bg-brand-teal/20 text-brand-tealLight px-2 py-0.5 rounded-full font-bold">
-                Read-Only
+              <Wallet className="w-4 h-4 text-emerald-400" />
+              <span>Capital Ledger</span>
+              <span className="ml-auto text-[9px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.2 rounded font-mono font-bold">
+                Live DB
               </span>
             </button>
 
             <button
               onClick={() => setActiveTab('shopping')}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-poppins font-medium transition-all ${activeTab === 'shopping'
-                  ? 'bg-brand-coral text-white border-2 border-brand-coral font-semibold'
-                  : 'text-slate-300 hover:text-white hover:bg-surfaceHover'
-                }`}
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-poppins font-medium transition-all ${
+                activeTab === 'shopping'
+                  ? 'bg-[#171f33] text-rose-300 border-l-2 border-rose-400 font-semibold shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-[#131b2e]'
+              }`}
             >
-              <ShoppingBag className="w-4 h-4 text-rose-300" />
-              <span>Shopping Scout</span>
-              <span className="ml-auto text-[10px] bg-rose-500/20 text-rose-300 px-2 py-0.5 rounded-full font-bold">
-                Cross-Agent
+              <ShoppingBag className="w-4 h-4 text-rose-400" />
+              <span>Product Scout</span>
+              <span className="ml-auto text-[9px] bg-rose-500/20 text-rose-300 px-1.5 py-0.2 rounded font-mono font-bold">
+                Intel
               </span>
             </button>
 
             <button
               onClick={() => setActiveTab('approvals')}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-poppins font-medium transition-all ${activeTab === 'approvals'
-                  ? 'bg-brand-amber text-slate-900 border-2 border-brand-amber font-semibold'
-                  : 'text-slate-300 hover:text-white hover:bg-surfaceHover'
-                }`}
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-poppins font-medium transition-all ${
+                activeTab === 'approvals'
+                  ? 'bg-[#171f33] text-amber-300 border-l-2 border-amber-400 font-semibold shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-[#131b2e]'
+              }`}
             >
-              <ShieldCheck className="w-4 h-4 text-brand-amber" />
-              <span>Safety Gate</span>
+              <ShieldCheck className="w-4 h-4 text-amber-400" />
+              <span>Safety Gateway</span>
               {approvals.filter((a) => a.status === 'pending').length > 0 && (
-                <span className="ml-auto text-[10px] bg-brand-amber text-slate-950 px-2 py-0.5 rounded-full font-bold">
+                <span className="ml-auto text-[9px] bg-amber-400 text-slate-950 px-1.5 py-0.2 rounded-full font-mono font-bold">
                   {approvals.filter((a) => a.status === 'pending').length}
                 </span>
               )}
@@ -857,332 +883,440 @@ export default function Dashboard() {
 
             <button
               onClick={() => setActiveTab('audit')}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-poppins font-medium transition-all ${activeTab === 'audit'
-                  ? 'bg-brand-lime text-slate-950 border-2 border-brand-lime font-semibold'
-                  : 'text-slate-300 hover:text-white hover:bg-surfaceHover'
-                }`}
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-poppins font-medium transition-all ${
+                activeTab === 'audit'
+                  ? 'bg-[#171f33] text-lime-300 border-l-2 border-lime-400 font-semibold shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-[#131b2e]'
+              }`}
             >
-              <Activity className="w-4 h-4 text-brand-lime" />
-              <span>Audit Ledger</span>
+              <Activity className="w-4 h-4 text-lime-400" />
+              <span>Audit Trail</span>
+              <span className="ml-auto text-[9px] bg-lime-500/20 text-lime-300 px-1.5 py-0.2 rounded font-mono">
+                SHA-256
+              </span>
             </button>
           </nav>
+
+          {/* Swarm Sync Telemetry Widget */}
+          <div className="p-3 rounded-xl bg-[#131b2e] border border-[#1e293b]/70 space-y-1.5">
+            <div className="flex items-center justify-between text-[10px] font-mono text-slate-400">
+              <span className="tracking-wider">SWARM SYNC</span>
+              <span className="text-emerald-400 font-bold">99.98%</span>
+            </div>
+            <div className="w-full h-1 bg-[#1e293b] rounded-full overflow-hidden">
+              <div className="h-full bg-emerald-400 w-[94%] shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+            </div>
+            <div className="flex items-center justify-between text-[10px] font-mono text-slate-400 pt-0.5">
+              <span>EPOCH: 0842-B</span>
+              <span className="text-cyan-400 font-semibold">ISOLATED</span>
+            </div>
+          </div>
         </div>
 
-        {/* Active Operator Card & Mascot */}
-        <div className="space-y-2">
-          <div className="p-3 rounded-2xl bg-card border-2 border-border text-xs flex items-center justify-between">
-            <div className="flex items-center gap-2.5 overflow-hidden">
+        {/* Authenticated Operator Enclave Pod */}
+        <div className="pt-2 border-t border-[#1e293b]/60">
+          <div className="p-2.5 rounded-xl bg-[#131b2e] border border-[#1e293b] text-xs flex items-center justify-between">
+            <div className="flex items-center gap-2 overflow-hidden">
               <img
                 src={currentUser?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&h=120&q=80'}
                 alt={currentUser?.name}
-                className="w-7 h-7 rounded-full object-cover border border-brand-teal shrink-0"
+                className="w-7 h-7 rounded-full object-cover border border-emerald-400/50 shrink-0"
               />
               <div className="overflow-hidden">
                 <div className="font-sora font-bold text-white text-[11px] truncate">{currentUser?.name || 'Rupesh Yadav'}</div>
-                <div className="text-[10px] text-slate-400 font-manrope truncate">{currentUser?.email || 'ry993494787@gmail.com'}</div>
+                <div className="text-[10px] text-slate-400 font-mono truncate">{currentUser?.email || 'ry993494787@gmail.com'}</div>
               </div>
             </div>
             <button
               onClick={() => setShowAuthModal(true)}
-              title="Switch Account / Login"
-              className="p-1.5 rounded-lg bg-surface hover:bg-surfaceHover text-slate-300 hover:text-white shrink-0"
+              title="Switch Account / Auth Session"
+              className="p-1 rounded-lg bg-[#171f33] hover:bg-[#1e293b] text-emerald-400 hover:text-white transition-colors shrink-0"
             >
-              <UserCheck className="w-3.5 h-3.5 text-brand-teal" />
+              <UserCheck className="w-3.5 h-3.5" />
             </button>
-          </div>
-
-          <div className="p-3 rounded-2xl bg-card border-2 border-border text-xs flex items-center gap-2.5">
-            <GhostMascot size="sm" mood={loading ? 'thinking' : 'happy'} />
-            <div className="space-y-0.5">
-              <div className="font-sora font-bold text-white text-[11px]">Multi-Agent Sentinel</div>
-              <div className="text-[10px] text-slate-400 font-manrope">
-                {isGeminiLive ? 'Google Gemini 2.5 Flash' : 'Rule-Engine Fallback'}
-              </div>
-            </div>
           </div>
         </div>
       </aside>
 
-      {/* Main Experience Viewport */}
-      <main className="flex-1 flex flex-col h-full overflow-hidden">
-        {/* Top Header */}
-        <header className="h-16 border-b-2 border-border bg-surface px-6 flex items-center justify-between shrink-0">
+      {/* ========================================================================= */}
+      {/* WORKSPACE MAIN WRAPPER (Top header + Central Canvas + Right Drawer)       */}
+      {/* ========================================================================= */}
+      <div className="flex-1 flex flex-col h-full overflow-hidden relative">
+        {/* Top Header Bar */}
+        <header className="h-14 border-b border-[#1e293b]/70 bg-[#0b1326]/90 backdrop-blur-md px-6 flex items-center justify-between shrink-0 z-20">
           <div className="flex items-center gap-3">
-            <h2 className="font-sora font-extrabold text-base text-white">Chief Command Center</h2>
-            <span className="text-[11px] font-poppins font-semibold px-2.5 py-0.5 rounded-full bg-brand-teal/20 text-brand-tealLight border border-brand-teal/40">
-              Personal OS • Live Orchestration Stream
+            <h2 className="font-sora font-semibold text-xs tracking-wider text-white">
+              PROJECT ODYSSEY // EXECUTIVE WORKSPACE
+            </h2>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
+              PostgreSQL 5432: Live
+            </span>
+            <span className="hidden sm:inline-block text-[10px] font-mono px-2 py-0.5 rounded bg-[#171f33] text-cyan-300 border border-cyan-500/30">
+              Zero-Trust: STRICT
             </span>
           </div>
 
           <div className="flex items-center gap-2.5 text-xs font-poppins">
+            <div className="hidden lg:flex items-center gap-2 pr-2 border-r border-[#1e293b]/60">
+              <span className="font-mono text-[11px] text-slate-400 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                24.8 tok/s
+              </span>
+            </div>
+
             <button
               onClick={() => { setActiveTab('connectors'); setGoogleInboxModal(true); }}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-card hover:bg-surfaceHover border border-border text-slate-300 transition-colors"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#131b2e] hover:bg-[#171f33] border border-[#1e293b] text-slate-300 transition-colors"
             >
               <Mail className="w-3.5 h-3.5 text-rose-400" />
-              <span>Gmail: <strong className="text-white">{googleStatus?.unreadEmails || 0}</strong> unread</span>
+              <span className="text-[11px]">Gmail: <strong className="text-white">{googleStatus?.unreadEmails || 0}</strong></span>
+            </button>
+
+            <button
+              onClick={() => { setActiveTab('connectors'); setGoogleDriveModal(true); }}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#131b2e] hover:bg-[#171f33] border border-[#1e293b] text-slate-300 transition-colors"
+            >
+              <HardDrive className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="text-[11px]">Drive: <strong className="text-white">{googleStatus?.indexedFilesCount || 0}</strong></span>
             </button>
 
             <button
               onClick={() => setActiveTab('connectors')}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition-colors ${isGeminiLive
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] transition-colors ${
+                isGeminiLive
                   ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/20'
                   : 'bg-amber-500/10 border-amber-500/40 text-amber-300 hover:bg-amber-500/20'
-                }`}
+              }`}
             >
-              <span className={`w-2 h-2 rounded-full ${isGeminiLive ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-              <span>{isGeminiLive ? 'Gemini Live' : 'Gemini Key'}</span>
+              <span className={`w-1.5 h-1.5 rounded-full ${isGeminiLive ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+              <span>{isGeminiLive ? 'Gemini 2.5 Flash' : 'Setup LLM'}</span>
             </button>
 
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-card border border-border text-slate-300">
-              <span className="w-2 h-2 rounded-full bg-brand-teal" />
-              <span>Greenhouse: Live</span>
-            </div>
+            <button
+              onClick={() => setShowContextDrawer(!showContextDrawer)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-medium transition-all ${
+                showContextDrawer
+                  ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/40'
+                  : 'bg-[#131b2e] text-slate-400 border-[#1e293b] hover:text-white'
+              }`}
+              title="Toggle Live Context &amp; Services Deck"
+            >
+              <PanelRight className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">Context Deck</span>
+            </button>
 
             <button
               onClick={() => setShowAuthModal(true)}
-              className="flex items-center gap-2 px-2.5 py-1 rounded-xl bg-card hover:bg-surfaceHover border border-border text-white playful-button transition-all"
+              className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-[#131b2e] hover:bg-[#171f33] border border-[#1e293b] text-white transition-all"
             >
               <img
                 src={currentUser?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&h=120&q=80'}
                 alt={currentUser?.name}
                 className="w-4 h-4 rounded-full object-cover"
               />
-              <span className="font-poppins font-bold text-xs">{currentUser?.name?.split(' ')[0] || 'User'}</span>
-              <span className="text-[10px] font-mono text-slate-400 uppercase bg-surface px-1 py-0.2 rounded">
-                Account
-              </span>
+              <span className="font-poppins font-medium text-[11px]">{currentUser?.name?.split(' ')[0] || 'User'}</span>
             </button>
           </div>
         </header>
 
-        {/* View 1: AI Chief Conversation with Real-time Orchestration Stream */}
-        {activeTab === 'chat' && (
-          <div className="flex-1 flex flex-col overflow-hidden p-6 max-w-4xl mx-auto w-full gap-5">
-            <div className="flex-1 overflow-y-auto space-y-4 pr-2">
-              {messages.map((msg) => (
-                <div key={msg.id}>
-                  {msg.sender === 'user' ? (
-                    <div className="flex justify-end">
-                      <div className="max-w-xl bg-surfaceHover border-2 border-border text-white rounded-2xl rounded-tr-xs px-4 py-3 text-sm font-manrope shadow-xs">
-                        {msg.text}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex gap-3 max-w-3xl">
-                      <div className="shrink-0 pt-1">
-                        <GhostMascot size="sm" mood={loading ? 'thinking' : 'happy'} />
-                      </div>
-                      <div className="space-y-2.5 flex-1">
-                        <div className="playful-card p-4 space-y-3">
-                          <div className="flex items-center justify-between border-b border-border pb-2">
-                            <span className="font-sora font-bold text-xs text-brand-tealLight uppercase tracking-wider flex items-center gap-1.5">
-                              <Sparkles className="w-3.5 h-3.5" />
-                              Chief Ghost
-                            </span>
-                            <span className="text-[10px] font-poppins text-slate-400">{msg.timestamp}</span>
-                          </div>
+        {/* WORKSPACE ROW: Central Fluid Canvas + Collapsible Right Context Deck */}
+        <div className="flex-1 flex flex-row overflow-hidden relative">
+          {/* ===================================================================== */}
+          {/* CENTRAL EXPANSIVE WORKSPACE CANVAS (Single Unified Scroll Stream)      */}
+          {/* ===================================================================== */}
+          <main className="flex-1 flex flex-col h-full overflow-hidden relative bg-[#090d16]">
+            {/* Sub-Header: Swarm Delegation Roster & Breadcrumbs */}
+            <div className="flex-shrink-0 px-8 py-2.5 bg-[#0b1326] border-b border-[#1e293b]/50 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <span className="font-mono text-[10px] uppercase tracking-wider text-slate-400">SUB-TASK DISPATCH:</span>
+                <span className="font-sora text-xs font-semibold text-slate-200">
+                  WORKSPACE // {activeTab.toUpperCase()} EXECUTIVE DELEGATIONS
+                </span>
+              </div>
 
-                          <p className="text-slate-200 text-sm leading-relaxed">{msg.text}</p>
-
-                          {/* Live Multi-Agent Orchestration Stream */}
-                          {msg.orchestrationTrace && msg.orchestrationTrace.length > 0 ? (
-                            <div className="rounded-xl bg-card border border-border p-3.5 space-y-2.5 mt-2">
-                              <div className="flex items-center justify-between pb-1 border-b border-border">
-                                <div className="text-[11px] font-sora font-bold text-brand-amber uppercase tracking-wider flex items-center gap-1.5">
-                                  <Activity className="w-3.5 h-3.5 text-brand-amber" />
-                                  Multi-Agent Orchestration Stream ({msg.orchestrationTrace.length} Steps)
-                                </div>
-                                <span className="text-[10px] font-poppins px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
-                                  Cryptographically Sealed
-                                </span>
-                              </div>
-
-                              <div className="space-y-2 pt-1">
-                                {msg.orchestrationTrace.map((tr) => (
-                                  <div
-                                    key={tr.id}
-                                    className="rounded-lg bg-surface/80 border border-border/80 p-2.5 text-xs transition-colors"
-                                  >
-                                    <div className="flex items-start justify-between gap-2">
-                                      <div className="flex items-start gap-2.5">
-                                        <span
-                                          className={`w-5 h-5 rounded-full flex items-center justify-center font-poppins font-bold text-[10px] shrink-0 mt-0.5 ${tr.phase === 'intent_parsing'
-                                              ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40'
-                                              : tr.phase === 'policy_check'
-                                                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                                                : tr.phase === 'connector_fetch'
-                                                  ? 'bg-teal-500/20 text-teal-300 border border-teal-500/40'
-                                                  : tr.phase === 'synthesis'
-                                                    ? 'bg-lime-500/20 text-lime-300 border border-lime-500/40'
-                                                    : 'bg-slate-700 text-slate-200'
-                                            }`}
-                                        >
-                                          {tr.stepNumber}
-                                        </span>
-                                        <div>
-                                          <div className="flex items-center gap-2">
-                                            <span className="font-poppins font-bold text-white text-[12px]">{tr.name}</span>
-                                            <span
-                                              className={`text-[10px] font-poppins px-1.5 py-0.2 rounded font-medium ${tr.phase === 'policy_check'
-                                                  ? 'bg-amber-500/20 text-amber-300'
-                                                  : tr.phase === 'connector_fetch'
-                                                    ? 'bg-teal-500/20 text-teal-300'
-                                                    : tr.phase === 'intent_parsing'
-                                                      ? 'bg-sky-500/20 text-sky-300'
-                                                      : 'bg-slate-700 text-slate-300'
-                                                }`}
-                                            >
-                                              {tr.agent}
-                                            </span>
-                                          </div>
-                                          <p className="text-slate-300 text-[11px] font-manrope mt-0.5">{tr.description}</p>
-                                        </div>
-                                      </div>
-
-                                      <div className="flex items-center gap-2 shrink-0">
-                                        {tr.durationMs > 0 && (
-                                          <span className="text-[10px] font-poppins text-slate-400 flex items-center gap-1">
-                                            <Clock className="w-2.5 h-2.5" />
-                                            {tr.durationMs}ms
-                                          </span>
-                                        )}
-                                        {tr.status === 'policy_verified' ? (
-                                          <span className="text-[10px] font-poppins font-semibold text-amber-300 bg-amber-500/20 px-1.5 py-0.5 rounded">
-                                            Policy OK
-                                          </span>
-                                        ) : tr.status === 'completed' ? (
-                                          <span className="text-[10px] font-poppins font-semibold text-emerald-400 bg-emerald-500/20 px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                                            <Check className="w-2.5 h-2.5" />
-                                            Done
-                                          </span>
-                                        ) : (
-                                          <span className="text-[10px] font-poppins font-semibold text-rose-400 bg-rose-500/20 px-1.5 py-0.5 rounded">
-                                            {tr.status}
-                                          </span>
-                                        )}
-                                      </div>
-                                    </div>
-
-                                    {/* Collapsible Details */}
-                                    {tr.details && (
-                                      <div className="mt-2 pt-2 border-t border-border/50">
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            setExpandedTrace((prev) => ({ ...prev, [tr.id]: !prev[tr.id] }))
-                                          }
-                                          className="text-[10px] font-poppins text-slate-400 hover:text-white flex items-center gap-1 transition-colors"
-                                        >
-                                          {expandedTrace[tr.id] ? (
-                                            <ChevronUp className="w-3 h-3" />
-                                          ) : (
-                                            <ChevronDown className="w-3 h-3" />
-                                          )}
-                                          <span>{expandedTrace[tr.id] ? 'Hide Payload' : 'Inspect Step Telemetry'}</span>
-                                        </button>
-                                        {expandedTrace[tr.id] && (
-                                          <pre className="mt-1.5 p-2 rounded bg-background/90 border border-border text-[10px] font-mono text-slate-300 overflow-x-auto max-h-40">
-                                            {JSON.stringify(tr.details, null, 2)}
-                                          </pre>
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          ) : msg.plan && msg.plan.steps ? (
-                            <div className="rounded-xl bg-card border border-border p-3 space-y-2 mt-2">
-                              <div className="text-[11px] font-sora font-bold text-brand-amber uppercase tracking-wider">
-                                Delegated Execution Pipeline
-                              </div>
-                              {msg.plan.steps.map((st: any, idx: number) => (
-                                <div key={idx} className="flex items-start gap-2.5 text-xs text-slate-300">
-                                  <div className="w-4 h-4 rounded-full bg-brand-teal/20 text-brand-tealLight flex items-center justify-center shrink-0 mt-0.5">
-                                    <Check className="w-3 h-3" />
-                                  </div>
-                                  <div>
-                                    <strong className="font-poppins text-white">{st.name || st.action}:</strong>{' '}
-                                    <span className="text-slate-300 font-manrope">{st.description}</span>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          ) : null}
-                        </div>
-                      </div>
-                    </div>
-                  )}
+              {/* Swarm Agent Status Chips */}
+              <div className="hidden sm:flex items-center gap-2">
+                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#131b2e] border border-emerald-500/30 text-slate-200 font-mono text-[10px]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+                  <span className="font-semibold text-emerald-400">Chief Agent</span>
+                  <span className="text-slate-400">[Online]</span>
                 </div>
-              ))}
-
-              {loading && (
-                <div className="flex items-center gap-3 p-3.5 rounded-xl bg-card border-2 border-border text-xs font-poppins text-brand-amber">
-                  <GhostMascot size="sm" mood="thinking" />
-                  <span>Chief Ghost is evaluating policy gateway, querying connectors &amp; orchestrating agents...</span>
+                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#131b2e] border border-cyan-500/30 text-slate-300 font-mono text-[10px]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                  <span>@CareerScout</span>
                 </div>
-              )}
-            </div>
-
-            {/* Chat Input Bar */}
-            <div className="pt-2">
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleSendMessage();
-                }}
-                className="flex items-center gap-2 p-2 rounded-2xl bg-surface border-2 border-border focus-within:border-brand-teal transition-colors"
-              >
-                <div className="pl-2">
-                  <GhostMascot size="sm" mood={loading ? 'thinking' : 'happy'} />
+                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#131b2e] border border-emerald-500/30 text-slate-300 font-mono text-[10px]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  <span>@CapitalAlloc</span>
                 </div>
-                <input
-                  type="text"
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  placeholder="Ask Chief Ghost (e.g. 'Find engineering jobs at Stripe', 'Should I buy MacBook Air?')..."
-                  className="w-full bg-transparent border-0 px-3 py-2 text-sm font-manrope text-white placeholder-slate-400 focus:outline-none"
-                />
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-4 py-2.5 rounded-xl bg-brand-teal hover:bg-brand-tealLight text-white font-poppins font-bold text-xs playful-button shrink-0 flex items-center gap-1.5 disabled:opacity-50"
-                >
-                  <span>Dispatch</span>
-                  <Send className="w-3.5 h-3.5" />
-                </button>
-              </form>
-
-              {/* Quick Prompt Pills */}
-              <div className="flex items-center gap-2 mt-2.5 px-1 text-xs overflow-x-auto pb-1">
-                <span className="text-[11px] font-poppins font-semibold text-slate-400">Live tests:</span>
-                <button
-                  onClick={() => handleSendMessage('Find me remote engineering jobs at Stripe or Cloudflare.')}
-                  className="px-3 py-1 rounded-xl bg-card hover:bg-surfaceHover text-slate-200 text-[11px] font-poppins font-medium border border-border whitespace-nowrap transition-colors"
-                >
-                  Live Greenhouse: &quot;Find Stripe &amp; Cloudflare jobs&quot;
-                </button>
-                <button
-                  onClick={() => handleSendMessage('Should I buy a ₹90,000 MacBook Air M2 based on my current finances?')}
-                  className="px-3 py-1 rounded-xl bg-card hover:bg-surfaceHover text-slate-200 text-[11px] font-poppins font-medium border border-border whitespace-nowrap transition-colors"
-                >
-                  Cross-Agent: &quot;Should I buy ₹90,000 laptop?&quot;
-                </button>
-                <button
-                  onClick={() => handleSendMessage('Analyze my monthly spending and discretionary reserve.')}
-                  className="px-3 py-1 rounded-xl bg-card hover:bg-surfaceHover text-slate-200 text-[11px] font-poppins font-medium border border-border whitespace-nowrap transition-colors"
-                >
-                  Finance: &quot;Check discretionary budget&quot;
-                </button>
+                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#131b2e] border border-cyan-500/30 text-slate-300 font-mono text-[10px]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                  <span>@CommDirector</span>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+
+            {/* UNIFIED SINGLE SCROLL STREAM (Zero nested card scrollbars) */}
+            <div className="flex-1 overflow-y-auto px-8 py-6 space-y-6 pb-36">
+              {/* View 1: AI Chief Conversation with Real-time Orchestration Stream & Bento Blocks */}
+              {activeTab === 'chat' && (
+                <div className="max-w-5xl mx-auto w-full space-y-6">
+                  {/* Executive Bento Delegation Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* DELEGATE A: Career Scout */}
+                    <div className="p-4 rounded-xl bg-[#131b2e] border border-[#1e293b] hover:border-cyan-500/40 transition-colors">
+                      <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#1e293b]/70">
+                        <div className="flex items-center gap-2">
+                          <Briefcase className="w-4 h-4 text-cyan-400" />
+                          <span className="font-sora font-semibold text-xs text-white">DELEGATE: CAREER SCOUT</span>
+                        </div>
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                          98% MATCH
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-300 font-manrope">
+                        Discovered: <strong className="text-white">Staff AI Systems Lead — Stripe</strong>. Evaluated against indexed resume with zero hallucination.
+                      </p>
+                      <div className="mt-3 flex items-center justify-between pt-2 border-t border-[#1e293b]/60">
+                        <span className="text-[10px] font-mono text-slate-400">Greenhouse ATS • Remote</span>
+                        <button
+                          onClick={() => {
+                            const stripeJob = jobs.find((j) => j.company.toLowerCase().includes('stripe')) || jobs[0];
+                            if (stripeJob) handlePreviewResume(stripeJob);
+                          }}
+                          className="px-2.5 py-1 text-xs font-poppins font-medium rounded-lg bg-[#171f33] hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 transition-colors flex items-center gap-1"
+                        >
+                          <FileText className="w-3 h-3" />
+                          <span>Inspect Application</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* DELEGATE B: Capital Allocator */}
+                    <div className="p-4 rounded-xl bg-[#131b2e] border border-[#1e293b] hover:border-emerald-500/40 transition-colors">
+                      <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#1e293b]/70">
+                        <div className="flex items-center gap-2">
+                          <Wallet className="w-4 h-4 text-emerald-400" />
+                          <span className="font-sora font-semibold text-xs text-white">DELEGATE: CAPITAL ALLOCATOR</span>
+                        </div>
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                          POLICIES ENFORCED
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-300 font-manrope">
+                        Discretionary headroom: <strong className="text-white">₹{financeOverview?.remainingAffordability?.toLocaleString() || '1,42,500'} buffer</strong> remaining this cycle. Non-discretionary commitments isolated.
+                      </p>
+                      <div className="mt-3 flex items-center justify-between pt-2 border-t border-[#1e293b]/60">
+                        <span className="text-[10px] font-mono text-slate-400">Read-Only Banking • Deterministic</span>
+                        <button
+                          onClick={() => setActiveTab('finance')}
+                          className="px-2.5 py-1 text-xs font-poppins font-medium rounded-lg bg-[#171f33] hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 transition-colors flex items-center gap-1"
+                        >
+                          <span>Open Ledger</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Conversational Stream */}
+                  <div className="space-y-4">
+                    {messages.map((msg) => (
+                      <div key={msg.id}>
+                        {msg.sender === 'user' ? (
+                          <div className="flex justify-end">
+                            <div className="max-w-xl bg-[#171f33] border border-[#1e293b] text-white rounded-2xl rounded-tr-xs px-4 py-3 text-xs font-manrope shadow-xs">
+                              {msg.text}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex gap-3 max-w-4xl">
+                            <div className="shrink-0 pt-1">
+                              <GhostMascot size="sm" mood={loading ? 'thinking' : 'happy'} />
+                            </div>
+                            <div className="space-y-2.5 flex-1">
+                              <div className="p-4 rounded-xl bg-[#131b2e] border border-[#1e293b] space-y-3">
+                                <div className="flex items-center justify-between border-b border-[#1e293b] pb-2">
+                                  <span className="font-sora font-bold text-xs text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                                    <Sparkles className="w-3.5 h-3.5" />
+                                    Chief Agent
+                                  </span>
+                                  <span className="text-[10px] font-mono text-slate-400">{msg.timestamp}</span>
+                                </div>
+
+                                <p className="text-slate-200 text-xs leading-relaxed">{msg.text}</p>
+
+                                {/* Live Multi-Agent Orchestration Stream */}
+                                {msg.orchestrationTrace && msg.orchestrationTrace.length > 0 ? (
+                                  <div className="rounded-xl bg-[#0b1326] border border-[#1e293b] p-3.5 space-y-2.5 mt-2">
+                                    <div className="flex items-center justify-between pb-1 border-b border-[#1e293b]">
+                                      <div className="text-[11px] font-sora font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                                        <Activity className="w-3.5 h-3.5 text-amber-400" />
+                                        Multi-Agent Orchestration Stream ({msg.orchestrationTrace.length} Steps)
+                                      </div>
+                                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#171f33] text-slate-300 border border-[#1e293b]">
+                                        Cryptographically Sealed
+                                      </span>
+                                    </div>
+
+                                    <div className="space-y-2 pt-1">
+                                      {msg.orchestrationTrace.map((tr) => (
+                                        <div
+                                          key={tr.id}
+                                          className="rounded-lg bg-[#131b2e]/80 border border-[#1e293b] p-2.5 text-xs transition-colors"
+                                        >
+                                          <div className="flex items-start justify-between gap-2">
+                                            <div className="flex items-start gap-2.5">
+                                              <span
+                                                className={`w-5 h-5 rounded-full flex items-center justify-center font-mono font-bold text-[10px] shrink-0 mt-0.5 ${
+                                                  tr.phase === 'intent_parsing'
+                                                    ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40'
+                                                    : tr.phase === 'policy_check'
+                                                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                                                      : tr.phase === 'connector_fetch'
+                                                        ? 'bg-teal-500/20 text-teal-300 border border-teal-500/40'
+                                                        : tr.phase === 'synthesis'
+                                                          ? 'bg-lime-500/20 text-lime-300 border border-lime-500/40'
+                                                          : 'bg-slate-700 text-slate-200'
+                                                }`}
+                                              >
+                                                {tr.stepNumber}
+                                              </span>
+                                              <div>
+                                                <div className="flex items-center gap-2">
+                                                  <span className="font-poppins font-bold text-white text-[12px]">{tr.name}</span>
+                                                  <span
+                                                    className={`text-[10px] font-mono px-1.5 py-0.2 rounded font-medium ${
+                                                      tr.phase === 'policy_check'
+                                                        ? 'bg-amber-500/20 text-amber-300'
+                                                        : tr.phase === 'connector_fetch'
+                                                          ? 'bg-teal-500/20 text-teal-300'
+                                                          : tr.phase === 'intent_parsing'
+                                                            ? 'bg-sky-500/20 text-sky-300'
+                                                            : 'bg-slate-700 text-slate-300'
+                                                    }`}
+                                                  >
+                                                    {tr.agent}
+                                                  </span>
+                                                </div>
+                                                <p className="text-slate-300 text-[11px] font-manrope mt-0.5">{tr.description}</p>
+                                              </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-2 shrink-0">
+                                              {tr.durationMs > 0 && (
+                                                <span className="text-[10px] font-mono text-slate-400 flex items-center gap-1">
+                                                  <Clock className="w-2.5 h-2.5" />
+                                                  {tr.durationMs}ms
+                                                </span>
+                                              )}
+                                              {tr.status === 'policy_verified' ? (
+                                                <span className="text-[10px] font-mono font-semibold text-amber-300 bg-amber-500/20 px-1.5 py-0.5 rounded">
+                                                  Policy OK
+                                                </span>
+                                              ) : tr.status === 'completed' ? (
+                                                <span className="text-[10px] font-mono font-semibold text-emerald-400 bg-emerald-500/20 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                                                  <Check className="w-2.5 h-2.5" />
+                                                  Done
+                                                </span>
+                                              ) : (
+                                                <span className="text-[10px] font-mono font-semibold text-rose-400 bg-rose-500/20 px-1.5 py-0.5 rounded">
+                                                  {tr.status}
+                                                </span>
+                                              )}
+                                            </div>
+                                          </div>
+
+                                          {/* Collapsible Details */}
+                                          {tr.details && (
+                                            <div className="mt-2 pt-2 border-t border-[#1e293b]/70">
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  setExpandedTrace((prev) => ({ ...prev, [tr.id]: !prev[tr.id] }))
+                                                }
+                                                className="text-[10px] font-mono text-slate-400 hover:text-white flex items-center gap-1 transition-colors"
+                                              >
+                                                {expandedTrace[tr.id] ? (
+                                                  <ChevronUp className="w-3 h-3" />
+                                                ) : (
+                                                  <ChevronDown className="w-3 h-3" />
+                                                )}
+                                                <span>{expandedTrace[tr.id] ? 'Hide Payload' : 'Inspect Step Telemetry'}</span>
+                                              </button>
+                                              {expandedTrace[tr.id] && (
+                                                <pre className="mt-1.5 p-2 rounded bg-[#0b1326] border border-[#1e293b] text-[10px] font-mono text-slate-300 overflow-x-auto max-h-40">
+                                                  {JSON.stringify(tr.details, null, 2)}
+                                                </pre>
+                                              )}
+                                            </div>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ) : msg.plan && msg.plan.steps ? (
+                                  <div className="rounded-xl bg-[#0b1326] border border-[#1e293b] p-3 space-y-2 mt-2">
+                                    <div className="text-[11px] font-sora font-bold text-amber-400 uppercase tracking-wider">
+                                      Delegated Execution Pipeline
+                                    </div>
+                                    {msg.plan.steps.map((st: any, idx: number) => (
+                                      <div key={idx} className="flex items-start gap-2.5 text-xs text-slate-300">
+                                        <div className="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-300 flex items-center justify-center shrink-0 mt-0.5">
+                                          <Check className="w-3 h-3" />
+                                        </div>
+                                        <div>
+                                          <strong className="font-poppins text-white">{st.name || st.action}:</strong>{' '}
+                                          <span className="text-slate-300 font-manrope">{st.description}</span>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : null}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+
+                    {loading && (
+                      <div className="flex items-center gap-3 p-3.5 rounded-xl bg-[#131b2e] border border-amber-500/40 text-xs font-poppins text-amber-300">
+                        <GhostMascot size="sm" mood="thinking" />
+                        <span>Chief Agent is evaluating policy gateway, querying PostgreSQL &amp; orchestrating agents...</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Quick Action Test Pills */}
+                  <div className="flex items-center gap-2 pt-2 text-xs overflow-x-auto pb-1">
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 shrink-0">Live triggers:</span>
+                    <button
+                      onClick={() => handleSendMessage('Find me remote engineering jobs at Stripe or Cloudflare.')}
+                      className="px-3 py-1 rounded-lg bg-[#131b2e] hover:bg-[#171f33] text-slate-200 text-[11px] font-mono border border-[#1e293b] whitespace-nowrap transition-colors"
+                    >
+                      Greenhouse: &quot;Find Stripe &amp; Cloudflare jobs&quot;
+                    </button>
+                    <button
+                      onClick={() => handleSendMessage('Should I buy a ₹90,000 MacBook Air M2 based on my current finances?')}
+                      className="px-3 py-1 rounded-lg bg-[#131b2e] hover:bg-[#171f33] text-slate-200 text-[11px] font-mono border border-[#1e293b] whitespace-nowrap transition-colors"
+                    >
+                      Cross-Agent: &quot;Should I buy ₹90,000 laptop?&quot;
+                    </button>
+                    <button
+                      onClick={() => handleSendMessage('Analyze my monthly spending and discretionary reserve.')}
+                      className="px-3 py-1 rounded-lg bg-[#131b2e] hover:bg-[#171f33] text-slate-200 text-[11px] font-mono border border-[#1e293b] whitespace-nowrap transition-colors"
+                    >
+                      Finance: &quot;Check discretionary budget&quot;
+                    </button>
+                  </div>
+                </div>
+              )}
+
 
         {/* View 2: Connectors & Google Gemini Model Management */}
         {activeTab === 'connectors' && (
-          <div className="flex-1 overflow-y-auto p-6 max-w-4xl mx-auto w-full space-y-5">
+          <div className="max-w-5xl mx-auto w-full space-y-6">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="font-sora font-extrabold text-lg text-white">Connectors &amp; AI Intelligence</h2>
@@ -1459,7 +1593,7 @@ export default function Dashboard() {
 
         {/* View 3: Finance Ledger */}
         {activeTab === 'finance' && (
-          <div className="flex-1 overflow-y-auto p-6 max-w-4xl mx-auto w-full space-y-5">
+          <div className="max-w-5xl mx-auto w-full space-y-6">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="font-sora font-extrabold text-lg text-white">Personal Financial Ledger</h2>
@@ -1585,7 +1719,7 @@ export default function Dashboard() {
 
         {/* View 4: Shopping Scout */}
         {activeTab === 'shopping' && (
-          <div className="flex-1 overflow-y-auto p-6 max-w-4xl mx-auto w-full space-y-5">
+          <div className="max-w-5xl mx-auto w-full space-y-6">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="font-sora font-extrabold text-lg text-white">Shopping &amp; Product Scout</h2>
@@ -1722,7 +1856,7 @@ export default function Dashboard() {
 
         {/* View 5: Jobs & Careers */}
         {activeTab === 'jobs' && (
-          <div className="flex-1 overflow-y-auto p-6 max-w-4xl mx-auto w-full space-y-4">
+          <div className="max-w-5xl mx-auto w-full space-y-6">
             <div className="flex items-center justify-between mb-3">
               <div>
                 <h2 className="font-sora font-extrabold text-lg text-white">Live Career Matches</h2>
@@ -1823,7 +1957,7 @@ export default function Dashboard() {
                     <label className="text-xs font-poppins font-bold text-slate-300">Technical Skills ({careerProfile.skills.length})</label>
                     <span className="text-[10px] text-slate-400 font-manrope">Weighted at 50% of the match algorithm</span>
                   </div>
-                  <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-1 bg-card/50 rounded-xl border border-border">
+                  <div className="flex flex-wrap gap-1.5 p-2 bg-[#131b2e] rounded-xl border border-[#1e293b]">
                     {careerProfile.skills.map((skill) => (
                       <span
                         key={skill}
@@ -2013,7 +2147,7 @@ export default function Dashboard() {
 
         {/* View 6: Safety Approvals Gate */}
         {activeTab === 'approvals' && (
-          <div className="flex-1 overflow-y-auto p-6 max-w-4xl mx-auto w-full space-y-4">
+          <div className="max-w-5xl mx-auto w-full space-y-6">
             <div className="flex items-center justify-between mb-3">
               <div>
                 <h2 className="font-sora font-extrabold text-lg text-white">Universal Safety Gate</h2>
@@ -2095,15 +2229,15 @@ export default function Dashboard() {
 
         {/* View 7: Audit Ledger */}
         {activeTab === 'audit' && (
-          <div className="flex-1 overflow-y-auto p-6 max-w-4xl mx-auto w-full space-y-3">
+          <div className="max-w-5xl mx-auto w-full space-y-6">
             <div className="flex items-center justify-between mb-3">
               <div>
-                <h2 className="font-sora font-extrabold text-lg text-white">Immutable Event Ledger</h2>
+                <h2 className="font-sora font-extrabold text-base text-white">Immutable Event Ledger</h2>
                 <p className="text-xs text-slate-400 font-manrope">
-                  Principle 2.3: Every meaningful agent step, decision, and tool invocation is recorded.
+                  Principle 2.3: Every meaningful agent step, decision, and tool invocation is recorded directly in PostgreSQL.
                 </p>
               </div>
-              <button onClick={fetchLiveData} className="p-2 rounded-xl bg-card border border-border text-slate-300 hover:text-white">
+              <button onClick={fetchLiveData} className="p-2 rounded-xl bg-[#131b2e] border border-[#1e293b] text-slate-300 hover:text-white">
                 <RefreshCw className="w-4 h-4" />
               </button>
             </div>
@@ -2114,17 +2248,17 @@ export default function Dashboard() {
               </div>
             ) : (
               auditEvents.map((item) => (
-                <div key={item.id} className="flex items-center justify-between p-3.5 rounded-xl bg-card border border-border text-xs">
+                <div key={item.id} className="flex items-center justify-between p-3.5 rounded-xl bg-[#131b2e] border border-[#1e293b] text-xs">
                   <div className="flex items-center gap-3">
                     <span className="font-mono text-slate-400 text-[11px]">
                       {new Date(item.timestamp).toLocaleTimeString()}
                     </span>
-                    <span className="font-poppins font-bold text-brand-tealLight">
+                    <span className="font-poppins font-bold text-emerald-400">
                       [{item.agentId || item.toolName || 'Chief'}]
                     </span>
                     <span className="text-slate-200 font-manrope">{item.rationale || `Executed ${item.eventType}`}</span>
                   </div>
-                  <span className="font-poppins font-semibold text-[10px] bg-surface text-slate-300 border border-border px-2 py-0.5 rounded-full">
+                  <span className="font-poppins font-semibold text-[10px] bg-[#0b1326] text-slate-300 border border-[#1e293b] px-2 py-0.5 rounded-full">
                     {item.eventType}
                   </span>
                 </div>
@@ -2132,7 +2266,270 @@ export default function Dashboard() {
             )}
           </div>
         )}
-      </main>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* FLOATING OMNI-COMMAND BAR (Bottom Docked Console)                         */}
+      {/* ========================================================================= */}
+      <div className="absolute bottom-4 left-8 right-8 z-20">
+        <div className="bg-[#0b1326]/95 border border-[#1e293b] rounded-xl p-2.5 shadow-2xl backdrop-blur-md">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSendMessage();
+            }}
+            className="flex items-center gap-3"
+          >
+            {/* Mode Indicator Badge */}
+            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#131b2e] border border-[#1e293b] text-slate-200 font-mono text-[10px]">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="font-semibold text-emerald-400">CHIEF AGENT</span>
+              <span className="text-slate-400">+ SWARM</span>
+            </div>
+
+            {/* Main Input Field */}
+            <input
+              type="text"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              placeholder="Instruct Chief Agent, @mention specialists, or run commands... (e.g. 'Find Stripe jobs', 'Should I buy MacBook Air?')"
+              className="flex-1 bg-transparent border-0 text-white placeholder-slate-400 text-xs font-manrope focus:outline-none px-2"
+            />
+
+            {/* Quick Model Pill */}
+            <div className="hidden md:flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#131b2e] border border-[#1e293b] font-mono text-[10px] text-cyan-300">
+              <span>{selectedGeminiModel}</span>
+              <span className="text-slate-500">• 5432 DB</span>
+            </div>
+
+            {/* Dispatch Action Button */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-poppins font-bold text-xs flex items-center gap-1.5 transition-all shadow-[0_0_12px_-2px_rgba(16,185,129,0.4)] disabled:opacity-50"
+            >
+              <span>Dispatch</span>
+              <Send className="w-3.5 h-3.5" />
+            </button>
+          </form>
+        </div>
+      </div>
+    </main>
+
+    {/* ========================================================================= */}
+    {/* 3-PANE RIGHT CONTEXT & SERVICES DRAWER (Docked w-96 Panel)                */}
+    {/* ========================================================================= */}
+    {showContextDrawer && (
+      <aside className="w-96 flex-shrink-0 bg-[#0b1326] border-l border-[#1e293b]/70 flex flex-col h-full overflow-hidden transition-all duration-200 z-10">
+        {/* Drawer Header */}
+        <div className="p-3.5 border-b border-[#1e293b]/70 flex items-center justify-between flex-shrink-0 bg-[#101726]">
+          <div className="flex items-center gap-2">
+            <span className="font-sora font-semibold text-xs text-white">LIVE CONTEXT &amp; SERVICES</span>
+            <span className="px-1.5 py-0.2 rounded bg-[#171f33] text-cyan-300 font-mono text-[10px] border border-cyan-500/30">
+              4 Synced
+            </span>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={fetchLiveData}
+              title="Refresh Live Context"
+              className="p-1 rounded text-slate-400 hover:text-white hover:bg-[#171f33] transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setShowContextDrawer(false)}
+              title="Collapse Drawer"
+              className="p-1 rounded text-slate-400 hover:text-white hover:bg-[#171f33] transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Drawer Stream: Single Scroll Container (Zero nested inner scrolls) */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {/* SECTION 1: Google Workspace (Gmail + Drive) */}
+          <div className="p-3.5 rounded-xl bg-[#131b2e] border border-[#1e293b] space-y-2.5">
+            <div className="flex items-center justify-between pb-2 border-b border-[#1e293b]/70">
+              <div className="flex items-center gap-2">
+                <Mail className="w-4 h-4 text-cyan-400" />
+                <span className="font-mono text-[11px] font-semibold text-white uppercase tracking-wider">
+                  GOOGLE WORKSPACE
+                </span>
+              </div>
+              <span className="text-[10px] font-mono text-emerald-400">REALTIME</span>
+            </div>
+
+            {/* Gmail Item Preview */}
+            <div className="p-2.5 rounded-lg bg-[#0b1326] border border-[#1e293b]/60 space-y-1">
+              <div className="flex items-center justify-between text-[10px] font-mono text-slate-400">
+                <span className="flex items-center gap-1 text-rose-400">
+                  <Mail className="w-3 h-3" /> GMAIL
+                </span>
+                <span>{googleStatus?.unreadEmails || 0} unread</span>
+              </div>
+              <div className="text-xs font-poppins font-medium text-white truncate">
+                {gmailMessages[0]?.subject || 'Recruiter: Technical Lead & AI Architecture'}
+              </div>
+              <p className="text-[11px] font-manrope text-slate-400 line-clamp-1">
+                {gmailMessages[0]?.snippet || 'Inbound interest regarding your background in distributed systems...'}
+              </p>
+              <div className="pt-1.5 flex justify-end">
+                <button
+                  onClick={() => {
+                    setInputValue(`Draft a reply to ${gmailMessages[0]?.fromName || 'the recruiter'} regarding ${gmailMessages[0]?.subject || 'the role'}`);
+                    setActiveTab('chat');
+                  }}
+                  className="text-[10px] font-poppins font-medium px-2 py-0.5 rounded bg-[#171f33] hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 transition-colors"
+                >
+                  Draft Reply &rarr;
+                </button>
+              </div>
+            </div>
+
+            {/* Drive Resume Vault Preview */}
+            <div className="p-2.5 rounded-lg bg-[#0b1326] border border-[#1e293b]/60 space-y-1">
+              <div className="flex items-center justify-between text-[10px] font-mono text-slate-400">
+                <span className="flex items-center gap-1 text-cyan-400">
+                  <HardDrive className="w-3 h-3" /> DRIVE VAULT
+                </span>
+                <span>{googleStatus?.indexedFilesCount || 0} files indexed</span>
+              </div>
+              <div className="text-xs font-poppins font-medium text-white truncate">
+                {driveFiles[0]?.name || 'Rupesh_Yadav_Staff_AI_Engineer_2025.md'}
+              </div>
+              <div className="text-[10px] font-mono text-emerald-400">
+                Ingested into PostgreSQL Resume Vault
+              </div>
+              <div className="pt-1.5 flex justify-end">
+                <button
+                  onClick={() => setGoogleDriveModal(true)}
+                  className="text-[10px] font-poppins font-medium px-2 py-0.5 rounded bg-[#171f33] hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 transition-colors"
+                >
+                  Import Drive Resumes &rarr;
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* SECTION 2: Greenhouse ATS Pipeline */}
+          <div className="p-3.5 rounded-xl bg-[#131b2e] border border-[#1e293b] space-y-2.5">
+            <div className="flex items-center justify-between pb-2 border-b border-[#1e293b]/70">
+              <div className="flex items-center gap-2">
+                <Briefcase className="w-4 h-4 text-cyan-400" />
+                <span className="font-mono text-[11px] font-semibold text-white uppercase tracking-wider">
+                  GREENHOUSE ATS
+                </span>
+              </div>
+              <span className="text-[10px] font-mono text-slate-400">{jobs.length} ACTIVE</span>
+            </div>
+
+            <div className="p-2.5 rounded-lg bg-[#0b1326] border border-[#1e293b]/60 space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-poppins font-bold text-white">
+                  {jobs[0]?.title || 'Staff AI Systems Lead'}
+                </span>
+                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300">
+                  {jobs[0]?.matchScore || 98}% match
+                </span>
+              </div>
+              <div className="text-[11px] font-manrope text-slate-400">
+                {jobs[0]?.company || 'Stripe'} • {jobs[0]?.remote ? 'Remote' : 'Hybrid'}
+              </div>
+              <div className="pt-1.5 flex justify-end gap-1.5">
+                <button
+                  onClick={() => {
+                    if (jobs[0]) handlePreviewResume(jobs[0]);
+                  }}
+                  className="text-[10px] font-poppins font-medium px-2 py-0.5 rounded bg-[#171f33] hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 transition-colors"
+                >
+                  Tailor Resume
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* SECTION 3: Capital & Discretionary Headroom */}
+          <div className="p-3.5 rounded-xl bg-[#131b2e] border border-[#1e293b] space-y-2.5">
+            <div className="flex items-center justify-between pb-2 border-b border-[#1e293b]/70">
+              <div className="flex items-center gap-2">
+                <Wallet className="w-4 h-4 text-emerald-400" />
+                <span className="font-mono text-[11px] font-semibold text-white uppercase tracking-wider">
+                  DISCRETIONARY HEADROOM
+                </span>
+              </div>
+              <span className="text-[10px] font-mono text-emerald-400">SAFE</span>
+            </div>
+
+            <div className="p-2.5 rounded-lg bg-[#0b1326] border border-[#1e293b]/60 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-400">Monthly Reserve:</span>
+                <strong className="text-white font-mono">
+                  ₹{financeOverview?.monthlyDiscretionaryBudget?.toLocaleString() || '2,50,000'}
+                </strong>
+              </div>
+              <div className="w-full h-1.5 bg-[#171f33] rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-emerald-400"
+                  style={{
+                    width: `${Math.min(
+                      100,
+                      ((financeOverview?.currentMonthSpend || 58000) /
+                        (financeOverview?.monthlyDiscretionaryBudget || 250000)) *
+                        100
+                    )}%`,
+                  }}
+                />
+              </div>
+              <div className="flex items-center justify-between text-[10px] font-mono text-slate-400">
+                <span>Spent: ₹{financeOverview?.currentMonthSpend?.toLocaleString() || '58,000'}</span>
+                <span className="text-emerald-400">
+                  Remaining: ₹{financeOverview?.remainingAffordability?.toLocaleString() || '1,92,000'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* SECTION 4: Zero-Trust Security Gateway */}
+          <div className="p-3.5 rounded-xl bg-[#131b2e] border border-[#1e293b] space-y-2.5">
+            <div className="flex items-center justify-between pb-2 border-b border-[#1e293b]/70">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-amber-400" />
+                <span className="font-mono text-[11px] font-semibold text-white uppercase tracking-wider">
+                  ZERO-TRUST GATEWAY
+                </span>
+              </div>
+              <span className="text-[10px] font-mono text-amber-400">STRICT</span>
+            </div>
+
+            <div className="p-2.5 rounded-lg bg-[#0b1326] border border-[#1e293b]/60 space-y-1 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-300">Pending Approvals:</span>
+                <span className="font-mono font-bold text-amber-400">
+                  {approvals.filter((a) => a.status === 'pending').length}
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-400 font-manrope">
+                Least-privilege boundary active. High-risk execution blocked until human consent.
+              </p>
+              {approvals.filter((a) => a.status === 'pending').length > 0 && (
+                <div className="pt-1">
+                  <button
+                    onClick={() => setActiveTab('approvals')}
+                    className="w-full py-1 text-[11px] font-poppins font-bold rounded bg-amber-500 hover:bg-amber-400 text-slate-950 transition-colors"
+                  >
+                    Review Pending Actions
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </aside>
+    )}
+  </div>
+</div>
 
       {/* Tailored Resume & Outreach Pitch Modal */}
       {selectedResumeModal && (

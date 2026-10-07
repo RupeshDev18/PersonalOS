@@ -216,3 +216,30 @@ model Memory {
   @@index([userId, type, key])
   @@map("memories")
 }
+
+model Transaction {
+  id          String   @id @default(uuid())
+  userId      String   @default("user-rupesh")
+  amount      Float
+  category    String
+  merchant    String
+  description String
+  date        DateTime @default(now())
+  status      String   @default("posted")
+  createdAt   DateTime @default(now())
+
+  @@map("transactions")
+}
+
+model ConnectorConfig {
+  id        String   @id
+  name      String
+  type      String
+  status    String
+  isLive    Boolean  @default(false)
+  details   Json     @default("{}")
+  updatedAt DateTime @updatedAt
+
+  @@map("connector_configs")
+}
+

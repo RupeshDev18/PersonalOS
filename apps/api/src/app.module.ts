@@ -13,6 +13,7 @@ import { ShoppingModule } from './shopping/shopping.module';
 import { ConnectorsModule } from './connectors/connectors.module';
 import { LlmModule } from './llm/llm.module';
 import { AuthModule } from './auth/auth.module';
+import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { AuthModule } from './auth/auth.module';
       isGlobal: true,
       envFilePath: ['../../.env', '.env'],
     }),
+    PrismaModule,
     AuditModule,
     ApprovalsModule,
     ToolsModule,

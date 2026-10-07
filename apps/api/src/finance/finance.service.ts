@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import {
   SpendingAnalysis,
   Transaction,
@@ -6,6 +6,7 @@ import {
 } from '@personal-os/shared';
 import { AuditService } from '../audit/audit.service';
 import { AuditEventType } from '@personal-os/shared';
+import { PrismaService } from '../prisma/prisma.service';
 
 export interface AffordabilityEvaluation {
   itemPrice: number;
@@ -20,12 +21,39 @@ export interface AffordabilityEvaluation {
 }
 
 @Injectable()
-export class FinanceService {
+export class FinanceService implements OnModuleInit {
   private transactions: Transaction[] = [];
   private monthlyIncome = 240000; // ₹2.4 Lakh per month
 
-  constructor(private readonly auditService: AuditService) {
+  constructor(
+    private readonly auditService: AuditService,
+    private readonly prisma: PrismaService,
+  ) {
     this.seedMockTransactions();
+  }
+
+  async onModuleInit() {
+    try {
+      const dbTx = await this.prisma.transaction.findMany({
+        orderBy: { date: 'desc' },
+      });
+      if (dbTx && dbTx.length > 0) {
+        this.transactions = dbTx.map((t) => ({
+          id: t.id,
+          userId: t.userId,
+          accountId: 'acc-primary-hdfc',
+          amount: t.amount,
+          currency: 'INR',
+          category: TransactionCategory.SHOPPING,
+          merchant: t.merchant,
+          description: t.description,
+          timestamp: t.date,
+          isRecurring: t.category === 'Tech & Cloud' || t.category === 'Productivity',
+        }));
+      }
+    } catch {
+      // Memory fallback
+    }
   }
 
   public getTransactions(limit = 20): Transaction[] {
