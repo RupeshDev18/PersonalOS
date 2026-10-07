@@ -3,8 +3,8 @@
 @tailwind utilities;
 
 body {
-  color: #f1f5f9;
-  background-color: #0d1117;
+  color: #0f172a;
+  background-color: #fbfbfa;
   font-family: var(--font-manrope), sans-serif;
   overflow-x: hidden;
 }
@@ -17,23 +17,26 @@ button, .font-button, .font-badge {
   font-family: var(--font-poppins), sans-serif;
 }
 
-/* Playful tactile card and border style (Zero gradients, crisp solid look) */
+/* Creative tactile card and border style (Light editorial, crisp solid look) */
 .playful-card {
-  background-color: #161d27;
-  border: 2px solid #273344;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
   border-radius: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02), 0 6px 16px -4px rgba(0, 0, 0, 0.02);
 }
 
 .playful-card-interactive {
-  background-color: #161d27;
-  border: 2px solid #273344;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
   border-radius: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
   transition: all 0.15s ease-in-out;
 }
 
 .playful-card-interactive:hover {
-  border-color: #38bdf8;
+  border-color: #818cf8;
   transform: translateY(-2px);
+  box-shadow: 0 8px 24px -4px rgba(79, 70, 229, 0.08);
 }
 
 .playful-button {
@@ -47,18 +50,18 @@ button, .font-button, .font-badge {
   transform: scale(0.97);
 }
 
-/* Scrollbars */
+/* Discrete non-obtrusive custom scrollbar */
 ::-webkit-scrollbar {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #0d1117;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #273344;
+  background: #cbd5e1;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3b495f;
+  background: #94a3b8;
 }
