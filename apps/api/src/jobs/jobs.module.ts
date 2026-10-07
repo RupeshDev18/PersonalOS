@@ -6,9 +6,10 @@ import { MatchingEngineService } from './matching-engine.service';
 import { ResumeCustomizerService } from './resume-customizer.service';
 import { AuditModule } from '../audit/audit.module';
 import { ConnectorsModule } from '../connectors/connectors.module';
+import { LlmModule } from '../llm/llm.module';
 
 @Module({
-  imports: [AuditModule, ConnectorsModule],
+  imports: [AuditModule, ConnectorsModule, LlmModule],
   controllers: [JobsController],
   providers: [
     JobsService,

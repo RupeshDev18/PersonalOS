@@ -54,4 +54,10 @@ export interface ApprovalRequest {
   userDecisionNote?: string;
   createdAt: Date;
   decidedAt?: Date;
+  executionResult?: {
+    executed: boolean;
+    executedAt: Date;
+    details: string;
+    artifactUrl?: string;
+  };
 }

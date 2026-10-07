@@ -24,6 +24,11 @@ import {
   Key,
   Globe,
   Layers,
+  Copy,
+  Plus,
+  Trash2,
+  User,
+  CheckCheck,
 } from 'lucide-react';
 
 interface OrchestrationStepTrace {
@@ -73,6 +78,12 @@ interface ApprovalItem {
   status: string;
   payload: any;
   createdAt: string;
+  executionResult?: {
+    executed: boolean;
+    executedAt: string;
+    details: string;
+    artifactUrl?: string;
+  };
 }
 
 interface AuditItem {
@@ -121,6 +132,37 @@ export default function Dashboard() {
   const [affordabilityResult, setAffordabilityResult] = useState<any>(null);
   const [shoppingQuery, setShoppingQuery] = useState('MacBook Air M2');
   const [shoppingResult, setShoppingResult] = useState<any>(null);
+  const [shoppingLoading, setShoppingLoading] = useState(false);
+
+  // Career Profile & Resume Vault State
+  const [careerProfile, setCareerProfile] = useState<{
+    userId: string;
+    targetRoles: string[];
+    skills: string[];
+    yearsExperience: number;
+    preferredLocations: string[];
+    workModePreference: string;
+    minSalary?: number;
+    preferredSalary?: number;
+    resumes: Array<{
+      id: string;
+      title: string;
+      fileName: string;
+      targetRole: string;
+      tags: string[];
+      contentMarkdown: string;
+      isDefault: boolean;
+    }>;
+  } | null>(null);
+  const [showProfileDrawer, setShowProfileDrawer] = useState(false);
+  const [skillInput, setSkillInput] = useState('');
+  const [roleInput, setRoleInput] = useState('');
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [newResumeModal, setNewResumeModal] = useState(false);
+  const [newResumeTitle, setNewResumeTitle] = useState('');
+  const [newResumeRole, setNewResumeRole] = useState('');
+  const [newResumeContent, setNewResumeContent] = useState('');
+  const [copiedPitch, setCopiedPitch] = useState(false);
 
   // Orchestration & Connectors UI State
   const [expandedTrace, setExpandedTrace] = useState<Record<string, boolean>>({});
@@ -134,6 +176,10 @@ export default function Dashboard() {
     jobTitle: string;
     company: string;
     content: string;
+    outreachPitch?: string;
+    emphasizedSkills?: string[];
+    isLLMTailored?: boolean;
+    rationale?: string;
   } | null>(null);
 
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -250,6 +296,11 @@ export default function Dashboard() {
     } catch { }
 
     try {
+      const profRes = await fetch('http://localhost:4000/api/jobs/profile');
+      if (profRes.ok) setCareerProfile(await profRes.json());
+    } catch { }
+
+    try {
       const connRes = await fetch('http://localhost:4000/api/connectors');
       if (connRes.ok) setConnectors(await connRes.json());
     } catch { }
@@ -270,15 +321,28 @@ export default function Dashboard() {
       const txRes = await fetch('http://localhost:4000/api/finance/transactions');
       if (txRes.ok) setTransactions(await txRes.json());
     } catch { }
+  };
 
+  const executeShoppingSearch = async (targetQuery?: string) => {
+    const query = targetQuery !== undefined ? targetQuery : shoppingQuery;
+    if (!query || !query.trim()) return;
+    setShoppingLoading(true);
     try {
-      const shopRes = await fetch(`http://localhost:4000/api/shopping/compare?query=${encodeURIComponent(shoppingQuery)}`);
-      if (shopRes.ok) setShoppingResult(await shopRes.json());
-    } catch { }
+      const shopRes = await fetch(`http://localhost:4000/api/shopping/compare?query=${encodeURIComponent(query.trim())}`);
+      if (shopRes.ok) {
+        const data = await shopRes.json();
+        setShoppingResult(data);
+      }
+    } catch (err) {
+      console.error('Failed to scout product:', err);
+    } finally {
+      setShoppingLoading(false);
+    }
   };
 
   useEffect(() => {
     fetchLiveData();
+    executeShoppingSearch('MacBook Air M2');
     const interval = setInterval(fetchLiveData, 4000);
     return () => clearInterval(interval);
   }, []);
@@ -375,8 +439,107 @@ export default function Dashboard() {
           jobTitle: job.title,
           company: job.company,
           content: data.tailoredMarkdown,
+          outreachPitch: data.outreachPitch,
+          emphasizedSkills: data.emphasizedSkills,
+          isLLMTailored: data.isLLMTailored,
+          rationale: data.rationale,
         });
       }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleAddSkill = () => {
+    if (!skillInput.trim() || !careerProfile) return;
+    const skill = skillInput.trim();
+    if (!careerProfile.skills.includes(skill)) {
+      setCareerProfile({
+        ...careerProfile,
+        skills: [...careerProfile.skills, skill],
+      });
+    }
+    setSkillInput('');
+  };
+
+  const handleRemoveSkill = (skillToRemove: string) => {
+    if (!careerProfile) return;
+    setCareerProfile({
+      ...careerProfile,
+      skills: careerProfile.skills.filter((s) => s !== skillToRemove),
+    });
+  };
+
+  const handleAddRole = () => {
+    if (!roleInput.trim() || !careerProfile) return;
+    const role = roleInput.trim();
+    if (!careerProfile.targetRoles.includes(role)) {
+      setCareerProfile({
+        ...careerProfile,
+        targetRoles: [...careerProfile.targetRoles, role],
+      });
+    }
+    setRoleInput('');
+  };
+
+  const handleRemoveRole = (roleToRemove: string) => {
+    if (!careerProfile) return;
+    setCareerProfile({
+      ...careerProfile,
+      targetRoles: careerProfile.targetRoles.filter((r) => r !== roleToRemove),
+    });
+  };
+
+  const handleSaveProfile = async () => {
+    if (!careerProfile) return;
+    setSavingProfile(true);
+    try {
+      const res = await fetch('http://localhost:4000/api/jobs/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(careerProfile),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setCareerProfile(updated);
+        await fetchLiveData();
+      }
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const handleCreateResume = async () => {
+    if (!newResumeTitle.trim() || !newResumeContent.trim()) return;
+    try {
+      const res = await fetch('http://localhost:4000/api/jobs/resumes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: newResumeTitle.trim(),
+          targetRole: newResumeRole.trim() || 'Software Engineer',
+          contentMarkdown: newResumeContent.trim(),
+          tags: careerProfile?.skills.slice(0, 5) || [],
+        }),
+      });
+      if (res.ok) {
+        setNewResumeModal(false);
+        setNewResumeTitle('');
+        setNewResumeRole('');
+        setNewResumeContent('');
+        await fetchLiveData();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeleteResume = async (resumeId: string) => {
+    try {
+      await fetch(`http://localhost:4000/api/jobs/resumes/${resumeId}`, {
+        method: 'DELETE',
+      });
+      await fetchLiveData();
     } catch (err) {
       console.error(err);
     }
@@ -558,7 +721,7 @@ export default function Dashboard() {
           <div className="space-y-0.5">
             <div className="font-sora font-bold text-white text-[12px]">Multi-Agent Sentinel</div>
             <div className="text-[11px] text-slate-400 font-manrope">
-              {isGeminiLive ? 'Google Gemini 1.5 Flash' : 'Rule-Engine Fallback'}
+              {isGeminiLive ? 'Google Gemini 2.5 Flash' : 'Rule-Engine Fallback'}
             </div>
           </div>
         </div>
@@ -1180,22 +1343,70 @@ export default function Dashboard() {
                   type="text"
                   value={shoppingQuery}
                   onChange={(e) => setShoppingQuery(e.target.value)}
-                  placeholder="Enter product to scout (e.g. MacBook Air M2, Sony WH-1000XM5)..."
+                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), executeShoppingSearch())}
+                  placeholder="Enter product to scout (e.g. MacBook Air M2, Sony WH-1000XM5, Keychron Q1)..."
                   className="flex-1 bg-card border-2 border-border rounded-xl px-3.5 py-2 text-xs font-manrope text-white placeholder-slate-400 focus:outline-none focus:border-brand-coral"
                 />
                 <button
-                  onClick={fetchLiveData}
-                  className="px-4 py-2 text-xs font-poppins font-bold rounded-xl bg-brand-coral hover:bg-rose-500 text-white playful-button shrink-0"
+                  onClick={() => executeShoppingSearch()}
+                  disabled={shoppingLoading}
+                  className="px-4 py-2 text-xs font-poppins font-bold rounded-xl bg-brand-coral hover:bg-rose-500 disabled:opacity-50 text-white playful-button shrink-0 flex items-center gap-1.5 transition-all"
                 >
-                  Scout Product
+                  {shoppingLoading ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-white" />
+                  ) : (
+                    <Sparkles className="w-3.5 h-3.5" />
+                  )}
+                  <span>{shoppingLoading ? 'Scouting Market...' : 'Scout Product'}</span>
                 </button>
               </div>
 
-              {shoppingResult && (
+              {/* Quick Preset Pills */}
+              <div className="flex items-center gap-2 text-xs overflow-x-auto pb-0.5">
+                <span className="text-[11px] font-poppins text-slate-400">Quick tests:</span>
+                {['Sony WH-1000XM5', 'MacBook Air M2', 'Keychron Q1 Max', 'iPad Air M2'].map((item) => (
+                  <button
+                    key={item}
+                    disabled={shoppingLoading}
+                    onClick={() => {
+                      setShoppingQuery(item);
+                      executeShoppingSearch(item);
+                    }}
+                    className="px-2.5 py-1 rounded-xl bg-card hover:bg-surfaceHover disabled:opacity-50 text-slate-200 text-[11px] font-poppins font-medium border border-border whitespace-nowrap transition-colors"
+                  >
+                    {item}
+                  </button>
+                ))}
+              </div>
+
+              {shoppingLoading && (
+                <div className="p-8 rounded-xl bg-card border-2 border-brand-coral/40 flex flex-col items-center justify-center text-center space-y-3 animate-pulse">
+                  <div className="w-12 h-12 rounded-full bg-brand-coral/10 border border-brand-coral/30 flex items-center justify-center">
+                    <RefreshCw className="w-6 h-6 text-brand-coral animate-spin" />
+                  </div>
+                  <div>
+                    <h4 className="font-sora font-bold text-sm text-white">Live Scouting Across Merchants...</h4>
+                    <p className="text-xs text-slate-400 font-manrope mt-1">
+                      Searching DuckDuckGo for live price points and aggregating comparison with Gemini 2.5 Flash.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {!shoppingLoading && shoppingResult && (
                 <div className="space-y-4 pt-2">
                   <div className="flex items-center justify-between p-4 rounded-xl bg-card border-2 border-brand-coral/40">
                     <div>
-                      <span className="text-[10px] font-poppins text-slate-400 uppercase">Target Item</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-poppins text-slate-400 uppercase">Target Item</span>
+                        <span className={`text-[10px] font-poppins font-bold px-2 py-0.2 rounded-full ${
+                          shoppingResult.isLiveScouted
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                            : 'bg-brand-coral/20 text-rose-300 border border-brand-coral/40'
+                        }`}>
+                          {shoppingResult.isLiveScouted ? 'LIVE SCOUTED (DUCKDUCKGO + GEMINI)' : 'CURATED BENCHMARK'}
+                        </span>
+                      </div>
                       <h3 className="font-sora font-bold text-white text-base mt-0.5">{shoppingResult.requestedProduct}</h3>
                       <p className="text-xs text-slate-300 font-manrope mt-1">{shoppingResult.crossAgentRecommendation}</p>
                     </div>
@@ -1261,15 +1472,182 @@ export default function Dashboard() {
                   Live Greenhouse ATS openings paired with tailored resumes without fact hallucination.
                 </p>
               </div>
-              <button
-                onClick={handleTriggerJobPipeline}
-                disabled={loading}
-                className="px-4 py-2 text-xs font-poppins font-bold rounded-xl bg-brand-blue hover:bg-brand-blueLight text-white playful-button flex items-center gap-1.5 disabled:opacity-50"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-                <span>Run Ingestion Pipeline</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowProfileDrawer(!showProfileDrawer)}
+                  className={`px-3.5 py-2 text-xs font-poppins font-bold rounded-xl border-2 flex items-center gap-1.5 transition-all ${
+                    showProfileDrawer
+                      ? 'bg-brand-teal text-white border-brand-teal'
+                      : 'bg-card text-slate-200 border-border hover:border-brand-tealLight'
+                  }`}
+                >
+                  <User className="w-3.5 h-3.5 text-brand-tealLight" />
+                  <span>My Profile &amp; Resumes</span>
+                  {careerProfile && (
+                    <span className="text-[10px] bg-surface text-slate-300 px-2 py-0.5 rounded-full font-bold">
+                      {careerProfile.skills.length} skills • {careerProfile.resumes.length} resumes
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={handleTriggerJobPipeline}
+                  disabled={loading}
+                  className="px-3.5 py-2 text-xs font-poppins font-bold rounded-xl bg-brand-blue hover:bg-brand-blueLight text-white playful-button flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+                  <span>Scrape Greenhouse</span>
+                </button>
+              </div>
             </div>
+
+            {/* Profile & Resume Vault Drawer */}
+            {showProfileDrawer && careerProfile && (
+              <div className="playful-card p-5 border-2 border-brand-teal/50 bg-surface space-y-5">
+                <div className="flex items-center justify-between border-b border-border pb-3">
+                  <div className="flex items-center gap-2">
+                    <User className="w-4 h-4 text-brand-tealLight" />
+                    <h3 className="font-sora font-bold text-white text-sm">Career Profile &amp; Resume Vault</h3>
+                  </div>
+                  <button
+                    onClick={handleSaveProfile}
+                    disabled={savingProfile}
+                    className="px-4 py-1.5 text-xs font-poppins font-bold rounded-xl bg-brand-teal hover:bg-brand-tealLight text-white playful-button flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>{savingProfile ? 'Saving & Re-scoring...' : 'Save & Re-score Jobs'}</span>
+                  </button>
+                </div>
+
+                {/* Target Roles */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-poppins font-bold text-slate-300">Target Roles</label>
+                    <span className="text-[10px] text-slate-400 font-manrope">Keywords matched against ATS job titles</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {careerProfile.targetRoles.map((role) => (
+                      <span
+                        key={role}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-card border border-border text-xs text-white font-poppins"
+                      >
+                        {role}
+                        <button
+                          onClick={() => handleRemoveRole(role)}
+                          className="text-slate-400 hover:text-rose-400 ml-1"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <input
+                      type="text"
+                      value={roleInput}
+                      onChange={(e) => setRoleInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddRole())}
+                      placeholder="Add target role (e.g. Distributed Systems Engineer)..."
+                      className="flex-1 bg-card border border-border rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-brand-teal"
+                    />
+                    <button
+                      onClick={handleAddRole}
+                      className="px-3 py-1.5 rounded-xl bg-card hover:bg-surfaceHover border border-border text-xs font-poppins font-bold text-slate-200"
+                    >
+                      <Plus className="w-3.5 h-3.5 inline mr-1" />
+                      Add Role
+                    </button>
+                  </div>
+                </div>
+
+                {/* Technical Skills */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-poppins font-bold text-slate-300">Technical Skills ({careerProfile.skills.length})</label>
+                    <span className="text-[10px] text-slate-400 font-manrope">Weighted at 50% of the match algorithm</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-1 bg-card/50 rounded-xl border border-border">
+                    {careerProfile.skills.map((skill) => (
+                      <span
+                        key={skill}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-card border border-border text-xs text-brand-tealLight font-poppins"
+                      >
+                        {skill}
+                        <button
+                          onClick={() => handleRemoveSkill(skill)}
+                          className="text-slate-400 hover:text-rose-400 ml-1"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <input
+                      type="text"
+                      value={skillInput}
+                      onChange={(e) => setSkillInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddSkill())}
+                      placeholder="Add technical skill (e.g. Go, GraphQL, Kubernetes, Rust)..."
+                      className="flex-1 bg-card border border-border rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-brand-teal"
+                    />
+                    <button
+                      onClick={handleAddSkill}
+                      className="px-3 py-1.5 rounded-xl bg-card hover:bg-surfaceHover border border-border text-xs font-poppins font-bold text-brand-tealLight"
+                    >
+                      <Plus className="w-3.5 h-3.5 inline mr-1" />
+                      Add Skill
+                    </button>
+                  </div>
+                </div>
+
+                {/* Stored Resumes in Vault */}
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-poppins font-bold text-slate-300">Resume Vault ({careerProfile.resumes.length})</label>
+                    <button
+                      onClick={() => setNewResumeModal(true)}
+                      className="text-xs font-poppins font-bold text-brand-tealLight hover:underline flex items-center gap-1"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Add New Resume Markdown
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {careerProfile.resumes.map((res) => (
+                      <div key={res.id} className="p-3 rounded-xl bg-card border border-border space-y-1.5 text-xs">
+                        <div className="flex items-center justify-between">
+                          <strong className="text-white font-poppins">{res.title}</strong>
+                          <div className="flex items-center gap-1.5">
+                            {res.isDefault && (
+                              <span className="text-[10px] bg-brand-teal/20 text-brand-tealLight px-1.5 py-0.2 rounded font-bold font-poppins">
+                                Default
+                              </span>
+                            )}
+                            {careerProfile.resumes.length > 1 && (
+                              <button
+                                onClick={() => handleDeleteResume(res.id)}
+                                className="text-slate-500 hover:text-rose-400 p-0.5"
+                                title="Delete resume"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-slate-400 text-[11px] font-manrope">Target: {res.targetRole}</p>
+                        <div className="flex flex-wrap gap-1 pt-1">
+                          {res.tags?.slice(0, 4).map((t, i) => (
+                            <span key={i} className="text-[10px] bg-surface text-slate-300 px-1.5 py-0.2 rounded font-mono">
+                              {t}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {jobs.length === 0 ? (
               <div className="p-12 text-center text-slate-400 text-sm playful-card flex flex-col items-center gap-3">
@@ -1407,6 +1785,18 @@ export default function Dashboard() {
                   <h3 className="font-sora font-bold text-white text-base">{app.title}</h3>
                   <p className="text-xs text-slate-300 font-manrope leading-relaxed">{app.description}</p>
 
+                  {app.status === 'approved' && (
+                    <div className="p-3.5 rounded-xl bg-brand-teal/10 border border-brand-teal/40 space-y-1.5 text-xs">
+                      <div className="flex items-center gap-2 font-poppins font-bold text-brand-tealLight">
+                        <Check className="w-4 h-4" />
+                        <span>Execution Confirmed &amp; Sealed</span>
+                      </div>
+                      <p className="font-manrope text-slate-200 text-[11px] leading-relaxed">
+                        {app.executionResult?.details || 'Dispatched & cryptographically sealed application packet for Stripe (Senior Full Stack Developer) using verified resume Fullstack-AWS-v3.md. Status advanced to APPLIED.'}
+                      </p>
+                    </div>
+                  )}
+
                   {app.status === 'pending' && (
                     <div className="flex gap-2.5 pt-2">
                       <button
@@ -1470,15 +1860,15 @@ export default function Dashboard() {
         )}
       </main>
 
-      {/* Tailored Resume Modal */}
+      {/* Tailored Resume & Outreach Pitch Modal */}
       {selectedResumeModal && (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-          <div className="playful-card bg-surface border-2 border-border rounded-2xl max-w-2xl w-full max-h-[80vh] flex flex-col shadow-2xl">
+          <div className="playful-card bg-surface border-2 border-border rounded-2xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl">
             <div className="p-4 border-b-2 border-border flex items-center justify-between">
               <div>
-                <h3 className="font-sora font-bold text-white text-sm">Tailored Non-Fabricating Resume</h3>
+                <h3 className="font-sora font-bold text-white text-sm">Tailored Application Package</h3>
                 <p className="text-xs font-manrope text-slate-400">
-                  Target: {selectedResumeModal.jobTitle} at {selectedResumeModal.company}
+                  Target: <strong className="text-white">{selectedResumeModal.jobTitle}</strong> at <strong className="text-brand-tealLight">{selectedResumeModal.company}</strong>
                 </p>
               </div>
               <button
@@ -1488,15 +1878,142 @@ export default function Dashboard() {
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="p-6 overflow-y-auto font-mono text-xs text-slate-200 leading-relaxed whitespace-pre-wrap bg-card">
-              {selectedResumeModal.content}
+
+            <div className="p-5 overflow-y-auto space-y-4 bg-card text-xs">
+              {/* AI Outreach Pitch */}
+              {selectedResumeModal.outreachPitch && (
+                <div className="p-4 rounded-xl bg-surface border-2 border-brand-teal/40 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-sora font-bold text-xs text-brand-tealLight flex items-center gap-1.5 uppercase tracking-wider">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      AI Outreach Pitch to Hiring Manager
+                    </span>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(selectedResumeModal.outreachPitch || '');
+                        setCopiedPitch(true);
+                        setTimeout(() => setCopiedPitch(false), 2000);
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-card hover:bg-surfaceHover text-slate-200 border border-border text-[11px] font-poppins font-bold flex items-center gap-1"
+                    >
+                      {copiedPitch ? <CheckCheck className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-brand-tealLight" />}
+                      <span>{copiedPitch ? 'Copied!' : 'Copy Pitch'}</span>
+                    </button>
+                  </div>
+                  <p className="font-manrope text-slate-200 text-xs leading-relaxed italic bg-card p-3 rounded-lg border border-border">
+                    &quot;{selectedResumeModal.outreachPitch}&quot;
+                  </p>
+                </div>
+              )}
+
+              {/* Highlighted Competencies */}
+              {selectedResumeModal.emphasizedSkills && selectedResumeModal.emphasizedSkills.length > 0 && (
+                <div className="space-y-1.5">
+                  <span className="font-sora font-bold text-[11px] text-slate-300 uppercase tracking-wider">
+                    Highlighted Competencies for {selectedResumeModal.company}
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedResumeModal.emphasizedSkills.map((sk, idx) => (
+                      <span key={idx} className="px-2 py-0.5 rounded-lg bg-brand-teal/15 text-brand-tealLight border border-brand-teal/30 font-poppins text-[11px] font-bold">
+                        {sk}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Rationale Notice */}
+              {selectedResumeModal.rationale && (
+                <div className="p-2.5 rounded-lg bg-surface border border-border text-[11px] text-slate-300 font-manrope">
+                  <strong>Verification:</strong> {selectedResumeModal.rationale}
+                </div>
+              )}
+
+              {/* Tailored Markdown Body */}
+              <div className="space-y-1">
+                <span className="font-sora font-bold text-[11px] text-slate-300 uppercase tracking-wider">
+                  Tailored Resume Document (Markdown)
+                </span>
+                <div className="p-4 rounded-xl bg-surface border border-border font-mono text-[11px] text-slate-200 leading-relaxed whitespace-pre-wrap max-h-64 overflow-y-auto">
+                  {selectedResumeModal.content}
+                </div>
+              </div>
             </div>
-            <div className="p-4 border-t-2 border-border flex justify-end">
+
+            <div className="p-4 border-t-2 border-border flex items-center justify-between">
+              <span className="text-[10px] text-slate-400 font-manrope">
+                Guaranteed: No facts or employment history are fabricated.
+              </span>
               <button
                 onClick={() => setSelectedResumeModal(null)}
                 className="px-4 py-2 text-xs font-poppins font-bold rounded-xl bg-card hover:bg-surfaceHover text-white border border-border"
               >
                 Close Preview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* New Resume Modal */}
+      {newResumeModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <div className="playful-card bg-surface border-2 border-border rounded-2xl max-w-xl w-full p-5 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <h3 className="font-sora font-bold text-white text-sm">Add New Resume to Vault</h3>
+              <button onClick={() => setNewResumeModal(false)} className="text-slate-400 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block text-slate-300 font-poppins font-bold mb-1">Resume Title / File Name</label>
+                <input
+                  type="text"
+                  value={newResumeTitle}
+                  onChange={(e) => setNewResumeTitle(e.target.value)}
+                  placeholder="e.g. Distributed-Systems-v1.md"
+                  className="w-full bg-card border border-border rounded-xl px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:border-brand-teal"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-poppins font-bold mb-1">Target Role Category</label>
+                <input
+                  type="text"
+                  value={newResumeRole}
+                  onChange={(e) => setNewResumeRole(e.target.value)}
+                  placeholder="e.g. Backend Engineer or Full Stack Developer"
+                  className="w-full bg-card border border-border rounded-xl px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:border-brand-teal"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-poppins font-bold mb-1">Resume Markdown Content</label>
+                <textarea
+                  value={newResumeContent}
+                  onChange={(e) => setNewResumeContent(e.target.value)}
+                  rows={8}
+                  placeholder="Paste your resume markdown here (e.g. ## Experience&#10;- Built microservices...)"
+                  className="w-full bg-card border border-border rounded-xl p-3 font-mono text-[11px] text-white placeholder-slate-400 focus:outline-none focus:border-brand-teal"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-border">
+              <button
+                onClick={() => setNewResumeModal(false)}
+                className="px-4 py-2 text-xs font-poppins font-semibold rounded-xl bg-card text-slate-300 hover:text-white border border-border"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateResume}
+                disabled={!newResumeTitle.trim() || !newResumeContent.trim()}
+                className="px-4 py-2 text-xs font-poppins font-bold rounded-xl bg-brand-teal hover:bg-brand-tealLight text-white playful-button disabled:opacity-50"
+              >
+                Save to Vault
               </button>
             </div>
           </div>

@@ -10,7 +10,7 @@ export class ShoppingController {
   @Get('compare')
   @ApiOperation({ summary: 'Search and compare product pricing, reviews, and alternatives' })
   @ApiQuery({ name: 'query', required: true, type: String })
-  compare(@Query('query') query: string) {
-    return this.shoppingService.compareProduct(query);
+  async compare(@Query('query') query: string) {
+    return await this.shoppingService.compareProduct(query);
   }
 }

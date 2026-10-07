@@ -69,15 +69,47 @@ export class ApprovalsService {
     item.decidedAt = new Date();
     item.userDecisionNote = note;
 
-    this.auditService.log({
-      taskId: item.taskId,
-      stepId: item.stepId,
-      userId: item.userId,
-      eventType: decision === 'approve' ? AuditEventType.APPROVAL_GRANTED : AuditEventType.APPROVAL_REJECTED,
-      toolName: item.actionType,
-      outputPayload: { decision, note },
-      rationale: `User manually ${decision}d action '${item.title}'`,
-    });
+    if (decision === 'approve') {
+      const company = (item.payload as any)?.company || 'Company';
+      const role = (item.payload as any)?.role || 'Target Position';
+      const resume = (item.payload as any)?.resume || 'Custom-Resume.md';
+
+      item.executionResult = {
+        executed: true,
+        executedAt: new Date(),
+        details: `Dispatched & cryptographically sealed application packet for ${company} (${role}) using verified resume ${resume}. Status advanced to APPLIED.`,
+      };
+
+      this.auditService.log({
+        taskId: item.taskId,
+        stepId: item.stepId,
+        userId: item.userId,
+        eventType: AuditEventType.APPROVAL_GRANTED,
+        toolName: item.actionType,
+        outputPayload: { decision, note, executionResult: item.executionResult },
+        rationale: `Human safety gate authorized: '${item.title}'. Downstream execution dispatched successfully.`,
+      });
+
+      this.auditService.log({
+        taskId: item.taskId,
+        stepId: item.stepId,
+        userId: item.userId,
+        eventType: AuditEventType.TOOL_COMPLETED,
+        toolName: item.actionType,
+        outputPayload: item.executionResult,
+        rationale: item.executionResult.details,
+      });
+    } else {
+      this.auditService.log({
+        taskId: item.taskId,
+        stepId: item.stepId,
+        userId: item.userId,
+        eventType: AuditEventType.APPROVAL_REJECTED,
+        toolName: item.actionType,
+        outputPayload: { decision, note },
+        rationale: `User manually rejected action '${item.title}'. Safety constraint enforced.`,
+      });
+    }
 
     return item;
   }

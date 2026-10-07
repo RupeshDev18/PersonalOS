@@ -17,8 +17,7 @@ A multi-agent personal operating system where you interact primarily with one **
 PersonalOS/
 ├── apps/
 │   ├── api/             # NestJS REST & WebSocket API backend
-│   ├── web/             # Next.js 14 (App Router) + Tailwind + Glassmorphism UI
-│   └── workers/         # BullMQ queue workers & schedule runners
+│   └── web/             # Next.js 14 Playful UI (Sora, Manrope, Poppins, Ghost Mascot)
 ├── packages/
 │   ├── shared/          # Core domain models, enums & TypeScript interfaces
 │   ├── permissions/     # Capability permission engine & approval rules
@@ -31,28 +30,34 @@ PersonalOS/
 
 ---
 
+## Key Features
+
+- **Chief Coordinator Agent with Ghost Mascot:** A friendly, unified front-door orchestrating tasks across specialist bots with animated pupil tracking.
+- **Career Profile & Resume Vault:** Store multiple role-targeted markdown resumes, skills, and target job titles. Automatically recalculates real-time job fit scores.
+- **Zero-Fabrication AI Resume Tailoring & Pitch:** Adapts resume bullet points and generates hiring manager outreach pitches tailored to live job listings (e.g., Stripe, Cloudflare, Figma) without ever hallucinating skills or experience.
+- **Human-in-the-Loop Execution Pipeline:** High-stakes operations (such as submitting job applications) trigger an approval gate. Approving dispatches cryptographically sealed audit events.
+- **Live Shopping Scout (DuckDuckGo + Gemini):** Aggregates real-time e-commerce pricing across Amazon India, Croma, and Reliance Digital, verifying cross-agent budget feasibility.
+- **Resilient Gemini Engine:** Auto-discovers and falls back across available Google Generative AI models (`gemini-3.8-flash`, `gemini-3.5-flash`, `gemini-flash-latest`).
+- **Live Greenhouse Jobs Connector:** Streams verified open positions directly from active employer job boards.
+
+---
+
 ## Getting Started
 
-### 1. Start Infrastructure (Docker)
-Ensure Docker Desktop is running, then run:
+### 1. Configure Environment
+Create a `.env` in the root directory:
 ```bash
-docker compose -f infrastructure/docker/docker-compose.yml up -d
+GEMINI_API_KEY="your-google-ai-studio-api-key"
 ```
-This launches:
-- **PostgreSQL 16** with `pgvector` enabled on port `5432`
-- **Redis 7** on port `6379`
 
 ### 2. Install Dependencies
 ```bash
 npm install
 ```
 
-### 3. Build Shared Packages
+### 3. Run Development Servers
 ```bash
-npm run build --workspaces
+npm run dev
 ```
-
-### 4. Run Development Servers
-- Backend API (NestJS): `npm run dev:api` (Runs on `http://localhost:4000`, docs at `/api/docs`)
-- Frontend Web (Next.js): `npm run dev:web` (Runs on `http://localhost:3000`)
-- Queue Workers: `npm run dev:workers`
+- **Web App:** [http://localhost:3000](http://localhost:3000)
+- **API Backend:** [http://localhost:4000](http://localhost:4000) (Swagger at `/api/docs`)

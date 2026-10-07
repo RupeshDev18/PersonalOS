@@ -123,13 +123,95 @@ export class JobsService implements OnModuleInit {
     return this.userProfile.resumes;
   }
 
-  public getTailoredResume(jobId: string) {
+  public updateCareerProfile(update: Partial<UserCareerProfile>): UserCareerProfile {
+    this.userProfile = {
+      ...this.userProfile,
+      ...update,
+      skills: update.skills ? [...update.skills] : this.userProfile.skills,
+      targetRoles: update.targetRoles ? [...update.targetRoles] : this.userProfile.targetRoles,
+      preferredLocations: update.preferredLocations ? [...update.preferredLocations] : this.userProfile.preferredLocations,
+    };
+
+    // Re-score all tracked jobs against new skills/roles immediately
+    this.rescoreExistingJobs();
+
+    this.auditService.log({
+      taskId: 'career-profile-update',
+      userId: this.userProfile.userId,
+      agentId: 'agent-job',
+      eventType: AuditEventType.DECISION_CREATED,
+      toolName: 'jobs.profile.update',
+      outputPayload: {
+        skillsCount: this.userProfile.skills.length,
+        targetRoles: this.userProfile.targetRoles,
+      },
+      rationale: `Updated career profile with ${this.userProfile.skills.length} skills and re-scored ${this.jobs.size} jobs.`,
+    });
+
+    return this.userProfile;
+  }
+
+  public rescoreExistingJobs() {
+    for (const job of this.jobs.values()) {
+      const { overallScore, breakdown } = this.matchingEngineService.scoreJob(job, this.userProfile);
+      job.matchScore = overallScore;
+      job.matchBreakdown = breakdown;
+
+      if (this.userProfile.resumes.length > 0) {
+        const bestResume = this.resumeCustomizerService.selectBestResume(job, this.userProfile.resumes);
+        job.recommendedResumeId = bestResume.fileName;
+      }
+    }
+  }
+
+  public addOrUpdateResume(resume: Partial<ResumeProfile>): ResumeProfile {
+    const id = resume.id || `res-${Date.now()}`;
+    const existingIndex = this.userProfile.resumes.findIndex((r) => r.id === id);
+
+    const fullResume: ResumeProfile = {
+      id,
+      userId: this.userProfile.userId,
+      title: resume.title || 'Custom-Resume.md',
+      fileName: resume.fileName || resume.title || 'Custom-Resume.md',
+      targetRole: resume.targetRole || this.userProfile.targetRoles[0] || 'Software Engineer',
+      tags: resume.tags || this.userProfile.skills.slice(0, 5),
+      contentMarkdown: resume.contentMarkdown || '# Experience\n\n- Software Engineer',
+      isDefault: resume.isDefault ?? (this.userProfile.resumes.length === 0),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    if (existingIndex >= 0) {
+      this.userProfile.resumes[existingIndex] = {
+        ...this.userProfile.resumes[existingIndex],
+        ...fullResume,
+        updatedAt: new Date(),
+      };
+    } else {
+      this.userProfile.resumes.push(fullResume);
+    }
+
+    this.rescoreExistingJobs();
+    return fullResume;
+  }
+
+  public deleteResume(id: string): boolean {
+    const initialLen = this.userProfile.resumes.length;
+    this.userProfile.resumes = this.userProfile.resumes.filter((r) => r.id !== id);
+    if (this.userProfile.resumes.length !== initialLen) {
+      this.rescoreExistingJobs();
+      return true;
+    }
+    return false;
+  }
+
+  public async getTailoredResume(jobId: string) {
     const job = this.jobs.get(jobId);
     if (!job) {
       throw new Error(`Job '${jobId}' not found`);
     }
     const bestResume = this.resumeCustomizerService.selectBestResume(job, this.userProfile.resumes);
-    return this.resumeCustomizerService.customize(job, bestResume);
+    return await this.resumeCustomizerService.customize(job, bestResume);
   }
 
   /**

@@ -1,8 +1,7 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { JobLifecycleStatus } from '@personal-os/shared';
+import { JobLifecycleStatus, ResumeProfile, UserCareerProfile } from '@personal-os/shared';
 import { JobsService } from './jobs.service';
-
 import { IsEnum } from 'class-validator';
 
 export class UpdateJobStatusDto {
@@ -32,6 +31,24 @@ export class JobsController {
     return this.jobsService.getCareerProfile();
   }
 
+  @Put('profile')
+  @ApiOperation({ summary: 'Update career profile skills, target roles, and preferences' })
+  updateCareerProfile(@Body() body: Partial<UserCareerProfile>) {
+    return this.jobsService.updateCareerProfile(body);
+  }
+
+  @Post('resumes')
+  @ApiOperation({ summary: 'Add or update a resume in the user vault' })
+  addOrUpdateResume(@Body() body: Partial<ResumeProfile>) {
+    return this.jobsService.addOrUpdateResume(body);
+  }
+
+  @Delete('resumes/:id')
+  @ApiOperation({ summary: 'Delete a resume from vault' })
+  deleteResume(@Param('id') id: string) {
+    return { success: this.jobsService.deleteResume(id) };
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get job details including match score breakdown and concerns' })
   getJob(@Param('id') id: string) {
@@ -41,6 +58,12 @@ export class JobsController {
   @Get(':id/resume')
   @ApiOperation({ summary: 'Get tailored non-fabricated resume for this specific job' })
   getTailoredResume(@Param('id') id: string) {
+    return this.jobsService.getTailoredResume(id);
+  }
+
+  @Post(':id/tailor-resume')
+  @ApiOperation({ summary: 'Generate tailored non-fabricated resume on-demand for this specific job' })
+  tailorResume(@Param('id') id: string) {
     return this.jobsService.getTailoredResume(id);
   }
 

@@ -8,10 +8,13 @@ export class GeminiService {
   private readonly logger = new Logger(GeminiService.name);
   private genAI: GoogleGenerativeAI | null = null;
   private apiKey: string | null = null;
-  private modelName: string = 'gemini-2.5-flash';
+  private modelName: string = 'gemini-3.8-flash';
 
   constructor() {
     this.initGemini();
+    if (this.apiKey) {
+      this.discoverBestModel().catch(() => {});
+    }
   }
 
   private initGemini() {
@@ -81,13 +84,13 @@ export class GeminiService {
 
         // Priority preference for active generation models
         const preferences = [
-          'gemini-2.5-flash',
+          'gemini-3.8-flash',
+          'gemini-3.7-flash',
+          'gemini-3.5-flash',
           'gemini-flash-latest',
           'gemini-2.5-flash-lite',
-          'gemini-3.5-flash',
-          'gemini-2.5-pro',
           'gemini-pro-latest',
-          'gemini-2.0-flash',
+          'gemini-2.5-pro',
         ];
 
         for (const pref of preferences) {
@@ -122,12 +125,12 @@ export class GeminiService {
     // 2. Candidate list to probe
     const candidates = [
       this.modelName,
-      'gemini-2.5-flash',
+      'gemini-3.8-flash',
+      'gemini-3.7-flash',
+      'gemini-3.5-flash',
       'gemini-flash-latest',
       'gemini-2.5-flash-lite',
-      'gemini-2.5-pro',
       'gemini-pro-latest',
-      'gemini-3.5-flash',
     ];
 
     const uniqueCandidates = Array.from(new Set(candidates));
@@ -183,6 +186,41 @@ export class GeminiService {
   }
 
   /**
+   * Resilient generator with automatic model fallback across supported Gemini versions
+   */
+  public async generateContentWithFallback(promptText: string): Promise<string | null> {
+    if (!this.genAI) return null;
+
+    const candidates = [
+      this.modelName,
+      'gemini-3.8-flash',
+      'gemini-3.7-flash',
+      'gemini-3.5-flash',
+      'gemini-flash-latest',
+      'gemini-2.5-flash-lite',
+      'gemini-pro-latest',
+    ];
+    const uniqueCandidates = Array.from(new Set(candidates));
+
+    for (const modelCandidate of uniqueCandidates) {
+      try {
+        const model = this.genAI.getGenerativeModel({ model: modelCandidate });
+        const response = await model.generateContent(promptText);
+        const text = response.response.text();
+        if (text) {
+          this.modelName = modelCandidate;
+          return text;
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.logger.warn(`Model "${modelCandidate}" error: ${msg}. Attempting fallback candidate...`);
+      }
+    }
+
+    return null;
+  }
+
+  /**
    * Use Gemini to understand user intent and break it down into execution steps
    */
   public async understandIntentWithLLM(prompt: string): Promise<{
@@ -196,7 +234,6 @@ export class GeminiService {
     if (!this.genAI) return null;
 
     try {
-      const model = this.genAI.getGenerativeModel({ model: this.modelName });
       const systemPrompt = `You are the Chief Coordinator Agent in a personal AI Operating System.
 Your job is to accurately classify whether the user prompt requires specialist agents, or if it is a direct conversational message that Chief can answer directly.
 
@@ -240,8 +277,9 @@ Respond strictly with valid JSON conforming to this schema:
 
 User prompt: "${prompt}"`;
 
-      const response = await model.generateContent(systemPrompt);
-      const text = response.response.text();
+      const text = await this.generateContentWithFallback(systemPrompt);
+      if (!text) return null;
+
       const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
       const parsed = JSON.parse(cleanJson);
 
@@ -265,7 +303,6 @@ User prompt: "${prompt}"`;
     if (!this.genAI) return null;
 
     try {
-      const model = this.genAI.getGenerativeModel({ model: this.modelName });
       const hasSpecialistData = Object.keys(specialistData || {}).length > 0;
 
       let promptText = '';
@@ -285,8 +322,8 @@ Provide a concise, direct, personalized recommendation to the user.
 Explain the rationale clearly (e.g. price vs affordability vs benchmarks) and give a clear verdict. Keep it conversational and friendly.`;
       }
 
-      const response = await model.generateContent(promptText);
-      return response.response.text().trim();
+      const text = await this.generateContentWithFallback(promptText);
+      return text ? text.trim() : null;
     } catch (err) {
       this.logger.error(`Gemini synthesis failed: ${err}`);
       return null;
@@ -303,7 +340,6 @@ Explain the rationale clearly (e.g. price vs affordability vs benchmarks) and gi
     if (!this.genAI) return null;
 
     try {
-      const model = this.genAI.getGenerativeModel({ model: this.modelName });
       const promptText = `You are a Resume Specialist Agent.
 Tailor the user's base resume for the following job description.
 
@@ -318,8 +354,8 @@ ${jobDescription}
 Base Resume:
 ${baseResumeMarkdown}`;
 
-      const response = await model.generateContent(promptText);
-      return response.response.text().trim();
+      const text = await this.generateContentWithFallback(promptText);
+      return text ? text.trim() : null;
     } catch (err) {
       this.logger.error(`Gemini resume tailoring failed: ${err}`);
       return null;
