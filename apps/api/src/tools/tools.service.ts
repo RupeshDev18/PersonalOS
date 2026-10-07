@@ -5,6 +5,7 @@ import { CapabilityPermission } from '@personal-os/shared';
 import { AuditService } from '../audit/audit.service';
 import { GreenhouseConnector } from '../connectors/greenhouse.connector';
 import { WebSearchConnector } from '../connectors/web-search.connector';
+import { GoogleConnector } from '../connectors/google.connector';
 
 @Injectable()
 export class ToolsService implements OnModuleInit {
@@ -15,6 +16,7 @@ export class ToolsService implements OnModuleInit {
     private readonly auditService: AuditService,
     private readonly greenhouseConnector: GreenhouseConnector,
     private readonly webSearchConnector: WebSearchConnector,
+    private readonly googleConnector: GoogleConnector,
   ) {
     this.policyEngine = new PolicyEngine();
     this.toolGateway = new ToolGateway(this.policyEngine, (event) => {
@@ -124,6 +126,45 @@ export class ToolsService implements OnModuleInit {
             { name: 'MacBook Air M2 (16GB RAM)', price: 89990, valueScore: 95 },
             { name: 'Dell XPS 13 Plus', price: 94990, valueScore: 88 },
           ],
+        };
+      },
+    });
+
+    // 5. Gmail Inbox Ingestion Tool
+    this.toolGateway.registerTool({
+      id: 'email.read',
+      name: 'Gmail Inbox Ingestion',
+      description: 'Reads synced personal messages and recruiter reach-outs from Google Workspace',
+      requiredCapability: CapabilityPermission.EMAIL_READ,
+      execute: async (input?: { category?: string }) => {
+        const messages = this.googleConnector.getMessages(input?.category);
+        return {
+          account: this.googleConnector.getStatus().email,
+          totalMessages: messages.length,
+          unreadCount: messages.filter((m) => m.isUnread).length,
+          messages: messages.slice(0, 5),
+        };
+      },
+    });
+
+    // 6. Google Drive Document Search Tool
+    this.toolGateway.registerTool({
+      id: 'drive.read',
+      name: 'Google Drive Document Indexing',
+      description: 'Browses and searches personal resumes, cover letters, and documents stored in Drive',
+      requiredCapability: CapabilityPermission.DRIVE_READ,
+      execute: async (input?: { fileType?: string }) => {
+        const files = this.googleConnector.getDriveFiles(input?.fileType);
+        return {
+          account: this.googleConnector.getStatus().email,
+          totalFilesIndexed: files.length,
+          files: files.map((f) => ({
+            id: f.id,
+            name: f.name,
+            fileType: f.fileType,
+            sizeBytes: f.sizeBytes,
+            url: f.url,
+          })),
         };
       },
     });

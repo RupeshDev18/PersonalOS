@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleInit, Inject, forwardRef } from '@nestjs/common';
 import {
   Job,
   JobLifecycleStatus,
@@ -24,6 +24,7 @@ export class JobsService implements OnModuleInit {
     private readonly matchingEngineService: MatchingEngineService,
     private readonly resumeCustomizerService: ResumeCustomizerService,
     private readonly auditService: AuditService,
+    @Inject(forwardRef(() => GreenhouseConnector))
     private readonly greenhouseConnector: GreenhouseConnector,
   ) {
     this.userProfile = {

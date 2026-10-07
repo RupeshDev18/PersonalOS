@@ -12,6 +12,7 @@ import { FinanceModule } from './finance/finance.module';
 import { ShoppingModule } from './shopping/shopping.module';
 import { ConnectorsModule } from './connectors/connectors.module';
 import { LlmModule } from './llm/llm.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { LlmModule } from './llm/llm.module';
     ShoppingModule,
     ConnectorsModule,
     LlmModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],

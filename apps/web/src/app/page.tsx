@@ -29,6 +29,13 @@ import {
   Trash2,
   User,
   CheckCheck,
+  Mail,
+  Folder,
+  HardDrive,
+  LogOut,
+  UserCheck,
+  Download,
+  Inbox,
 } from 'lucide-react';
 
 interface OrchestrationStepTrace {
@@ -171,6 +178,40 @@ export default function Dashboard() {
   const [geminiSaving, setGeminiSaving] = useState(false);
   const [greenhouseSyncing, setGreenhouseSyncing] = useState(false);
   const [greenhouseSyncResult, setGreenhouseSyncResult] = useState<any>(null);
+
+  // User Authentication & Personalization State
+  const [currentUser, setCurrentUser] = useState<any>({
+    id: 'user-rupesh',
+    name: 'Rupesh Yadav',
+    email: 'ry993494787@gmail.com',
+    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&h=120&q=80',
+    title: 'Senior Full Stack & AI Systems Engineer',
+    connectedAccounts: {
+      google: { connected: true, email: 'ry993494787@gmail.com', unreadEmailCount: 3, indexedDriveFilesCount: 4 },
+    },
+  });
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
+  const [authNameInput, setAuthNameInput] = useState('');
+  const [authEmailInput, setAuthEmailInput] = useState('');
+  const [authTitleInput, setAuthTitleInput] = useState('');
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  // Google Workspace (Gmail & Drive) State
+  const [googleStatus, setGoogleStatus] = useState<any>({
+    connected: true,
+    email: 'ry993494787@gmail.com',
+    unreadEmails: 3,
+    indexedFilesCount: 4,
+  });
+  const [googleInboxModal, setGoogleInboxModal] = useState(false);
+  const [googleDriveModal, setGoogleDriveModal] = useState(false);
+  const [gmailMessages, setGmailMessages] = useState<any[]>([]);
+  const [driveFiles, setDriveFiles] = useState<any[]>([]);
+  const [googleSyncing, setGoogleSyncing] = useState(false);
+  const [importingDriveFileId, setImportingDriveFileId] = useState<string | null>(null);
+  const [driveImportSuccess, setDriveImportSuccess] = useState<string | null>(null);
+  const [selectedEmailDetail, setSelectedEmailDetail] = useState<any | null>(null);
 
   const [selectedResumeModal, setSelectedResumeModal] = useState<{
     jobTitle: string;
@@ -321,6 +362,117 @@ export default function Dashboard() {
       const txRes = await fetch('http://localhost:4000/api/finance/transactions');
       if (txRes.ok) setTransactions(await txRes.json());
     } catch { }
+
+    try {
+      const meRes = await fetch('http://localhost:4000/api/auth/me');
+      if (meRes.ok) setCurrentUser(await meRes.json());
+    } catch { }
+
+    try {
+      const gRes = await fetch('http://localhost:4000/api/connectors/google/status');
+      if (gRes.ok) setGoogleStatus(await gRes.json());
+    } catch { }
+  };
+
+  const fetchGoogleData = async () => {
+    try {
+      const mailRes = await fetch('http://localhost:4000/api/connectors/google/gmail');
+      if (mailRes.ok) setGmailMessages(await mailRes.json());
+      const driveRes = await fetch('http://localhost:4000/api/connectors/google/drive');
+      if (driveRes.ok) setDriveFiles(await driveRes.json());
+    } catch { }
+  };
+
+  const handleLogin = async (email: string) => {
+    setAuthError(null);
+    try {
+      const res = await fetch('http://localhost:4000/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCurrentUser(data.user);
+        setShowAuthModal(false);
+        await fetchLiveData();
+      } else {
+        const err = await res.json();
+        setAuthError(err.message || 'Login failed');
+      }
+    } catch (err: any) {
+      setAuthError(err.message || 'Network error');
+    }
+  };
+
+  const handleSignup = async (name: string, email: string, title?: string) => {
+    setAuthError(null);
+    try {
+      const res = await fetch('http://localhost:4000/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, title }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCurrentUser(data.user);
+        setShowAuthModal(false);
+        await fetchLiveData();
+      } else {
+        const err = await res.json();
+        setAuthError(err.message || 'Signup failed');
+      }
+    } catch (err: any) {
+      setAuthError(err.message || 'Network error');
+    }
+  };
+
+  const handleSwitchUser = async (userId: string) => {
+    try {
+      const res = await fetch('http://localhost:4000/api/auth/switch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCurrentUser(data);
+        setShowAuthModal(false);
+        await fetchLiveData();
+      }
+    } catch { }
+  };
+
+  const handleSyncGoogle = async () => {
+    setGoogleSyncing(true);
+    try {
+      const res = await fetch('http://localhost:4000/api/connectors/google/sync', { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        setGoogleStatus(data);
+        await fetchGoogleData();
+        await fetchLiveData();
+      }
+    } finally {
+      setGoogleSyncing(false);
+    }
+  };
+
+  const handleImportDriveResume = async (fileId: string) => {
+    setImportingDriveFileId(fileId);
+    try {
+      const res = await fetch(`http://localhost:4000/api/connectors/google/drive/import-resume/${fileId}`, {
+        method: 'POST',
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setDriveImportSuccess(data.message);
+        setTimeout(() => setDriveImportSuccess(null), 4000);
+        await fetchLiveData();
+      }
+    } finally {
+      setImportingDriveFileId(null);
+    }
   };
 
   const executeShoppingSearch = async (targetQuery?: string) => {
@@ -342,6 +494,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchLiveData();
+    fetchGoogleData();
     executeShoppingSearch('MacBook Air M2');
     const interval = setInterval(fetchLiveData, 4000);
     return () => clearInterval(interval);
@@ -715,13 +868,36 @@ export default function Dashboard() {
           </nav>
         </div>
 
-        {/* Playful Mascot Status Card */}
-        <div className="p-3.5 rounded-2xl bg-card border-2 border-border text-xs flex items-center gap-3">
-          <GhostMascot size="sm" mood={loading ? 'thinking' : 'happy'} />
-          <div className="space-y-0.5">
-            <div className="font-sora font-bold text-white text-[12px]">Multi-Agent Sentinel</div>
-            <div className="text-[11px] text-slate-400 font-manrope">
-              {isGeminiLive ? 'Google Gemini 2.5 Flash' : 'Rule-Engine Fallback'}
+        {/* Active Operator Card & Mascot */}
+        <div className="space-y-2">
+          <div className="p-3 rounded-2xl bg-card border-2 border-border text-xs flex items-center justify-between">
+            <div className="flex items-center gap-2.5 overflow-hidden">
+              <img
+                src={currentUser?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&h=120&q=80'}
+                alt={currentUser?.name}
+                className="w-7 h-7 rounded-full object-cover border border-brand-teal shrink-0"
+              />
+              <div className="overflow-hidden">
+                <div className="font-sora font-bold text-white text-[11px] truncate">{currentUser?.name || 'Rupesh Yadav'}</div>
+                <div className="text-[10px] text-slate-400 font-manrope truncate">{currentUser?.email || 'ry993494787@gmail.com'}</div>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowAuthModal(true)}
+              title="Switch Account / Login"
+              className="p-1.5 rounded-lg bg-surface hover:bg-surfaceHover text-slate-300 hover:text-white shrink-0"
+            >
+              <UserCheck className="w-3.5 h-3.5 text-brand-teal" />
+            </button>
+          </div>
+
+          <div className="p-3 rounded-2xl bg-card border-2 border-border text-xs flex items-center gap-2.5">
+            <GhostMascot size="sm" mood={loading ? 'thinking' : 'happy'} />
+            <div className="space-y-0.5">
+              <div className="font-sora font-bold text-white text-[11px]">Multi-Agent Sentinel</div>
+              <div className="text-[10px] text-slate-400 font-manrope">
+                {isGeminiLive ? 'Google Gemini 2.5 Flash' : 'Rule-Engine Fallback'}
+              </div>
             </div>
           </div>
         </div>
@@ -738,7 +914,15 @@ export default function Dashboard() {
             </span>
           </div>
 
-          <div className="flex items-center gap-3 text-xs font-poppins">
+          <div className="flex items-center gap-2.5 text-xs font-poppins">
+            <button
+              onClick={() => { setActiveTab('connectors'); setGoogleInboxModal(true); }}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-card hover:bg-surfaceHover border border-border text-slate-300 transition-colors"
+            >
+              <Mail className="w-3.5 h-3.5 text-rose-400" />
+              <span>Gmail: <strong className="text-white">{googleStatus?.unreadEmails || 0}</strong> unread</span>
+            </button>
+
             <button
               onClick={() => setActiveTab('connectors')}
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition-colors ${isGeminiLive
@@ -747,18 +931,28 @@ export default function Dashboard() {
                 }`}
             >
               <span className={`w-2 h-2 rounded-full ${isGeminiLive ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-              <span>{isGeminiLive ? 'Gemini 2.5 Flash Live' : 'Gemini Key Needed (Click)'}</span>
+              <span>{isGeminiLive ? 'Gemini Live' : 'Gemini Key'}</span>
             </button>
 
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-card border border-border text-slate-300">
               <span className="w-2 h-2 rounded-full bg-brand-teal" />
-              <span>Greenhouse: Connected</span>
+              <span>Greenhouse: Live</span>
             </div>
 
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-card border border-border text-slate-300">
-              <span className="w-2 h-2 rounded-full bg-brand-blue" />
-              <span>PolicyEngine: Least Privilege</span>
-            </div>
+            <button
+              onClick={() => setShowAuthModal(true)}
+              className="flex items-center gap-2 px-2.5 py-1 rounded-xl bg-card hover:bg-surfaceHover border border-border text-white playful-button transition-all"
+            >
+              <img
+                src={currentUser?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&h=120&q=80'}
+                alt={currentUser?.name}
+                className="w-4 h-4 rounded-full object-cover"
+              />
+              <span className="font-poppins font-bold text-xs">{currentUser?.name?.split(' ')[0] || 'User'}</span>
+              <span className="text-[10px] font-mono text-slate-400 uppercase bg-surface px-1 py-0.2 rounded">
+                Account
+              </span>
+            </button>
           </div>
         </header>
 
@@ -1081,6 +1275,70 @@ export default function Dashboard() {
                 <p className="text-[11px] text-slate-400 font-manrope">
                   Tip: You can also set <code className="bg-card px-1.5 py-0.5 rounded text-sky-300">GEMINI_API_KEY=&quot;...&quot;</code> in the project root <code className="bg-card px-1.5 py-0.5 rounded text-slate-200">.env</code> file.
                 </p>
+              </div>
+            </div>
+
+            {/* Google Workspace (Gmail & Drive) Connector */}
+            <div className="playful-card p-5 border-2 border-border space-y-4 bg-card">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400">
+                    <Mail className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-sora font-bold text-white text-base">Google Workspace (Gmail &amp; Drive)</h3>
+                      <span className={`text-[10px] font-poppins font-bold px-2 py-0.5 rounded-full ${
+                        googleStatus?.connected ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-slate-700 text-slate-300'
+                      }`}>
+                        {googleStatus?.connected ? 'OAUTH 2.0 CONNECTED' : 'DISCONNECTED'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-300 font-manrope mt-0.5">
+                      Ingests recruiter reach-outs from <strong>Stripe, Cloudflare</strong>, and indexes resume markdown files from Google Drive into Chief Ghost context.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={handleSyncGoogle}
+                    disabled={googleSyncing}
+                    className="px-3 py-1.5 text-xs font-poppins font-bold rounded-xl bg-card hover:bg-surfaceHover border border-border text-slate-200 playful-button flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${googleSyncing ? 'animate-spin' : ''}`} />
+                    <span>{googleSyncing ? 'Syncing...' : 'Sync Now'}</span>
+                  </button>
+                  <button
+                    onClick={() => { fetchGoogleData(); setGoogleInboxModal(true); }}
+                    className="px-3 py-1.5 text-xs font-poppins font-bold rounded-xl bg-brand-coral hover:bg-rose-500 text-white playful-button flex items-center gap-1.5"
+                  >
+                    <Inbox className="w-3.5 h-3.5" />
+                    <span>Inbox ({googleStatus?.unreadEmails || 0})</span>
+                  </button>
+                  <button
+                    onClick={() => { fetchGoogleData(); setGoogleDriveModal(true); }}
+                    className="px-3 py-1.5 text-xs font-poppins font-bold rounded-xl bg-brand-teal hover:bg-brand-tealLight text-white playful-button flex items-center gap-1.5"
+                  >
+                    <HardDrive className="w-3.5 h-3.5" />
+                    <span>Drive ({googleStatus?.indexedFilesCount || 0})</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3 text-xs">
+                <div className="p-3 rounded-xl bg-surface border border-border">
+                  <span className="text-slate-400 font-poppins text-[10px]">LINKED GOOGLE ACCOUNT</span>
+                  <p className="font-poppins font-bold text-white mt-0.5 truncate">{googleStatus?.email || 'ry993494787@gmail.com'}</p>
+                </div>
+                <div className="p-3 rounded-xl bg-surface border border-border">
+                  <span className="text-slate-400 font-poppins text-[10px]">RECRUITER REACH-OUTS</span>
+                  <p className="font-poppins font-bold text-emerald-400 mt-0.5">2 New (Stripe, Cloudflare)</p>
+                </div>
+                <div className="p-3 rounded-xl bg-surface border border-border">
+                  <span className="text-slate-400 font-poppins text-[10px]">DRIVE RESUME DOCUMENTS</span>
+                  <p className="font-poppins font-bold text-brand-tealLight mt-0.5">2 Ready for Vault Import</p>
+                </div>
               </div>
             </div>
 
@@ -1604,14 +1862,30 @@ export default function Dashboard() {
                 <div className="space-y-2 pt-1">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-poppins font-bold text-slate-300">Resume Vault ({careerProfile.resumes.length})</label>
-                    <button
-                      onClick={() => setNewResumeModal(true)}
-                      className="text-xs font-poppins font-bold text-brand-tealLight hover:underline flex items-center gap-1"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      Add New Resume Markdown
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => { fetchGoogleData(); setGoogleDriveModal(true); }}
+                        className="text-xs font-poppins font-bold text-brand-tealLight hover:underline flex items-center gap-1.5"
+                      >
+                        <HardDrive className="w-3.5 h-3.5 text-brand-teal" />
+                        <span>Import from Google Drive</span>
+                      </button>
+                      <button
+                        onClick={() => setNewResumeModal(true)}
+                        className="text-xs font-poppins font-bold text-white hover:text-brand-tealLight flex items-center gap-1"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Add Markdown</span>
+                      </button>
+                    </div>
                   </div>
+
+                  {driveImportSuccess && (
+                    <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-manrope flex items-center gap-2">
+                      <Check className="w-4 h-4 text-emerald-400" />
+                      <span>{driveImportSuccess}</span>
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-2.5">
                     {careerProfile.resumes.map((res) => (
                       <div key={res.id} className="p-3 rounded-xl bg-card border border-border space-y-1.5 text-xs">
@@ -2014,6 +2288,327 @@ export default function Dashboard() {
                 className="px-4 py-2 text-xs font-poppins font-bold rounded-xl bg-brand-teal hover:bg-brand-tealLight text-white playful-button disabled:opacity-50"
               >
                 Save to Vault
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* User Authentication & Profile Modal */}
+      {showAuthModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <div className="playful-card bg-surface border-2 border-border rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <div className="flex items-center gap-2">
+                <UserCheck className="w-5 h-5 text-brand-teal" />
+                <h3 className="font-sora font-bold text-white text-base">Operator Authentication</h3>
+              </div>
+              <button onClick={() => setShowAuthModal(false)} className="text-slate-400 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Quick Demo Switcher */}
+            <div className="p-3 rounded-xl bg-card border border-border space-y-2">
+              <span className="text-[10px] font-poppins font-bold text-slate-400 uppercase tracking-wider block">
+                Quick Switch Operators
+              </span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleSwitchUser('user-rupesh')}
+                  className={`flex-1 p-2 rounded-lg border text-left flex items-center gap-2 transition-all ${
+                    currentUser?.id === 'user-rupesh'
+                      ? 'bg-brand-teal/20 border-brand-teal text-white'
+                      : 'bg-surface hover:bg-surfaceHover border-border text-slate-300'
+                  }`}
+                >
+                  <img
+                    src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&h=120&q=80"
+                    alt="Rupesh"
+                    className="w-7 h-7 rounded-full object-cover shrink-0"
+                  />
+                  <div className="overflow-hidden">
+                    <p className="font-poppins font-bold text-xs truncate">Rupesh Yadav</p>
+                    <p className="text-[10px] text-slate-400 font-manrope truncate">Google Linked</p>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => handleSwitchUser('user-alex')}
+                  className={`flex-1 p-2 rounded-lg border text-left flex items-center gap-2 transition-all ${
+                    currentUser?.id === 'user-alex'
+                      ? 'bg-brand-teal/20 border-brand-teal text-white'
+                      : 'bg-surface hover:bg-surfaceHover border-border text-slate-300'
+                  }`}
+                >
+                  <img
+                    src="https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=120&h=120&q=80"
+                    alt="Alex"
+                    className="w-7 h-7 rounded-full object-cover shrink-0"
+                  />
+                  <div className="overflow-hidden">
+                    <p className="font-poppins font-bold text-xs truncate">Alex Chen</p>
+                    <p className="text-[10px] text-slate-400 font-manrope truncate">Designer</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* Login / Sign Up Tabs */}
+            <div className="flex border-b border-border">
+              <button
+                onClick={() => setAuthMode('login')}
+                className={`flex-1 pb-2 font-poppins text-xs font-bold transition-all border-b-2 ${
+                  authMode === 'login'
+                    ? 'border-brand-teal text-white'
+                    : 'border-transparent text-slate-400 hover:text-white'
+                }`}
+              >
+                Log In
+              </button>
+              <button
+                onClick={() => setAuthMode('signup')}
+                className={`flex-1 pb-2 font-poppins text-xs font-bold transition-all border-b-2 ${
+                  authMode === 'signup'
+                    ? 'border-brand-teal text-white'
+                    : 'border-transparent text-slate-400 hover:text-white'
+                }`}
+              >
+                Create Account
+              </button>
+            </div>
+
+            {authError && (
+              <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-manrope">
+                {authError}
+              </div>
+            )}
+
+            <div className="space-y-3 text-xs">
+              {authMode === 'signup' && (
+                <div>
+                  <label className="block text-slate-300 font-poppins font-bold mb-1">Full Name</label>
+                  <input
+                    type="text"
+                    value={authNameInput}
+                    onChange={(e) => setAuthNameInput(e.target.value)}
+                    placeholder="e.g. Rupesh Yadav"
+                    className="w-full bg-card border border-border rounded-xl px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:border-brand-teal"
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="block text-slate-300 font-poppins font-bold mb-1">Email Address</label>
+                <input
+                  type="email"
+                  value={authEmailInput}
+                  onChange={(e) => setAuthEmailInput(e.target.value)}
+                  placeholder="e.g. ry993494787@gmail.com"
+                  className="w-full bg-card border border-border rounded-xl px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:border-brand-teal"
+                />
+              </div>
+
+              {authMode === 'signup' && (
+                <div>
+                  <label className="block text-slate-300 font-poppins font-bold mb-1">Engineering Title</label>
+                  <input
+                    type="text"
+                    value={authTitleInput}
+                    onChange={(e) => setAuthTitleInput(e.target.value)}
+                    placeholder="e.g. Senior Full Stack Engineer"
+                    className="w-full bg-card border border-border rounded-xl px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:border-brand-teal"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="pt-2">
+              {authMode === 'login' ? (
+                <button
+                  onClick={() => handleLogin(authEmailInput || 'ry993494787@gmail.com')}
+                  className="w-full py-2.5 rounded-xl bg-brand-teal hover:bg-brand-tealLight text-white font-poppins font-bold text-xs playful-button"
+                >
+                  Log In &amp; Sync Context
+                </button>
+              ) : (
+                <button
+                  onClick={() => handleSignup(authNameInput, authEmailInput, authTitleInput)}
+                  disabled={!authNameInput.trim() || !authEmailInput.trim()}
+                  className="w-full py-2.5 rounded-xl bg-brand-teal hover:bg-brand-tealLight text-white font-poppins font-bold text-xs playful-button disabled:opacity-50"
+                >
+                  Create Account &amp; Initialize OS
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Gmail Inbox Modal */}
+      {googleInboxModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <div className="playful-card bg-surface border-2 border-border rounded-2xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl">
+            <div className="p-4 border-b-2 border-border flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Mail className="w-5 h-5 text-rose-400" />
+                <div>
+                  <h3 className="font-sora font-bold text-white text-sm">Gmail Recruiter &amp; Primary Inbox</h3>
+                  <p className="text-[11px] text-slate-400 font-manrope">
+                    Linked Google Account: <strong className="text-white">{googleStatus?.email}</strong>
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => setGoogleInboxModal(false)} className="text-slate-400 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-4 overflow-y-auto space-y-3 bg-card text-xs">
+              {gmailMessages.length === 0 ? (
+                <div className="text-center py-8 text-slate-400">Loading messages from Google Workspace...</div>
+              ) : (
+                gmailMessages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    onClick={() => setSelectedEmailDetail(selectedEmailDetail?.id === msg.id ? null : msg)}
+                    className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
+                      msg.isUnread
+                        ? 'bg-surface border-brand-teal/40 hover:border-brand-teal'
+                        : 'bg-surface/50 border-border hover:border-slate-600'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        {msg.isUnread && (
+                          <span className="w-2 h-2 rounded-full bg-rose-400 shrink-0" />
+                        )}
+                        <strong className="text-white font-poppins">{msg.fromName}</strong>
+                        {msg.company && (
+                          <span className="text-[10px] font-poppins font-bold px-1.5 py-0.2 rounded bg-brand-teal/20 text-brand-tealLight">
+                            {msg.company}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[10px] font-mono text-slate-400 shrink-0">
+                        {new Date(msg.date).toLocaleDateString()}
+                      </span>
+                    </div>
+
+                    <h4 className="font-sora font-bold text-white text-xs mt-1.5">{msg.subject}</h4>
+                    <p className="text-slate-300 font-manrope text-[11px] mt-1 line-clamp-2">{msg.snippet}</p>
+
+                    {selectedEmailDetail?.id === msg.id && (
+                      <div className="mt-3 pt-3 border-t border-border space-y-3">
+                        <div className="p-3 rounded-lg bg-card text-[11px] font-manrope text-slate-200 whitespace-pre-wrap leading-relaxed border border-border">
+                          {msg.bodyText}
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setInputValue(`Draft a reply to ${msg.fromName} from ${msg.company || 'the team'} confirming my interest in the ${msg.subject} discussion`);
+                              setGoogleInboxModal(false);
+                              setActiveTab('chat');
+                            }}
+                            className="px-3 py-1.5 text-xs font-poppins font-bold rounded-xl bg-brand-teal hover:bg-brand-tealLight text-white playful-button flex items-center gap-1.5"
+                          >
+                            <Sparkles className="w-3.5 h-3.5" />
+                            <span>Draft Reply with Chief</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="p-3 border-t-2 border-border flex items-center justify-between">
+              <span className="text-[10px] text-slate-400 font-manrope">
+                Least privilege: Communication Agent has read &amp; draft permissions. Email dispatch requires manual safety gate approval.
+              </span>
+              <button
+                onClick={() => setGoogleInboxModal(false)}
+                className="px-4 py-1.5 text-xs font-poppins font-bold rounded-xl bg-card hover:bg-surfaceHover text-white border border-border"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Google Drive Files Modal */}
+      {googleDriveModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <div className="playful-card bg-surface border-2 border-border rounded-2xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl">
+            <div className="p-4 border-b-2 border-border flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <HardDrive className="w-5 h-5 text-brand-tealLight" />
+                <div>
+                  <h3 className="font-sora font-bold text-white text-sm">Google Drive Indexed Documents</h3>
+                  <p className="text-[11px] text-slate-400 font-manrope">
+                    Files discovered in Google Drive for <strong className="text-white">{googleStatus?.email}</strong>
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => setGoogleDriveModal(false)} className="text-slate-400 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-4 overflow-y-auto space-y-3 bg-card text-xs">
+              {driveFiles.length === 0 ? (
+                <div className="text-center py-8 text-slate-400">Loading Google Drive documents...</div>
+              ) : (
+                driveFiles.map((file) => (
+                  <div
+                    key={file.id}
+                    className="p-3.5 rounded-xl bg-surface border border-border flex items-center justify-between hover:border-slate-600 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-card border border-border text-brand-tealLight">
+                        {file.fileType === 'resume' ? <FileText className="w-4 h-4" /> : <Folder className="w-4 h-4" />}
+                      </div>
+                      <div>
+                        <h4 className="font-sora font-bold text-white text-xs">{file.name}</h4>
+                        <p className="text-slate-400 text-[10px] font-manrope mt-0.5">
+                          Type: <span className="uppercase text-slate-300 font-mono">{file.fileType}</span> • {(file.sizeBytes / 1024).toFixed(1)} KB • Modified {new Date(file.lastModified).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {file.fileType === 'resume' && (
+                        <button
+                          onClick={() => handleImportDriveResume(file.id)}
+                          disabled={importingDriveFileId === file.id}
+                          className="px-3 py-1.5 text-xs font-poppins font-bold rounded-xl bg-brand-teal hover:bg-brand-tealLight text-white playful-button flex items-center gap-1.5 disabled:opacity-50"
+                        >
+                          {importingDriveFileId === file.id ? (
+                            <RefreshCw className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <Download className="w-3 h-3" />
+                          )}
+                          <span>{importingDriveFileId === file.id ? 'Importing...' : 'Import to Vault'}</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="p-3 border-t-2 border-border flex items-center justify-between">
+              <span className="text-[10px] text-slate-400 font-manrope">
+                Click &quot;Import to Vault&quot; to ingest resume markdown into your Career Profile.
+              </span>
+              <button
+                onClick={() => setGoogleDriveModal(false)}
+                className="px-4 py-1.5 text-xs font-poppins font-bold rounded-xl bg-card hover:bg-surfaceHover text-white border border-border"
+              >
+                Close
               </button>
             </div>
           </div>

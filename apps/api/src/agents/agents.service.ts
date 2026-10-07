@@ -4,7 +4,7 @@ import { ToolsService } from '../tools/tools.service';
 import { AuditService } from '../audit/audit.service';
 import { GeminiService } from '../llm/gemini.service';
 import { JobAgent } from './specialists/job.agent';
-import { FinanceAgent, ResearchAgent, ShoppingAgent } from './specialists/other.agents';
+import { FinanceAgent, ResearchAgent, ShoppingAgent, CommunicationAgent } from './specialists/other.agents';
 import { ChiefAgent } from './chief.agent';
 
 @Injectable()
@@ -26,11 +26,13 @@ export class AgentsService implements OnModuleInit {
     const researchAgent = new ResearchAgent(gateway);
     const financeAgent = new FinanceAgent(gateway);
     const shoppingAgent = new ShoppingAgent(gateway);
+    const communicationAgent = new CommunicationAgent(gateway);
 
     this.registry.register(jobAgent);
     this.registry.register(researchAgent);
     this.registry.register(financeAgent);
     this.registry.register(shoppingAgent);
+    this.registry.register(communicationAgent);
 
     // 2. Register Chief Agent with Gemini LLM reasoning
     this.chiefAgent = new ChiefAgent(gateway, this.registry, this.auditService, this.geminiService);

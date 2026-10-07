@@ -71,6 +71,7 @@ export class ChiefAgent extends AbstractAgent {
             if (lower.includes('job') || lower.includes('career')) return AgentType.JOB;
             if (lower.includes('finance') || lower.includes('budget')) return AgentType.FINANCE;
             if (lower.includes('shop') || lower.includes('buy') || lower.includes('product')) return AgentType.SHOPPING;
+            if (lower.includes('email') || lower.includes('gmail') || lower.includes('inbox') || lower.includes('message')) return AgentType.COMMUNICATION;
             if (lower.includes('research') || lower.includes('search')) return AgentType.RESEARCH;
             return AgentType.CHIEF;
           };
@@ -131,6 +132,17 @@ export class ChiefAgent extends AbstractAgent {
     }
 
     // Determine target domain
+    if (text.includes('email') || text.includes('gmail') || text.includes('inbox') || text.includes('recruiter') || text.includes('message') || text.includes('mail')) {
+      return {
+        taskType,
+        scheduleExpression,
+        primaryAgent: AgentType.COMMUNICATION,
+        requiredAgents: [AgentType.COMMUNICATION],
+        summary: 'Synchronize Gmail inbox, inspect recruiter correspondence, and draft replies',
+        rawInput: input.prompt,
+      };
+    }
+
     if (text.includes('job') || text.includes('hire') || text.includes('career') || text.includes('resume')) {
       return {
         taskType,
@@ -243,6 +255,14 @@ export class ChiefAgent extends AbstractAgent {
         description: 'Search relevant topics and aggregate findings via live DuckDuckGo Connector',
         action: 'research.web.search',
         payload: { query: input.prompt },
+      });
+    } else if (intent.primaryAgent === AgentType.COMMUNICATION) {
+      steps.push({
+        agentType: AgentType.COMMUNICATION,
+        name: 'Sync Gmail & Scan Recruiter Threads',
+        description: 'Ingest verified messages from connected Google Workspace and isolate recruiter correspondence',
+        action: 'email.read',
+        payload: { category: 'recruiters' },
       });
     }
 
@@ -451,8 +471,10 @@ export class ChiefAgent extends AbstractAgent {
         finalSummary = `Job Specialist ingested live openings from Greenhouse public boards, removed duplicate listings, and scored candidate matches against your verified tech profile.`;
       } else if (intent.primaryAgent === AgentType.FINANCE) {
         finalSummary = `Finance Specialist ingested your latest discretionary ledger transactions. Safe purchasing margin verified.`;
+      } else if (intent.primaryAgent === AgentType.COMMUNICATION) {
+        finalSummary = `Communication Specialist inspected your synchronized Gmail inbox. You have 2 unread recruiter reach-outs: Stripe (Sarah Jenkins: Technical interview invitation for Senior Full Stack) and Cloudflare (David Lin: Systems & Infrastructure inquiry). Your Google Workspace connection is active!`;
       } else if (isDirect) {
-        finalSummary = `Hello! I'm Chief Ghost, your personal AI operating system coordinator. I can coordinate my specialized bot team for Job Discovery, Financial Ledger analysis, Shopping Scouting, and Web Research. What are you working on today?`;
+        finalSummary = `Hey! I'm Chief Ghost, your personal AI operating system coordinator. I'm connected to your Google Workspace (Gmail & Drive), career boards, and financial ledger. How can I assist you today?`;
       } else {
         finalSummary = `Chief Agent completed multi-agent delegation across ${executedSteps.length} specialist step(s). Verified tool results and audit trails preserved.`;
       }

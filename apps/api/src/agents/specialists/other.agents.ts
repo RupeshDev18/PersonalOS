@@ -115,3 +115,42 @@ export class ResearchAgent extends AbstractAgent {
     return 'Summarized credible external reviews and benchmarks.';
   }
 }
+
+export class CommunicationAgent extends AbstractAgent {
+  public readonly id = 'agent-communication';
+  public readonly type = AgentType.COMMUNICATION;
+  public readonly name = 'Communication & Inbox Specialist';
+  public readonly description = 'Syncs verified Gmail messages, tracks recruiter outreach, and drafts communications.';
+
+  constructor(toolGateway: ToolGateway) {
+    super(toolGateway);
+  }
+
+  async understand(input: AgentInput): Promise<Intent> {
+    return {
+      taskType: 'immediate',
+      primaryAgent: AgentType.COMMUNICATION,
+      requiredAgents: [AgentType.COMMUNICATION],
+      summary: 'Read and organize Google Workspace emails and correspondence',
+      rawInput: input.prompt,
+    };
+  }
+
+  async plan(input: AgentInput, intent: Intent): Promise<unknown> {
+    return { steps: ['fetch_inbox', 'filter_recruiter_threads'] };
+  }
+
+  async execute(stepId: string, payload: { taskId: string; userId: string; category?: string }): Promise<StepResult> {
+    const data = await this.toolGateway.execute(
+      'email.read',
+      { category: payload.category },
+      { taskId: payload.taskId, stepId, agentType: AgentType.COMMUNICATION, userId: payload.userId }
+    );
+    return { stepId, success: true, data };
+  }
+
+  async summarize(result: AgentResult): Promise<string> {
+    return 'Synchronized verified Gmail inbox messages and recruiter outreach.';
+  }
+}
+

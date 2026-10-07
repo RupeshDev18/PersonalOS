@@ -22,6 +22,8 @@ export const DEFAULT_AGENT_CAPABILITIES: Record<AgentType, CapabilityPermission[
     CapabilityPermission.SHOPPING_COMPARE,
     CapabilityPermission.EMAIL_READ,
     CapabilityPermission.EMAIL_DRAFT,
+    CapabilityPermission.DRIVE_READ,
+    CapabilityPermission.DRIVE_SEARCH,
     CapabilityPermission.SOCIAL_READ,
     CapabilityPermission.SOCIAL_DRAFT,
   ],
@@ -36,6 +38,8 @@ export const DEFAULT_AGENT_CAPABILITIES: Record<AgentType, CapabilityPermission[
     CapabilityPermission.JOBS_RESUME_GENERATE,
     CapabilityPermission.JOBS_APPLICATION_PREPARE,
     CapabilityPermission.JOBS_APPLICATION_SUBMIT,
+    CapabilityPermission.DRIVE_READ,
+    CapabilityPermission.DRIVE_SEARCH,
   ],
   [AgentType.FINANCE]: [
     CapabilityPermission.FINANCE_TRANSACTIONS_READ,
@@ -87,6 +91,9 @@ export const CAPABILITY_POLICIES: Record<CapabilityPermission, ActionPolicy> = {
   [CapabilityPermission.EMAIL_READ]: ActionPolicy.AUTOMATIC,
   [CapabilityPermission.EMAIL_DRAFT]: ActionPolicy.AUTOMATIC,
   [CapabilityPermission.EMAIL_SEND]: ActionPolicy.REQUIRES_APPROVAL,
+
+  [CapabilityPermission.DRIVE_READ]: ActionPolicy.AUTOMATIC,
+  [CapabilityPermission.DRIVE_SEARCH]: ActionPolicy.AUTOMATIC,
 
   [CapabilityPermission.SOCIAL_READ]: ActionPolicy.AUTOMATIC,
   [CapabilityPermission.SOCIAL_DRAFT]: ActionPolicy.AUTOMATIC,

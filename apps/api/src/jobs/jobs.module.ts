@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { JobsController } from './jobs.controller';
 import { JobsService } from './jobs.service';
 import { DeduplicationService } from './deduplication.service';
@@ -9,7 +9,7 @@ import { ConnectorsModule } from '../connectors/connectors.module';
 import { LlmModule } from '../llm/llm.module';
 
 @Module({
-  imports: [AuditModule, ConnectorsModule, LlmModule],
+  imports: [AuditModule, forwardRef(() => ConnectorsModule), LlmModule],
   controllers: [JobsController],
   providers: [
     JobsService,

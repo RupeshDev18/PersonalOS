@@ -263,11 +263,15 @@ ROUTING RULES:
    - Set "primaryAgent": "research"
    - Set "requiredAgents": ["research"]
    - Set "steps": [{ "agent": "research", "action": "research.web.search", "description": "Search web intelligence" }]
+6. COMMUNICATION & EMAILS ("check emails", "gmail", "inbox", "recruiter messages", "did Stripe email me?", "draft email"):
+   - Set "primaryAgent": "communication"
+   - Set "requiredAgents": ["communication"]
+   - Set "steps": [{ "agent": "communication", "action": "email.read", "description": "Inspect Gmail inbox" }]
 
 Respond strictly with valid JSON conforming to this schema:
 {
   "taskType": "immediate" | "scheduled" | "recurring",
-  "primaryAgent": "chief" | "job" | "finance" | "shopping" | "research",
+  "primaryAgent": "chief" | "job" | "finance" | "shopping" | "research" | "communication",
   "requiredAgents": string[],
   "summary": "Brief 1-sentence goal",
   "steps": [

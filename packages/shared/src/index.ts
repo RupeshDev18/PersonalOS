@@ -4,3 +4,4 @@ export * from './permissions.js';
 export * from './audit.js';
 export * from './jobs.js';
 export * from './finance.js';
+export * from './user.js';

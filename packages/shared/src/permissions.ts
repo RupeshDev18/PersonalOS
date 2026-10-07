@@ -27,6 +27,10 @@ export enum CapabilityPermission {
   EMAIL_DRAFT = 'email.draft',
   EMAIL_SEND = 'email.send', // High risk
 
+  // Google Drive & Cloud Storage capabilities
+  DRIVE_READ = 'drive.read',
+  DRIVE_SEARCH = 'drive.search',
+
   // Social capabilities
   SOCIAL_READ = 'social.read',
   SOCIAL_DRAFT = 'social.draft',
