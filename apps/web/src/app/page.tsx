@@ -40,6 +40,7 @@ import {
   Database,
   Bot,
   CheckCircle2,
+  MessageSquare,
 } from 'lucide-react';
 
 interface OrchestrationStepTrace {
@@ -192,7 +193,7 @@ export default function Dashboard() {
     avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&h=120&q=80',
     title: 'Senior Full Stack & AI Systems Engineer',
     connectedAccounts: {
-      google: { connected: true, email: 'ry993494787@gmail.com', unreadEmailCount: 3, indexedDriveFilesCount: 4 },
+      google: { connected: false, email: '', unreadEmailCount: 0, indexedDriveFilesCount: 0 },
     },
   });
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -204,11 +205,14 @@ export default function Dashboard() {
 
   // Google Workspace (Gmail & Drive) State
   const [googleStatus, setGoogleStatus] = useState<any>({
-    connected: true,
-    email: 'ry993494787@gmail.com',
-    unreadEmails: 3,
-    indexedFilesCount: 4,
+    connected: false,
+    email: null,
+    unreadEmails: 0,
+    indexedFilesCount: 0,
   });
+  const [showConnectGoogleModal, setShowConnectGoogleModal] = useState(false);
+  const [googleConnectEmail, setGoogleConnectEmail] = useState('');
+  const [googleConnecting, setGoogleConnecting] = useState(false);
   const [googleInboxModal, setGoogleInboxModal] = useState(false);
   const [googleDriveModal, setGoogleDriveModal] = useState(false);
   const [gmailMessages, setGmailMessages] = useState<any[]>([]);
@@ -459,6 +463,48 @@ export default function Dashboard() {
         await fetchGoogleData();
         await fetchLiveData();
       }
+    } finally {
+      setGoogleSyncing(false);
+    }
+  };
+
+  const handleConnectGoogle = async (emailToConnect: string) => {
+    setGoogleConnecting(true);
+    try {
+      const res = await fetch('http://localhost:4000/api/connectors/google/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailToConnect.trim() || currentUser?.email || 'user@gmail.com' }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setGoogleStatus(data);
+        setShowConnectGoogleModal(false);
+        await fetchGoogleData();
+        await fetchLiveData();
+      }
+    } catch (err) {
+      console.error('Failed to connect Google account:', err);
+    } finally {
+      setGoogleConnecting(false);
+    }
+  };
+
+  const handleDisconnectGoogle = async () => {
+    setGoogleSyncing(true);
+    try {
+      const res = await fetch('http://localhost:4000/api/connectors/google/disconnect', {
+        method: 'POST',
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setGoogleStatus(data);
+        setGmailMessages([]);
+        setDriveFiles([]);
+        await fetchLiveData();
+      }
+    } catch (err) {
+      console.error('Failed to disconnect Google account:', err);
     } finally {
       setGoogleSyncing(false);
     }
@@ -1055,55 +1101,95 @@ export default function Dashboard() {
                       <span className={`text-[10px] font-poppins font-bold px-2 py-0.5 rounded-full ${
                         googleStatus?.connected ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-600 border border-slate-200'
                       }`}>
-                        {googleStatus?.connected ? 'OAUTH 2.0 CONNECTED' : 'DISCONNECTED'}
+                        {googleStatus?.connected ? 'OAUTH 2.0 CONNECTED' : 'NOT CONNECTED'}
                       </span>
                     </div>
                     <p className="text-xs text-slate-600 font-manrope mt-0.5">
-                      Ingests recruiter reach-outs from <strong>Stripe, Cloudflare</strong>, and indexes resume markdown files from Google Drive into Chief Ghost context.
+                      Connect your Gmail and Google Drive to monitor inbound recruiter messages, track company reach-outs, and index resume markdown files into Chief context.
                     </p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    onClick={handleSyncGoogle}
-                    disabled={googleSyncing}
-                    className="px-3 py-1.5 text-xs font-poppins font-bold rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 shadow-xs playful-button flex items-center gap-1.5 disabled:opacity-50"
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 ${googleSyncing ? 'animate-spin' : ''}`} />
-                    <span>{googleSyncing ? 'Syncing...' : 'Sync Now'}</span>
-                  </button>
-                  <button
-                    onClick={() => { fetchGoogleData(); setGoogleInboxModal(true); }}
-                    className="px-3 py-1.5 text-xs font-poppins font-bold rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-xs playful-button flex items-center gap-1.5"
-                  >
-                    <Inbox className="w-3.5 h-3.5" />
-                    <span>Inbox ({googleStatus?.unreadEmails || 0})</span>
-                  </button>
-                  <button
-                    onClick={() => { fetchGoogleData(); setGoogleDriveModal(true); }}
-                    className="px-3 py-1.5 text-xs font-poppins font-bold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs playful-button flex items-center gap-1.5"
-                  >
-                    <HardDrive className="w-3.5 h-3.5" />
-                    <span>Drive ({googleStatus?.indexedFilesCount || 0})</span>
-                  </button>
+                  {googleStatus?.connected ? (
+                    <>
+                      <button
+                        onClick={handleSyncGoogle}
+                        disabled={googleSyncing}
+                        className="px-3 py-1.5 text-xs font-poppins font-bold rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 shadow-xs playful-button flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${googleSyncing ? 'animate-spin' : ''}`} />
+                        <span>{googleSyncing ? 'Syncing...' : 'Sync Now'}</span>
+                      </button>
+                      <button
+                        onClick={() => { fetchGoogleData(); setGoogleInboxModal(true); }}
+                        className="px-3 py-1.5 text-xs font-poppins font-bold rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-xs playful-button flex items-center gap-1.5"
+                      >
+                        <Inbox className="w-3.5 h-3.5" />
+                        <span>Inbox ({googleStatus?.unreadEmails || 0})</span>
+                      </button>
+                      <button
+                        onClick={() => { fetchGoogleData(); setGoogleDriveModal(true); }}
+                        className="px-3 py-1.5 text-xs font-poppins font-bold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs playful-button flex items-center gap-1.5"
+                      >
+                        <HardDrive className="w-3.5 h-3.5" />
+                        <span>Drive ({googleStatus?.indexedFilesCount || 0})</span>
+                      </button>
+                      <button
+                        onClick={handleDisconnectGoogle}
+                        disabled={googleSyncing}
+                        className="px-3 py-1.5 text-xs font-poppins font-semibold rounded-xl bg-white hover:bg-rose-50 border border-rose-200 text-rose-600 shadow-xs transition-colors"
+                      >
+                        Disconnect
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setGoogleConnectEmail(currentUser?.email || '');
+                        setShowConnectGoogleModal(true);
+                      }}
+                      className="px-4 py-2 text-xs font-poppins font-bold rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-xs playful-button flex items-center gap-1.5"
+                    >
+                      <Mail className="w-3.5 h-3.5" />
+                      <span>Connect Google Account</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3 text-xs">
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                  <span className="text-slate-500 font-poppins text-[10px]">LINKED GOOGLE ACCOUNT</span>
-                  <p className="font-poppins font-bold text-slate-900 mt-0.5 truncate">{googleStatus?.email || 'ry993494787@gmail.com'}</p>
+              {googleStatus?.connected ? (
+                <div className="grid grid-cols-3 gap-3 text-xs">
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                    <span className="text-slate-500 font-poppins text-[10px]">LINKED GOOGLE ACCOUNT</span>
+                    <p className="font-poppins font-bold text-slate-900 mt-0.5 truncate">{googleStatus?.email || 'Connected'}</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                    <span className="text-slate-500 font-poppins text-[10px]">UNREAD EMAILS</span>
+                    <p className="font-poppins font-bold text-slate-900 mt-0.5">{googleStatus?.unreadEmails || 0} Synced</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                    <span className="text-slate-500 font-poppins text-[10px]">DRIVE RESUME DOCUMENTS</span>
+                    <p className="font-poppins font-bold text-indigo-700 mt-0.5">{googleStatus?.indexedFilesCount || 0} Files Ingested</p>
+                  </div>
                 </div>
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                  <span className="text-slate-500 font-poppins text-[10px]">RECRUITER REACH-OUTS</span>
-                  <p className="font-poppins font-bold text-emerald-700 mt-0.5">2 New (Stripe, Cloudflare)</p>
+              ) : (
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2 text-slate-600 font-manrope">
+                    <AlertCircle className="w-4 h-4 text-slate-400 shrink-0" />
+                    <span>No Google account linked. Connect your Gmail &amp; Drive to activate live email analysis and resume document indexing.</span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setGoogleConnectEmail(currentUser?.email || '');
+                      setShowConnectGoogleModal(true);
+                    }}
+                    className="text-xs font-poppins font-bold text-indigo-600 hover:underline shrink-0 ml-3"
+                  >
+                    Connect Now &rarr;
+                  </button>
                 </div>
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                  <span className="text-slate-500 font-poppins text-[10px]">DRIVE RESUME DOCUMENTS</span>
-                  <p className="font-poppins font-bold text-indigo-700 mt-0.5">2 Ready for Vault Import</p>
-                </div>
-              </div>
+              )}
             </div>
 
             {/* Greenhouse Career ATS Connector */}
@@ -1216,6 +1302,131 @@ export default function Dashboard() {
               </div>
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600 font-manrope">
                 <strong className="text-slate-800">Security Guarantee:</strong> PolicyEngine strictly forbids any funds transfer (<code className="text-rose-700 font-mono bg-white px-1 py-0.5 rounded border border-slate-200">finance.transfer: FORBIDDEN</code>). Agents can only compute read-only affordability models.
+              </div>
+            </div>
+
+            {/* Upcoming Channels: Slack, WhatsApp, LinkedIn, Naukri */}
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-sora font-bold text-slate-900 text-sm">Upcoming Communication &amp; Job Channels</h3>
+                  <p className="text-xs text-slate-500 font-manrope">
+                    Extend Chief Ghost into your daily communication tools and professional networks.
+                  </p>
+                </div>
+                <span className="text-[10px] font-poppins font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                  ROADMAP
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3.5">
+                {/* Slack */}
+                <div className="p-4 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-2.5">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold font-mono text-sm">
+                        #
+                      </div>
+                      <div>
+                        <h4 className="font-sora font-bold text-slate-900 text-xs">Slack Workspace</h4>
+                        <span className="text-[10px] text-slate-500 font-manrope">Team &amp; Inbound Alert Bot</span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                      Coming Soon
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 font-manrope leading-relaxed">
+                    Trigger Chief workflows via <code className="bg-slate-100 px-1 py-0.2 rounded text-indigo-700 font-mono text-[10px]">/chief</code> slash commands, summarize team threads, and receive instant approval prompts in your private channel.
+                  </p>
+                  <div className="pt-1 flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400 font-mono text-[10px]">Bot Token + Webhooks</span>
+                    <button disabled className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-400 font-poppins font-medium text-[10px] cursor-not-allowed">
+                      Connect Channel
+                    </button>
+                  </div>
+                </div>
+
+                {/* WhatsApp */}
+                <div className="p-4 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-2.5">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
+                        <MessageSquare className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="font-sora font-bold text-slate-900 text-xs">WhatsApp Assistant</h4>
+                        <span className="text-[10px] text-slate-500 font-manrope">Instant Alert &amp; Audio Memos</span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                      Coming Soon
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 font-manrope leading-relaxed">
+                    Receive urgent recruiter alerts on WhatsApp, dictate voice tasks on the move for instant agent execution, and approve high-risk actions with 1 tap.
+                  </p>
+                  <div className="pt-1 flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400 font-mono text-[10px]">Meta Cloud API</span>
+                    <button disabled className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-400 font-poppins font-medium text-[10px] cursor-not-allowed">
+                      Connect Channel
+                    </button>
+                  </div>
+                </div>
+
+                {/* LinkedIn */}
+                <div className="p-4 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-2.5">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-sky-50 border border-sky-100 flex items-center justify-center text-sky-600 font-bold font-mono text-xs">
+                        in
+                      </div>
+                      <div>
+                        <h4 className="font-sora font-bold text-slate-900 text-xs">LinkedIn InMail &amp; Jobs</h4>
+                        <span className="text-[10px] text-slate-500 font-manrope">Recruiter InMail &amp; 1-Click Apply</span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                      Coming Soon
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 font-manrope leading-relaxed">
+                    Automatically ingest recruiter InMails into Chief context, monitor target tech companies for new engineering requisitions, and generate 1-click tailored application notes.
+                  </p>
+                  <div className="pt-1 flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400 font-mono text-[10px]">LinkedIn Member API</span>
+                    <button disabled className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-400 font-poppins font-medium text-[10px] cursor-not-allowed">
+                      Connect Channel
+                    </button>
+                  </div>
+                </div>
+
+                {/* Naukri */}
+                <div className="p-4 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-2.5">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 font-bold font-mono text-xs">
+                        N
+                      </div>
+                      <div>
+                        <h4 className="font-sora font-bold text-slate-900 text-xs">Naukri India Talent Scout</h4>
+                        <span className="text-[10px] text-slate-500 font-manrope">India ATS &amp; Profile Booster</span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                      Coming Soon
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 font-manrope leading-relaxed">
+                    Automated daily profile active-status refresh, scan leading tech companies across Bangalore, Hyderabad &amp; NCR, and ingest incoming recruiter messages.
+                  </p>
+                  <div className="pt-1 flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400 font-mono text-[10px]">Portal Session Bridge</span>
+                    <button disabled className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-400 font-poppins font-medium text-[10px] cursor-not-allowed">
+                      Connect Channel
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1979,59 +2190,99 @@ export default function Dashboard() {
                   GOOGLE WORKSPACE
                 </span>
               </div>
-              <span className="text-[10px] font-mono text-emerald-700 font-semibold">REALTIME</span>
+              <span className={`text-[10px] font-mono font-semibold ${googleStatus?.connected ? 'text-emerald-700' : 'text-slate-400'}`}>
+                {googleStatus?.connected ? 'CONNECTED' : 'DISCONNECTED'}
+              </span>
             </div>
 
-            {/* Gmail Item Preview */}
-            <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 space-y-1">
-              <div className="flex items-center justify-between text-[10px] font-mono text-slate-500">
-                <span className="flex items-center gap-1 text-rose-600 font-medium">
-                  <Mail className="w-3 h-3" /> GMAIL
-                </span>
-                <span>{googleStatus?.unreadEmails || 0} unread</span>
-              </div>
-              <div className="text-xs font-poppins font-medium text-slate-900 truncate">
-                {gmailMessages[0]?.subject || 'Recruiter: Technical Lead & AI Architecture'}
-              </div>
-              <p className="text-[11px] font-manrope text-slate-500 line-clamp-1">
-                {gmailMessages[0]?.snippet || 'Inbound interest regarding your background in distributed systems...'}
-              </p>
-              <div className="pt-1.5 flex justify-end">
+            {googleStatus?.connected ? (
+              <>
+                {/* Gmail Item Preview */}
+                <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 space-y-1">
+                  <div className="flex items-center justify-between text-[10px] font-mono text-slate-500">
+                    <span className="flex items-center gap-1 text-rose-600 font-medium">
+                      <Mail className="w-3 h-3" /> GMAIL
+                    </span>
+                    <span>{googleStatus?.unreadEmails || 0} unread</span>
+                  </div>
+                  {gmailMessages.length > 0 ? (
+                    <>
+                      <div className="text-xs font-poppins font-medium text-slate-900 truncate">
+                        {gmailMessages[0]?.subject}
+                      </div>
+                      <p className="text-[11px] font-manrope text-slate-500 line-clamp-1">
+                        {gmailMessages[0]?.snippet}
+                      </p>
+                      <div className="pt-1.5 flex justify-end">
+                        <button
+                          onClick={() => {
+                            setInputValue(`Draft a reply to ${gmailMessages[0]?.fromName || 'the sender'} regarding ${gmailMessages[0]?.subject}`);
+                            setActiveTab('chat');
+                          }}
+                          className="text-[10px] font-poppins font-medium px-2 py-0.5 rounded bg-white hover:bg-slate-50 text-indigo-700 border border-indigo-200 shadow-2xs transition-colors"
+                        >
+                          Draft Reply &rarr;
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-[11px] text-slate-500 font-manrope py-1">
+                      No unread recruiter emails. Inbox is clean.
+                    </p>
+                  )}
+                </div>
+
+                {/* Drive Resume Vault Preview */}
+                <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 space-y-1">
+                  <div className="flex items-center justify-between text-[10px] font-mono text-slate-500">
+                    <span className="flex items-center gap-1 text-indigo-600 font-medium">
+                      <HardDrive className="w-3 h-3" /> DRIVE VAULT
+                    </span>
+                    <span>{googleStatus?.indexedFilesCount || 0} files</span>
+                  </div>
+                  {driveFiles.length > 0 ? (
+                    <>
+                      <div className="text-xs font-poppins font-medium text-slate-900 truncate">
+                        {driveFiles[0]?.name}
+                      </div>
+                      <div className="pt-1.5 flex justify-end">
+                        <button
+                          onClick={() => setGoogleDriveModal(true)}
+                          className="text-[10px] font-poppins font-medium px-2 py-0.5 rounded bg-white hover:bg-slate-50 text-indigo-700 border border-indigo-200 shadow-2xs transition-colors"
+                        >
+                          Import Drive Resumes &rarr;
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-[11px] text-slate-500 font-manrope">No Drive files indexed</span>
+                      <button
+                        onClick={handleSyncGoogle}
+                        className="text-[10px] font-poppins font-medium text-indigo-600 hover:underline"
+                      >
+                        Sync
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-center space-y-2">
+                <p className="text-xs text-slate-600 font-manrope">
+                  Google account not connected. Connect your account to monitor emails and index resumes.
+                </p>
                 <button
                   onClick={() => {
-                    setInputValue(`Draft a reply to ${gmailMessages[0]?.fromName || 'the recruiter'} regarding ${gmailMessages[0]?.subject || 'the role'}`);
-                    setActiveTab('chat');
+                    setGoogleConnectEmail(currentUser?.email || '');
+                    setShowConnectGoogleModal(true);
                   }}
-                  className="text-[10px] font-poppins font-medium px-2 py-0.5 rounded bg-white hover:bg-slate-50 text-indigo-700 border border-indigo-200 shadow-2xs transition-colors"
+                  className="w-full py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-poppins font-bold text-xs shadow-2xs transition-colors"
                 >
-                  Draft Reply &rarr;
+                  Connect Google Account
                 </button>
               </div>
-            </div>
-
-            {/* Drive Resume Vault Preview */}
-            <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 space-y-1">
-              <div className="flex items-center justify-between text-[10px] font-mono text-slate-500">
-                <span className="flex items-center gap-1 text-indigo-600 font-medium">
-                  <HardDrive className="w-3 h-3" /> DRIVE VAULT
-                </span>
-                <span>{googleStatus?.indexedFilesCount || 0} files indexed</span>
-              </div>
-              <div className="text-xs font-poppins font-medium text-slate-900 truncate">
-                {driveFiles[0]?.name || 'Rupesh_Yadav_Staff_AI_Engineer_2025.md'}
-              </div>
-              <div className="text-[10px] font-mono text-emerald-700 font-medium">
-                Ingested into PostgreSQL Resume Vault
-              </div>
-              <div className="pt-1.5 flex justify-end">
-                <button
-                  onClick={() => setGoogleDriveModal(true)}
-                  className="text-[10px] font-poppins font-medium px-2 py-0.5 rounded bg-white hover:bg-slate-50 text-indigo-700 border border-indigo-200 shadow-2xs transition-colors"
-                >
-                  Import Drive Resumes &rarr;
-                </button>
-              </div>
-            </div>
+            )}
           </div>
 
           {/* SECTION 2: Greenhouse ATS Pipeline */}
@@ -2463,6 +2714,103 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* Connect Google Workspace Modal */}
+      {showConnectGoogleModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-600">
+                  <Mail className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-sora font-bold text-slate-900 text-base">Connect Google Workspace</h3>
+                  <p className="text-[11px] text-slate-500 font-manrope">Gmail Inbox &amp; Google Drive Integration</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowConnectGoogleModal(false)}
+                className="text-slate-400 hover:text-slate-700 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block text-slate-700 font-poppins font-bold mb-1">
+                  Google / Gmail Account Address
+                </label>
+                <input
+                  type="email"
+                  value={googleConnectEmail}
+                  onChange={(e) => setGoogleConnectEmail(e.target.value)}
+                  placeholder="e.g. yourname@gmail.com"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all"
+                />
+              </div>
+
+              {/* Scopes & Permissions Requested */}
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                <span className="text-[10px] font-poppins font-bold text-slate-500 uppercase tracking-wider block">
+                  Permissions &amp; Scopes Requested
+                </span>
+                <div className="space-y-1.5">
+                  <div className="flex items-start gap-2 text-[11px] text-slate-700">
+                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                    <div>
+                      <strong className="text-slate-900 font-poppins">Gmail Read-Only:</strong> Scan recruiter reach-outs and hiring updates.
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2 text-[11px] text-slate-700">
+                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                    <div>
+                      <strong className="text-slate-900 font-poppins">Gmail Compose:</strong> Prepare draft responses (gated by safety approval).
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2 text-[11px] text-slate-700">
+                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                    <div>
+                      <strong className="text-slate-900 font-poppins">Google Drive Read-Only:</strong> Index resume and portfolio markdown files.
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-2.5 rounded-lg bg-indigo-50/60 border border-indigo-200/60 text-[11px] text-indigo-900 font-manrope">
+                <strong className="font-poppins font-bold">Privacy Guarantee:</strong> PersonalOS operates on least-privilege principles. Zero emails are sent without your explicit approval in the Universal Safety Gate.
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200">
+              <button
+                onClick={() => setShowConnectGoogleModal(false)}
+                className="px-4 py-2 text-xs font-poppins font-semibold rounded-xl bg-white text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleConnectGoogle(googleConnectEmail)}
+                disabled={googleConnecting || !googleConnectEmail.trim()}
+                className="px-4 py-2 text-xs font-poppins font-bold rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-xs disabled:opacity-50 transition-colors flex items-center gap-1.5"
+              >
+                {googleConnecting ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Connecting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Mail className="w-3.5 h-3.5" />
+                    <span>Authorize &amp; Connect</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Gmail Inbox Modal */}
       {googleInboxModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
@@ -2473,7 +2821,7 @@ export default function Dashboard() {
                 <div>
                   <h3 className="font-sora font-bold text-slate-900 text-sm">Gmail Recruiter &amp; Primary Inbox</h3>
                   <p className="text-[11px] text-slate-500 font-manrope">
-                    Linked Google Account: <strong className="text-slate-800">{googleStatus?.email}</strong>
+                    Linked Google Account: <strong className="text-slate-800">{googleStatus?.email || 'Not connected'}</strong>
                   </p>
                 </div>
               </div>
@@ -2484,7 +2832,15 @@ export default function Dashboard() {
 
             <div className="p-4 overflow-y-auto space-y-3 bg-white text-xs">
               {gmailMessages.length === 0 ? (
-                <div className="text-center py-8 text-slate-400">Loading messages from Google Workspace...</div>
+                <div className="text-center py-12 space-y-2">
+                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
+                    <Inbox className="w-5 h-5" />
+                  </div>
+                  <h4 className="font-sora font-bold text-slate-800 text-sm">Inbox Up to Date</h4>
+                  <p className="text-xs text-slate-500 font-manrope max-w-sm mx-auto">
+                    No unread recruiter reach-outs found. When companies contact you or send updates, they will appear here.
+                  </p>
+                </div>
               ) : (
                 gmailMessages.map((msg) => (
                   <div
@@ -2567,7 +2923,7 @@ export default function Dashboard() {
                 <div>
                   <h3 className="font-sora font-bold text-slate-900 text-sm">Google Drive Indexed Documents</h3>
                   <p className="text-[11px] text-slate-500 font-manrope">
-                    Files discovered in Google Drive for <strong className="text-slate-800">{googleStatus?.email}</strong>
+                    Files discovered in Google Drive for <strong className="text-slate-800">{googleStatus?.email || 'Not connected'}</strong>
                   </p>
                 </div>
               </div>
@@ -2578,7 +2934,15 @@ export default function Dashboard() {
 
             <div className="p-4 overflow-y-auto space-y-3 bg-white text-xs">
               {driveFiles.length === 0 ? (
-                <div className="text-center py-8 text-slate-400">Loading Google Drive documents...</div>
+                <div className="text-center py-12 space-y-2">
+                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
+                    <Folder className="w-5 h-5" />
+                  </div>
+                  <h4 className="font-sora font-bold text-slate-800 text-sm">No Documents Indexed Yet</h4>
+                  <p className="text-xs text-slate-500 font-manrope max-w-sm mx-auto">
+                    Save resume markdown or portfolio files in your Google Drive and sync to ingest them into PersonalOS.
+                  </p>
+                </div>
               ) : (
                 driveFiles.map((file) => (
                   <div

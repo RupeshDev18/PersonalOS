@@ -21,16 +21,16 @@ export class AuthService {
       createdAt: new Date('2026-01-15').toISOString(),
       connectedAccounts: {
         google: {
-          connected: true,
-          email: 'ry993494787@gmail.com',
-          connectedAt: new Date('2026-09-01').toISOString(),
+          connected: false,
+          email: '',
+          connectedAt: '',
           scopes: [
             'https://www.googleapis.com/auth/gmail.readonly',
             'https://www.googleapis.com/auth/gmail.compose',
             'https://www.googleapis.com/auth/drive.readonly',
           ],
-          unreadEmailCount: 3,
-          indexedDriveFilesCount: 4,
+          unreadEmailCount: 0,
+          indexedDriveFilesCount: 0,
         },
       },
       preferences: {
