@@ -72,8 +72,8 @@ model TaskStep {
 
 model AuditEvent {
   id            String          @id @default(uuid())
-  taskId        String
-  task          Task            @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId        String?
+  task          Task?           @relation(fields: [taskId], references: [id], onDelete: Cascade)
   stepId        String?
   step          TaskStep?       @relation(fields: [stepId], references: [id], onDelete: SetNull)
   agentId       String?
@@ -95,10 +95,10 @@ model AuditEvent {
 
 model Approval {
   id                 String       @id @default(uuid())
-  taskId             String
-  task               Task         @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  stepId             String
-  step               TaskStep     @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  taskId             String?
+  task               Task?        @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  stepId             String?
+  step               TaskStep?    @relation(fields: [stepId], references: [id], onDelete: Cascade)
   userId             String
   user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   actionType         String
@@ -219,15 +219,19 @@ model Memory {
 
 model Transaction {
   id          String   @id @default(uuid())
-  userId      String   @default("user-rupesh")
+  userId      String
+  accountId   String   @default("acc-primary")
   amount      Float
+  currency    String   @default("INR")
   category    String
   merchant    String
   description String
   date        DateTime @default(now())
   status      String   @default("posted")
+  isRecurring Boolean  @default(false)
   createdAt   DateTime @default(now())
 
+  @@index([userId])
   @@map("transactions")
 }
 

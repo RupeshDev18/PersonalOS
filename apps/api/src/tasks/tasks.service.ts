@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Task, TaskPriority, TaskStatus } from '@personal-os/shared';
 import { AgentsService } from '../agents/agents.service';
 import { v4 as uuidv4 } from 'uuid';
@@ -9,28 +9,28 @@ export class TasksService {
 
   constructor(private readonly agentsService: AgentsService) {}
 
-  async processUserMessage(prompt: string, userId = 'default-user') {
+  /**
+   * Hand the user's prompt to the Chief Agent and persist the resulting task.
+   * The userId comes from the validated session — never from the request body.
+   */
+  async processUserMessage(prompt: string, userId: string) {
     const chief = this.agentsService.getChief();
     const taskId = uuidv4();
 
-    const orchestrationResult = await chief.orchestrate({
-      taskId,
-      userId,
-      prompt,
-    });
+    const result = await chief.orchestrate({ taskId, userId, prompt });
 
     const task: Task = {
       id: taskId,
       userId,
-      title: prompt.slice(0, 60),
+      title: prompt.slice(0, 80),
       inputPrompt: prompt,
       status: TaskStatus.COMPLETED,
       priority: TaskPriority.NORMAL,
-      chiefIntent: orchestrationResult.intent as unknown as Record<string, unknown>,
-      assignedAgents: orchestrationResult.intent.requiredAgents,
-      steps: orchestrationResult.steps,
-      finalSummary: orchestrationResult.summary,
-      recurringCron: orchestrationResult.intent.scheduleExpression,
+      chiefIntent: result.intent as unknown as Record<string, unknown>,
+      assignedAgents: result.intent.requiredAgents,
+      steps: result.steps,
+      finalSummary: result.summary,
+      recurringCron: result.intent.scheduleExpression,
       createdAt: new Date(),
       updatedAt: new Date(),
       completedAt: new Date(),
@@ -40,21 +40,24 @@ export class TasksService {
 
     return {
       task,
-      intent: orchestrationResult.intent,
-      summary: orchestrationResult.summary,
-      steps: orchestrationResult.steps,
-      details: orchestrationResult.details,
-      orchestrationTrace: orchestrationResult.orchestrationTrace,
+      intent: result.intent,
+      summary: result.summary,
+      steps: result.steps,
+      details: result.details,
+      orchestrationTrace: result.orchestrationTrace,
     };
   }
 
-  getTasks(): Task[] {
-    return Array.from(this.tasks.values()).sort(
-      (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
-    );
+  getTasks(userId: string): Task[] {
+    return Array.from(this.tasks.values())
+      .filter((t) => t.userId === userId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
 
-  getTask(id: string): Task | undefined {
-    return this.tasks.get(id);
+  getTask(id: string, userId: string): Task {
+    const task = this.tasks.get(id);
+    if (!task) throw new NotFoundException(`Task '${id}' not found.`);
+    if (task.userId !== userId) throw new NotFoundException(`Task '${id}' not found.`);
+    return task;
   }
 }

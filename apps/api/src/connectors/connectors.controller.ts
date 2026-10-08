@@ -1,197 +1,175 @@
-import { Body, Controller, Get, Param, Post, Query, Inject, forwardRef } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  Inject,
+  forwardRef,
+  NotFoundException,
+} from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { IsEmail, IsOptional, IsString } from 'class-validator';
+import { ConnectorRegistryService } from './connector-registry.service';
+import { GoogleConnector, GoogleAuthMethod } from './google.connector';
 import { GreenhouseConnector } from './greenhouse.connector';
-import { WebSearchConnector } from './web-search.connector';
-import { GoogleConnector } from './google.connector';
 import { GeminiService } from '../llm/gemini.service';
 import { JobsService } from '../jobs/jobs.service';
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { CurrentUserId } from '../auth/user.decorator';
+
+// ---------------------------------------------------------------------------
+// DTOs
+// ---------------------------------------------------------------------------
+
+export class ConnectGoogleDto {
+  @IsEmail()
+  email: string;
+
+  @IsOptional()
+  @IsString()
+  authMethod?: GoogleAuthMethod;
+
+  @IsOptional()
+  @IsString()
+  credential?: string;
+}
 
 export class UpdateGeminiKeyDto {
   @IsString()
   apiKey: string;
 }
 
-export class ConnectGoogleDto {
-  @IsOptional()
-  @IsString()
-  email?: string;
-}
+// ---------------------------------------------------------------------------
+// Controller
+// ---------------------------------------------------------------------------
 
 @ApiTags('connectors')
 @Controller('api/connectors')
 export class ConnectorsController {
   constructor(
-    private readonly greenhouseConnector: GreenhouseConnector,
-    private readonly webSearchConnector: WebSearchConnector,
+    private readonly registry: ConnectorRegistryService,
     private readonly googleConnector: GoogleConnector,
+    private readonly greenhouseConnector: GreenhouseConnector,
     private readonly geminiService: GeminiService,
     @Inject(forwardRef(() => JobsService))
     private readonly jobsService: JobsService,
   ) {}
 
-  @Get()
-  @ApiOperation({ summary: 'List all active connectors, live status, and configuration' })
-  async getConnectors() {
-    const hasGeminiKey = this.geminiService.hasApiKey();
-    const googleStatus = this.googleConnector.getStatus();
+  // -------------------------------------------------------------------------
+  // Registry
+  // -------------------------------------------------------------------------
 
-    return [
-      {
-        id: 'connector-google-workspace',
-        name: 'Google Workspace (Gmail & Drive)',
-        type: 'personal_context',
-        status: googleStatus.connected ? 'connected' : 'disconnected',
-        isLive: googleStatus.connected,
-        description: 'Synchronizes your verified inbox emails, recruiter messages, and Google Drive resume markdown documents directly into Chief Ghost context.',
-        rateLimit: 'OAuth 2.0 (250 req/sec)',
-        lastSync: googleStatus.lastSync,
-        details: {
-          account: googleStatus.email,
-          unreadEmails: googleStatus.unreadEmails,
-          indexedDriveFiles: googleStatus.indexedFilesCount,
-          scopes: googleStatus.scopes,
-        },
-      },
-      {
-        id: 'connector-greenhouse',
-        name: 'Greenhouse Live Career API',
-        type: 'job_board',
-        status: 'connected',
-        isLive: true,
-        description: 'Direct ATS scraper connecting to public career endpoints of Stripe, Figma, Cloudflare, and GitHub. No auth required.',
-        rateLimit: 'Open (5 req/sec)',
-        lastSync: new Date().toISOString(),
-        details: {
-          targetCompanies: ['Stripe', 'Figma', 'Cloudflare', 'GitHub'],
-          authMode: 'Public API REST Endpoints',
-        },
-      },
-      {
-        id: 'connector-duckduckgo',
-        name: 'DuckDuckGo Web Search & Intelligence',
-        type: 'web_search',
-        status: 'connected',
-        isLive: true,
-        description: 'Instant answers & review aggregator querying live web search APIs for market benchmarks, specs, and price checks.',
-        rateLimit: 'Open (unmetered)',
-        lastSync: new Date().toISOString(),
-        details: {
-          endpoint: 'https://api.duckduckgo.com',
-          privacyMode: 'Zero-tracking / Zero-cookie',
-        },
-      },
-      {
-        id: 'connector-gemini',
-        name: 'Google Gemini Flash LLM Reasoning',
-        type: 'llm_engine',
-        status: hasGeminiKey ? 'connected' : 'fallback_mode',
-        isLive: hasGeminiKey,
-        description: hasGeminiKey
-          ? 'Active Google Gemini generative AI powering dynamic multi-agent intent parsing, reasoning decomposition, and conversational synthesis.'
-          : 'Running in deterministic rule mode. Provide your GEMINI_API_KEY in .env or via Connectors settings to activate full LLM generation.',
-        rateLimit: '15 req/min (Free Tier)',
-        lastSync: hasGeminiKey ? new Date().toISOString() : null,
-        details: {
-          model: 'gemini-3.8-flash / gemini-flash-latest',
-          configured: hasGeminiKey,
-          instructions: 'Get a free key at https://aistudio.google.com and set GEMINI_API_KEY in .env',
-        },
-      },
-      {
-        id: 'connector-finance-ledger',
-        name: 'Discretionary Banking Ledger (Read-Only)',
-        type: 'financial_ledger',
-        status: 'connected',
-        isLive: true,
-        description: 'Local financial ledger providing categorized transactions, recurring commitments, and safe affordability ceilings.',
-        rateLimit: 'Internal (Strictly Read-Only)',
-        lastSync: new Date().toISOString(),
-        details: {
-          accessMode: 'READ_ONLY (Money transfers blocked by PolicyEngine)',
-          monitoredAccounts: ['Primary Checking (HDFC)', 'Discretionary Card (ICICI)'],
-        },
-      },
-    ];
+  @Get()
+  @ApiOperation({ summary: 'List all connectors with live status' })
+  getAll(@CurrentUserId() _userId: string) {
+    return this.registry.getAll();
   }
 
-  // --- Google Workspace Endpoints ---
+  @Get(':id')
+  @ApiOperation({ summary: 'Get a single connector status by id' })
+  getOne(@CurrentUserId() _userId: string, @Param('id') id: string) {
+    const connector = this.registry.get(id);
+    if (!connector) throw new NotFoundException(`Connector '${id}' not found.`);
+    return connector;
+  }
+
+  // -------------------------------------------------------------------------
+  // Google Workspace
+  // -------------------------------------------------------------------------
 
   @Get('google/status')
-  @ApiOperation({ summary: 'Get Google Workspace (Gmail + Drive) connection status' })
-  getGoogleStatus() {
+  @ApiOperation({ summary: 'Get Google Workspace connection status' })
+  getGoogleStatus(@CurrentUserId() _userId: string) {
     return this.googleConnector.getStatus();
   }
 
   @Post('google/connect')
-  @ApiOperation({ summary: 'Connect Google account' })
-  connectGoogle(@Body() dto: ConnectGoogleDto) {
-    return this.googleConnector.connect(dto.email);
+  @ApiOperation({ summary: 'Connect Google account (app password or OAuth token)' })
+  connectGoogle(
+    @CurrentUserId() _userId: string,
+    @Body() dto: ConnectGoogleDto,
+  ) {
+    return this.googleConnector.connect(
+      dto.email,
+      dto.authMethod ?? 'oauth_consent',
+      dto.credential,
+    );
   }
 
   @Post('google/disconnect')
   @ApiOperation({ summary: 'Disconnect Google account' })
-  disconnectGoogle() {
+  disconnectGoogle(@CurrentUserId() _userId: string) {
     return this.googleConnector.disconnect();
   }
 
   @Post('google/sync')
-  @ApiOperation({ summary: 'Trigger sync of Gmail and Drive' })
-  syncGoogle() {
+  @ApiOperation({ summary: 'Trigger Gmail + Drive sync' })
+  syncGoogle(@CurrentUserId() _userId: string) {
     return this.googleConnector.sync();
   }
 
   @Get('google/gmail')
-  @ApiOperation({ summary: 'Get Gmail inbox messages' })
-  getGmailMessages(@Query('category') category?: string) {
+  @ApiOperation({ summary: 'Get synced Gmail messages' })
+  getGmailMessages(
+    @CurrentUserId() _userId: string,
+    @Query('category') category?: string,
+  ) {
     return this.googleConnector.getMessages(category);
   }
 
   @Get('google/drive')
-  @ApiOperation({ summary: 'Get Google Drive indexed files' })
-  getDriveFiles(@Query('type') fileType?: string) {
+  @ApiOperation({ summary: 'Get indexed Google Drive files' })
+  getDriveFiles(
+    @CurrentUserId() _userId: string,
+    @Query('type') fileType?: string,
+  ) {
     return this.googleConnector.getDriveFiles(fileType);
   }
 
   @Post('google/drive/import-resume/:fileId')
-  @ApiOperation({ summary: 'Import a resume directly from Google Drive into Resume Vault' })
-  importDriveResume(@Param('fileId') fileId: string) {
+  @ApiOperation({ summary: 'Import a Drive file as a resume into the Resume Vault' })
+  importDriveResume(
+    @CurrentUserId() _userId: string,
+    @Param('fileId') fileId: string,
+  ) {
     const file = this.googleConnector.getDriveFileById(fileId);
-    if (!file || !file.contentMarkdown) {
-      return { success: false, message: 'Drive file not found or contains no markdown content.' };
+    if (!file?.contentMarkdown) {
+      throw new NotFoundException(
+        'Drive file not found or contains no markdown content.',
+      );
     }
-
-    const savedResume = this.jobsService.addOrUpdateResume({
+    const saved = this.jobsService.addOrUpdateResume({
       id: `resume-${Date.now()}`,
       title: file.name.replace(/\.[^/.]+$/, '').replace(/_/g, ' '),
       fileName: file.name,
       targetRole: 'Full Stack Engineer',
-      tags: ['Google Drive', 'Imported', 'Cloud'],
+      tags: ['Google Drive', 'Imported'],
       contentMarkdown: file.contentMarkdown,
       isDefault: false,
     });
-
     return {
       success: true,
-      message: `Successfully imported "${file.name}" from Google Drive into your Career Resume Vault!`,
-      resume: savedResume,
+      message: `Imported "${file.name}" from Google Drive into the Resume Vault.`,
+      resume: saved,
     };
   }
 
-  // --- Greenhouse Endpoints ---
+  // -------------------------------------------------------------------------
+  // Greenhouse
+  // -------------------------------------------------------------------------
 
   @Post('sync/greenhouse')
-  @ApiOperation({ summary: 'Trigger live test sync of Greenhouse job boards' })
-  async syncGreenhouse() {
+  @ApiOperation({ summary: 'Test-sync Greenhouse career boards' })
+  async syncGreenhouse(@CurrentUserId() _userId: string) {
     const jobs = await this.greenhouseConnector.search({
       roles: ['developer', 'engineer', 'fullstack'],
       limit: 10,
     });
     return {
       success: true,
-      message: `Successfully connected to Greenhouse public APIs. Fetched ${jobs.length} live openings across target companies.`,
       jobsFetched: jobs.length,
-      sampleJobs: jobs.slice(0, 3).map((j) => ({
+      sample: jobs.slice(0, 3).map((j) => ({
         company: j.company,
         title: j.title,
         location: j.location,
@@ -200,28 +178,35 @@ export class ConnectorsController {
     };
   }
 
-  // --- Gemini Endpoints ---
+  // -------------------------------------------------------------------------
+  // Gemini LLM
+  // -------------------------------------------------------------------------
 
   @Post('gemini/set-key')
-  @ApiOperation({ summary: 'Dynamically set or update Gemini API Key' })
-  async setGeminiKey(@Body() body: UpdateGeminiKeyDto) {
+  @ApiOperation({ summary: 'Set or update the Gemini API key' })
+  async setGeminiKey(
+    @CurrentUserId() _userId: string,
+    @Body() body: UpdateGeminiKeyDto,
+  ) {
     const success = this.geminiService.setApiKey(body.apiKey);
     if (!success) {
-      return { success: false, message: 'Invalid API key provided. Must be at least 10 characters.' };
+      return {
+        success: false,
+        message: 'Invalid key — must be at least 10 characters.',
+      };
     }
-    const testResult = await this.geminiService.testConnection();
-    return testResult;
+    return this.geminiService.testConnection();
   }
 
   @Get('gemini/test')
-  @ApiOperation({ summary: 'Test current Gemini LLM connection' })
-  async testGemini() {
+  @ApiOperation({ summary: 'Test the current Gemini connection' })
+  testGemini(@CurrentUserId() _userId: string) {
     return this.geminiService.testConnection();
   }
 
   @Get('gemini/diagnose')
-  @ApiOperation({ summary: 'Diagnose current Gemini key format and Google response' })
-  async diagnoseGemini() {
+  @ApiOperation({ summary: 'Diagnose the Gemini key format and Google API response' })
+  diagnoseGemini(@CurrentUserId() _userId: string) {
     return this.geminiService.diagnoseKey();
   }
 }

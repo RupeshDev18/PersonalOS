@@ -1,14 +1,28 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import * as fs from 'fs';
-import * as path from 'path';
+
+// ---------------------------------------------------------------------------
+// Real Gemini model names as of October 2026.
+// Ordered by preference: fastest + most capable first.
+// discoverBestModel() will refine this list at runtime by querying the API.
+// ---------------------------------------------------------------------------
+const MODEL_PREFERENCE_ORDER = [
+  'gemini-2.5-flash',
+  'gemini-2.5-flash-preview-05-20',
+  'gemini-2.0-flash',
+  'gemini-2.0-flash-lite',
+  'gemini-1.5-flash',
+  'gemini-1.5-flash-latest',
+  'gemini-1.5-pro',
+  'gemini-1.5-pro-latest',
+];
 
 @Injectable()
 export class GeminiService {
   private readonly logger = new Logger(GeminiService.name);
   private genAI: GoogleGenerativeAI | null = null;
   private apiKey: string | null = null;
-  private modelName: string = 'gemini-3.8-flash';
+  private modelName: string = MODEL_PREFERENCE_ORDER[0];
 
   constructor() {
     this.initGemini();
@@ -17,56 +31,51 @@ export class GeminiService {
     }
   }
 
-  private initGemini() {
+  // ---------------------------------------------------------------------------
+  // Initialisation
+  // ---------------------------------------------------------------------------
+
+  private initGemini(): void {
     const key = process.env.GEMINI_API_KEY?.trim();
     if (key && key.length > 10) {
       this.apiKey = key;
       this.genAI = new GoogleGenerativeAI(key);
-      this.logger.log(`Google Gemini SDK initialized with API key.`);
+      this.logger.log('Google Gemini SDK initialised.');
     } else {
-      this.logger.warn('No GEMINI_API_KEY detected in .env. Running in deterministic fallback mode.');
-    }
-  }
-
-  public setApiKey(apiKey: string): boolean {
-    if (apiKey && apiKey.trim().length > 10) {
-      this.apiKey = apiKey.trim();
-      this.genAI = new GoogleGenerativeAI(this.apiKey);
-      process.env.GEMINI_API_KEY = this.apiKey;
-      this.persistKeyToEnv(this.apiKey);
-      this.logger.log('Gemini API Key updated dynamically and saved to .env.');
-      return true;
-    }
-    return false;
-  }
-
-  public persistKeyToEnv(key: string) {
-    try {
-      const candidates = [
-        path.resolve(process.cwd(), '.env'),
-        path.resolve(process.cwd(), '../../.env'),
-        path.resolve(__dirname, '../../../../.env'),
-      ];
-      for (const envFile of candidates) {
-        if (fs.existsSync(envFile)) {
-          let content = fs.readFileSync(envFile, 'utf8');
-          if (content.includes('GEMINI_API_KEY=')) {
-            content = content.replace(/GEMINI_API_KEY=.*/g, `GEMINI_API_KEY="${key}"`);
-          } else {
-            content += `\nGEMINI_API_KEY="${key}"\n`;
-          }
-          fs.writeFileSync(envFile, content, 'utf8');
-          this.logger.log(`Persisted GEMINI_API_KEY to ${envFile}`);
-          break;
-        }
-      }
-    } catch (e) {
-      this.logger.warn(`Could not persist key to .env: ${e}`);
+      this.logger.warn(
+        'No GEMINI_API_KEY found. Running in deterministic fallback mode. ' +
+          'Set GEMINI_API_KEY in .env to enable LLM features.',
+      );
     }
   }
 
   /**
-   * Discovers which models are enabled for this API key via Google's ModelService
+   * Dynamically update the API key at runtime (e.g. from the Connectors UI).
+   * The key is stored only in memory + process.env — never written to disk.
+   */
+  public setApiKey(apiKey: string): boolean {
+    const trimmed = apiKey?.trim();
+    if (!trimmed || trimmed.length <= 10) return false;
+
+    this.apiKey = trimmed;
+    this.genAI = new GoogleGenerativeAI(trimmed);
+    process.env.GEMINI_API_KEY = trimmed;
+    this.discoverBestModel().catch(() => {});
+    this.logger.log('Gemini API key updated at runtime.');
+    return true;
+  }
+
+  public hasApiKey(): boolean {
+    return !!this.genAI;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Model discovery
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Queries the Google Generative Language API to find which models are
+   * actually enabled for this key, then picks the best available one.
    */
   public async discoverBestModel(): Promise<string> {
     if (!this.apiKey) return this.modelName;
@@ -74,78 +83,75 @@ export class GeminiService {
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${this.apiKey}`;
       const res = await fetch(url);
-      if (res.ok) {
-        const data: any = await res.json();
-        const available: string[] = (data.models || [])
-          .filter((m: any) => m.supportedGenerationMethods?.includes('generateContent'))
-          .map((m: any) => m.name.replace(/^models\//, ''));
+      if (!res.ok) return this.modelName;
 
-        this.logger.log(`Available Gemini models for this key: ${available.join(', ')}`);
+      const data = (await res.json()) as {
+        models?: Array<{
+          name: string;
+          supportedGenerationMethods?: string[];
+        }>;
+      };
 
-        // Priority preference for active generation models
-        const preferences = [
-          'gemini-3.8-flash',
-          'gemini-3.7-flash',
-          'gemini-3.5-flash',
-          'gemini-flash-latest',
-          'gemini-2.5-flash-lite',
-          'gemini-pro-latest',
-          'gemini-2.5-pro',
-        ];
+      const available = (data.models ?? [])
+        .filter((m) => m.supportedGenerationMethods?.includes('generateContent'))
+        .map((m) => m.name.replace(/^models\//, ''));
 
-        for (const pref of preferences) {
-          if (available.includes(pref)) {
-            this.modelName = pref;
-            this.logger.log(`Auto-selected Gemini model: "${this.modelName}"`);
-            return this.modelName;
-          }
-        }
+      this.logger.log(`Gemini models available for this key: ${available.join(', ')}`);
 
-        if (available.length > 0) {
-          this.modelName = available[0];
+      for (const pref of MODEL_PREFERENCE_ORDER) {
+        if (available.includes(pref)) {
+          this.modelName = pref;
+          this.logger.log(`Auto-selected model: ${this.modelName}`);
           return this.modelName;
         }
       }
+
+      // Fall back to whatever is first in the API-reported list
+      if (available.length > 0) {
+        this.modelName = available[0];
+        this.logger.log(`Fallback model: ${this.modelName}`);
+      }
     } catch (err) {
-      this.logger.warn(`Model discovery query failed: ${err}`);
+      this.logger.warn(`Model discovery failed: ${err}`);
     }
 
-    // Default candidate fallback
     return this.modelName;
   }
 
-  public async testConnection(): Promise<{ success: boolean; message: string; model?: string }> {
+  // ---------------------------------------------------------------------------
+  // Connection test / diagnostics (used by Connectors UI)
+  // ---------------------------------------------------------------------------
+
+  public async testConnection(): Promise<{
+    success: boolean;
+    message: string;
+    model?: string;
+  }> {
     if (!this.genAI || !this.apiKey) {
-      return { success: false, message: 'No GEMINI_API_KEY configured. Please provide your Google AI Studio key.' };
+      return {
+        success: false,
+        message:
+          'No GEMINI_API_KEY configured. Get a free key at https://aistudio.google.com and set it in .env.',
+      };
     }
 
-    // 1. Try to auto-discover the active model
     await this.discoverBestModel();
 
-    // 2. Candidate list to probe
-    const candidates = [
-      this.modelName,
-      'gemini-3.8-flash',
-      'gemini-3.7-flash',
-      'gemini-3.5-flash',
-      'gemini-flash-latest',
-      'gemini-2.5-flash-lite',
-      'gemini-pro-latest',
-    ];
-
-    const uniqueCandidates = Array.from(new Set(candidates));
+    const candidates = [this.modelName, ...MODEL_PREFERENCE_ORDER].filter(
+      (v, i, a) => a.indexOf(v) === i,
+    );
     let lastError = '';
 
-    for (const cand of uniqueCandidates) {
+    for (const cand of candidates) {
       try {
-        this.logger.log(`Testing Gemini model: "${cand}"...`);
+        this.logger.log(`Testing model "${cand}"…`);
         const model = this.genAI.getGenerativeModel({ model: cand });
         const res = await model.generateContent('Reply with "CONNECTED" only.');
         const text = res.response.text();
         this.modelName = cand;
         return {
           success: true,
-          message: `Connected successfully to Gemini (${cand})! Model responded: ${text.trim()}`,
+          message: `Connected to Gemini (${cand}). Response: ${text.trim()}`,
           model: cand,
         };
       } catch (err: unknown) {
@@ -153,75 +159,88 @@ export class GeminiService {
       }
     }
 
-    return { success: false, message: `Gemini API test failed: ${lastError}` };
+    return { success: false, message: `Gemini test failed: ${lastError}` };
   }
 
-  public async diagnoseKey(): Promise<any> {
+  public async diagnoseKey(): Promise<{
+    configured: boolean;
+    prefix?: string;
+    length?: number;
+    isTypicalGoogleKey?: boolean;
+    apiResponse?: unknown;
+    message?: string;
+  }> {
     if (!this.apiKey) return { configured: false, message: 'No API key configured.' };
+
     const prefix = this.apiKey.slice(0, 7);
-    const length = this.apiKey.length;
-    let googleHttpResult: any = null;
+    let apiResponse: unknown = null;
+
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${this.apiKey}`;
       const res = await fetch(url);
       const text = await res.text();
-      googleHttpResult = {
+      apiResponse = {
         status: res.status,
         statusText: res.statusText,
-        body: text.slice(0, 1000),
+        body: text.slice(0, 800),
       };
-    } catch (e: any) {
-      googleHttpResult = { error: e.message };
+    } catch (e: unknown) {
+      apiResponse = { error: e instanceof Error ? e.message : String(e) };
     }
+
     return {
+      configured: true,
       prefix,
-      length,
+      length: this.apiKey.length,
       isTypicalGoogleKey: prefix.startsWith('AIzaSy'),
-      googleHttpResult,
+      apiResponse,
     };
   }
 
-  public hasApiKey(): boolean {
-    return !!this.genAI;
-  }
+  // ---------------------------------------------------------------------------
+  // Core generation (with automatic model fallback)
+  // ---------------------------------------------------------------------------
 
   /**
-   * Resilient generator with automatic model fallback across supported Gemini versions
+   * Tries to generate content using each model in the preference list until
+   * one succeeds. Returns null if all fail or no key is configured.
    */
-  public async generateContentWithFallback(promptText: string): Promise<string | null> {
+  public async generateContentWithFallback(
+    promptText: string,
+  ): Promise<string | null> {
     if (!this.genAI) return null;
 
-    const candidates = [
-      this.modelName,
-      'gemini-3.8-flash',
-      'gemini-3.7-flash',
-      'gemini-3.5-flash',
-      'gemini-flash-latest',
-      'gemini-2.5-flash-lite',
-      'gemini-pro-latest',
-    ];
-    const uniqueCandidates = Array.from(new Set(candidates));
+    const candidates = [this.modelName, ...MODEL_PREFERENCE_ORDER].filter(
+      (v, i, a) => a.indexOf(v) === i,
+    );
 
-    for (const modelCandidate of uniqueCandidates) {
+    for (const candidate of candidates) {
       try {
-        const model = this.genAI.getGenerativeModel({ model: modelCandidate });
+        const model = this.genAI.getGenerativeModel({ model: candidate });
         const response = await model.generateContent(promptText);
         const text = response.response.text();
         if (text) {
-          this.modelName = modelCandidate;
+          if (candidate !== this.modelName) {
+            this.modelName = candidate;
+            this.logger.log(`Switched to model: ${candidate}`);
+          }
           return text;
         }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
-        this.logger.warn(`Model "${modelCandidate}" error: ${msg}. Attempting fallback candidate...`);
+        this.logger.warn(`Model "${candidate}" failed: ${msg}. Trying next…`);
       }
     }
 
     return null;
   }
 
+  // ---------------------------------------------------------------------------
+  // Higher-level LLM operations
+  // ---------------------------------------------------------------------------
+
   /**
-   * Use Gemini to understand user intent and break it down into execution steps
+   * Classify user intent and return a structured routing decision.
    */
   public async understandIntentWithLLM(prompt: string): Promise<{
     taskType: 'immediate' | 'scheduled' | 'recurring';
@@ -229,128 +248,91 @@ export class GeminiService {
     requiredAgents: string[];
     summary: string;
     steps: Array<{ agent: string; action: string; description: string }>;
-    rawLLMOutput?: string;
   } | null> {
     if (!this.genAI) return null;
 
-    try {
-      const systemPrompt = `You are the Chief Coordinator Agent in a personal AI Operating System.
-Your job is to accurately classify whether the user prompt requires specialist agents, or if it is a direct conversational message that Chief can answer directly.
+    const systemPrompt = `You are the Chief Coordinator Agent in a personal AI Operating System.
+Classify whether the user prompt requires specialist agents or is a direct conversational message.
 
 ROUTING RULES:
-1. GREETINGS & CASUAL TALK ("hi", "hello", "hey", "who are you?", "what can you do?", small talk, general chit-chat):
-   - Set "primaryAgent": "chief"
-   - Set "requiredAgents": []
-   - Set "steps": []
-   - CRITICAL: Never trigger web search for simple greetings! Chief handles this directly.
-2. JOBS & CAREERS ("find jobs", "resume", "openings at Stripe", "career advice"):
-   - Set "primaryAgent": "job"
-   - Set "requiredAgents": ["job"]
-   - Set "steps": [{ "agent": "job", "action": "jobs.search", "description": "Search active career boards" }]
-3. SHOPPING & PURCHASES ("buy laptop", "price comparison", "should I buy X?"):
-   - Set "primaryAgent": "shopping"
-   - Set "requiredAgents": ["shopping", "research", "finance"]
-   - Set "steps": [
-       { "agent": "shopping", "action": "shopping.search", "description": "Compare merchant prices" },
-       { "agent": "research", "action": "research.web.search", "description": "Gather product review benchmarks" },
-       { "agent": "finance", "action": "finance.transactions.read", "description": "Evaluate discretionary budget" }
-     ]
-4. FINANCE & BUDGET ("check spending", "monthly balance", "can I afford"):
-   - Set "primaryAgent": "finance"
-   - Set "requiredAgents": ["finance"]
-   - Set "steps": [{ "agent": "finance", "action": "finance.transactions.read", "description": "Read monthly ledger" }]
-5. RESEARCH (ONLY for explicit research questions or topics genuinely needing web search):
-   - Set "primaryAgent": "research"
-   - Set "requiredAgents": ["research"]
-   - Set "steps": [{ "agent": "research", "action": "research.web.search", "description": "Search web intelligence" }]
-6. COMMUNICATION & EMAILS ("check emails", "gmail", "inbox", "recruiter messages", "did Stripe email me?", "draft email"):
-   - Set "primaryAgent": "communication"
-   - Set "requiredAgents": ["communication"]
-   - Set "steps": [{ "agent": "communication", "action": "email.read", "description": "Inspect Gmail inbox" }]
+1. GREETINGS & CASUAL TALK → primaryAgent: "chief", requiredAgents: [], steps: []
+2. JOBS & CAREERS → primaryAgent: "job", requiredAgents: ["job"]
+3. SHOPPING & PURCHASES → primaryAgent: "shopping", requiredAgents: ["shopping","research","finance"]
+4. FINANCE & BUDGET → primaryAgent: "finance", requiredAgents: ["finance"]
+5. RESEARCH (explicit web search needed) → primaryAgent: "research", requiredAgents: ["research"]
+6. COMMUNICATION & EMAILS → primaryAgent: "communication", requiredAgents: ["communication"]
 
-Respond strictly with valid JSON conforming to this schema:
+Respond ONLY with valid JSON:
 {
   "taskType": "immediate" | "scheduled" | "recurring",
   "primaryAgent": "chief" | "job" | "finance" | "shopping" | "research" | "communication",
   "requiredAgents": string[],
   "summary": "Brief 1-sentence goal",
-  "steps": [
-    { "agent": string, "action": string, "description": string }
-  ]
+  "steps": [{ "agent": string, "action": string, "description": string }]
 }
 
 User prompt: "${prompt}"`;
 
+    try {
       const text = await this.generateContentWithFallback(systemPrompt);
       if (!text) return null;
 
-      const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
-      const parsed = JSON.parse(cleanJson);
-
-      return {
-        ...parsed,
-        rawLLMOutput: text,
-      };
+      const cleanJson = text.replace(/```json\n?/g, '').replace(/```/g, '').trim();
+      return JSON.parse(cleanJson);
     } catch (err) {
-      this.logger.error(`Gemini intent extraction failed: ${err}`);
+      this.logger.error(`Intent extraction failed: ${err}`);
       return null;
     }
   }
 
   /**
-   * Use Gemini to synthesize cross-specialist outputs into a unified verdict or friendly conversational response
+   * Synthesise cross-specialist data into a human-readable response.
    */
   public async synthesizeResponseWithLLM(
     prompt: string,
-    specialistData: Record<string, unknown>
+    specialistData: Record<string, unknown>,
   ): Promise<string | null> {
     if (!this.genAI) return null;
 
-    try {
-      const hasSpecialistData = Object.keys(specialistData || {}).length > 0;
+    const hasData = Object.keys(specialistData ?? {}).length > 0;
 
-      let promptText = '';
-      if (!hasSpecialistData) {
-        promptText = `You are the Chief Ghost Agent in a Personal AI Operating System.
-The user said: "${prompt}"
-
-Reply warmly, helpfully, and concisely as Chief Ghost. Introduce your role as the central coordinator and mention your specialized bot team (Job & Career Specialist, Finance Ledger, Shopping Scout, Web Intelligence). Ask how you can assist them today. Do NOT mention any search results or irrelevant facts. Keep it punchy and playful.`;
-      } else {
-        promptText = `You are the Chief Ghost Agent in a Personal AI OS.
+    const promptText = hasData
+      ? `You are Chief Ghost, a personal AI OS coordinator.
 The user asked: "${prompt}"
 
-Specialist Agents provided the following verified data:
+Specialist agents provided:
 ${JSON.stringify(specialistData, null, 2)}
 
-Provide a concise, direct, personalized recommendation to the user.
-Explain the rationale clearly (e.g. price vs affordability vs benchmarks) and give a clear verdict. Keep it conversational and friendly.`;
-      }
+Give a concise, direct, friendly recommendation with clear rationale.`
+      : `You are Chief Ghost, a personal AI OS coordinator.
+The user said: "${prompt}"
+Reply warmly and briefly. Introduce yourself as the central coordinator with specialist agents (Jobs, Finance, Shopping, Research, Communication). Ask how you can help.`;
 
+    try {
       const text = await this.generateContentWithFallback(promptText);
-      return text ? text.trim() : null;
+      return text?.trim() ?? null;
     } catch (err) {
-      this.logger.error(`Gemini synthesis failed: ${err}`);
+      this.logger.error(`Synthesis failed: ${err}`);
       return null;
     }
   }
 
   /**
-   * Use Gemini to tailor a resume for a job without fabricating facts
+   * Tailor a resume for a job description without fabricating any facts.
    */
   public async tailorResumeWithLLM(
     jobDescription: string,
-    baseResumeMarkdown: string
+    baseResumeMarkdown: string,
   ): Promise<string | null> {
     if (!this.genAI) return null;
 
-    try {
-      const promptText = `You are a Resume Specialist Agent.
-Tailor the user's base resume for the following job description.
+    const promptText = `You are a Resume Specialist Agent.
+Tailor the resume below for the target job. 
 
-RULES:
-1. NEVER invent or fabricate employment, skills, degrees, or metrics that are not in the base resume.
-2. Re-order bullet points and emphasize genuine competencies that match the target job.
-3. Add a "Highlighted Target Competencies" section at the top.
+STRICT RULES:
+- NEVER invent employment, skills, degrees, certifications, or metrics not already in the resume.
+- Re-order and emphasise genuine competencies that match the job.
+- Add a short "Targeted Competencies" section at the top.
 
 Target Job:
 ${jobDescription}
@@ -358,10 +340,11 @@ ${jobDescription}
 Base Resume:
 ${baseResumeMarkdown}`;
 
+    try {
       const text = await this.generateContentWithFallback(promptText);
-      return text ? text.trim() : null;
+      return text?.trim() ?? null;
     } catch (err) {
-      this.logger.error(`Gemini resume tailoring failed: ${err}`);
+      this.logger.error(`Resume tailoring failed: ${err}`);
       return null;
     }
   }

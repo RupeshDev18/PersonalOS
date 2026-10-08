@@ -1,0 +1,109 @@
+import { Injectable } from '@nestjs/common';
+import { ConnectorInfo } from '@personal-os/shared';
+import { GoogleConnector } from './google.connector';
+import { GreenhouseConnector } from './greenhouse.connector';
+import { WebSearchConnector } from './web-search.connector';
+import { GeminiService } from '../llm/gemini.service';
+
+// ---------------------------------------------------------------------------
+// ConnectorRegistryService
+//
+// Single place that knows about every connector in the system.
+// Adding a new connector (e.g. Slack, Outlook) means:
+//   1. Create a new XxxConnector class with a getInfo(): ConnectorInfo method.
+//   2. Inject it here and add it to getAll().
+//   3. Nothing else needs to change — the controller, frontend, and shared
+//      type already handle the ConnectorInfo[] shape.
+// ---------------------------------------------------------------------------
+
+@Injectable()
+export class ConnectorRegistryService {
+  constructor(
+    private readonly googleConnector: GoogleConnector,
+    private readonly greenhouseConnector: GreenhouseConnector,
+    private readonly webSearchConnector: WebSearchConnector,
+    private readonly geminiService: GeminiService,
+  ) {}
+
+  /** Returns live status for every registered connector. */
+  public getAll(): ConnectorInfo[] {
+    return [
+      // 1. Google Workspace (Gmail + Drive) — live state from the connector
+      this.googleConnector.getInfo(),
+
+      // 2. Greenhouse — always live (public API, no auth needed)
+      {
+        id: 'connector-greenhouse',
+        name: 'Greenhouse Career Boards',
+        type: 'job_board',
+        status: 'connected',
+        isLive: true,
+        description:
+          'Scrapes public Greenhouse ATS boards for Stripe, Cloudflare, Figma, Datadog, and Airbnb. No API key required.',
+        rateLimit: 'Open (5 req/sec)',
+        lastSync: new Date().toISOString(),
+        details: {
+          companies: ['Stripe', 'Cloudflare', 'Figma', 'Datadog', 'Airbnb'],
+          authMode: 'Public REST endpoints',
+        },
+      } satisfies ConnectorInfo,
+
+      // 3. DuckDuckGo web search — always live
+      {
+        id: 'connector-duckduckgo',
+        name: 'DuckDuckGo Web Search',
+        type: 'web_search',
+        status: 'connected',
+        isLive: true,
+        description:
+          'Privacy-first web search used by the Research Agent for benchmarks, reviews, and topic intelligence.',
+        rateLimit: 'Unmetered',
+        lastSync: new Date().toISOString(),
+        details: {
+          endpoint: 'https://api.duckduckgo.com',
+          privacyMode: 'Zero-tracking',
+        },
+      } satisfies ConnectorInfo,
+
+      // 4. Google Gemini LLM — status driven by whether the key is configured
+      {
+        id: 'connector-gemini',
+        name: 'Google Gemini',
+        type: 'llm_engine',
+        status: this.geminiService.hasApiKey() ? 'connected' : 'fallback_mode',
+        isLive: this.geminiService.hasApiKey(),
+        description: this.geminiService.hasApiKey()
+          ? 'Gemini LLM active — powering intent parsing and response synthesis.'
+          : 'No API key configured. Running in deterministic fallback mode. Set GEMINI_API_KEY in .env to activate.',
+        rateLimit: '15 req/min (free tier)',
+        lastSync: this.geminiService.hasApiKey() ? new Date().toISOString() : null,
+        details: {
+          configured: this.geminiService.hasApiKey(),
+          instructions: 'Get a free key at https://aistudio.google.com',
+        },
+      } satisfies ConnectorInfo,
+
+      // 5. Finance ledger — always present, strictly read-only
+      {
+        id: 'connector-finance-ledger',
+        name: 'Finance Ledger',
+        type: 'financial_ledger',
+        status: 'connected',
+        isLive: true,
+        description:
+          'Local read-only transaction ledger. The Finance Agent uses this to evaluate budget and affordability. Money transfers are permanently disabled.',
+        rateLimit: 'Internal — read-only',
+        lastSync: new Date().toISOString(),
+        details: {
+          accessMode: 'READ_ONLY',
+          note: 'Financial transfers blocked by PolicyEngine (V1 constraint)',
+        },
+      } satisfies ConnectorInfo,
+    ];
+  }
+
+  /** Return status of a single connector by id. */
+  public get(id: string): ConnectorInfo | undefined {
+    return this.getAll().find((c) => c.id === id);
+  }
+}

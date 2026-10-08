@@ -5,8 +5,8 @@ import {
   AgentType,
   AuditEventType,
   Intent,
+  OrchestrationStepTrace,
   StepResult,
-  TaskPriority,
   TaskStatus,
   TaskStep,
 } from '@personal-os/shared';
@@ -24,19 +24,6 @@ export interface ChiefPlan {
     action: string;
     payload: Record<string, unknown>;
   }>;
-}
-
-export interface OrchestrationStepTrace {
-  id: string;
-  stepNumber: number;
-  phase: 'intent_parsing' | 'policy_check' | 'connector_fetch' | 'specialist_processing' | 'synthesis' | 'audit_seal';
-  agent: string;
-  name: string;
-  description: string;
-  status: 'completed' | 'in_progress' | 'policy_verified' | 'failed';
-  durationMs: number;
-  timestamp: string;
-  details?: Record<string, unknown> | string;
 }
 
 export class ChiefAgent extends AbstractAgent {

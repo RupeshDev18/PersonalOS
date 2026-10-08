@@ -5,3 +5,5 @@ export * from './audit.js';
 export * from './jobs.js';
 export * from './finance.js';
 export * from './user.js';
+export * from './connectors.js';
+export * from './orchestration.js';

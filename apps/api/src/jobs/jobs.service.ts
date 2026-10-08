@@ -30,7 +30,7 @@ export class JobsService implements OnModuleInit {
     private readonly prisma: PrismaService,
   ) {
     this.userProfile = {
-      userId: 'default-user',
+      userId: 'user-rupesh',   // seeded profile — replace with per-user lookup for multi-user support
       targetRoles: ['Full Stack Developer', 'Backend Engineer', 'Distributed Systems'],
       skills: [
         'React',
@@ -53,7 +53,7 @@ export class JobsService implements OnModuleInit {
       resumes: [
         {
           id: 'res-fullstack-aws',
-          userId: 'default-user',
+          userId: 'user-rupesh',
           title: 'Fullstack-AWS-v3.md',
           fileName: 'Fullstack-AWS-v3.md',
           targetRole: 'Full Stack Developer',
@@ -65,7 +65,7 @@ export class JobsService implements OnModuleInit {
         },
         {
           id: 'res-backend-systems',
-          userId: 'default-user',
+          userId: 'user-rupesh',
           title: 'Backend-Systems-v2.md',
           fileName: 'Backend-Systems-v2.md',
           targetRole: 'Backend Engineer',
@@ -81,6 +81,36 @@ export class JobsService implements OnModuleInit {
 
   async onModuleInit() {
     try {
+      const dbJobs = await this.prisma.job.findMany({
+        where: { userId: 'user-rupesh' },
+      });
+      if (dbJobs && dbJobs.length > 0) {
+        for (const j of dbJobs) {
+          this.jobs.set(j.id, {
+            id: j.id,
+            externalJobId: j.externalJobId || undefined,
+            source: j.source,
+            title: j.title,
+            normalizedTitle: j.normalizedTitle,
+            company: j.company,
+            location: j.location,
+            remote: j.remote,
+            minSalary: j.minSalary || undefined,
+            maxSalary: j.maxSalary || undefined,
+            currency: j.currency || 'INR',
+            description: j.description,
+            skills: j.skills,
+            url: j.url,
+            dedupHash: j.dedupHash,
+            matchScore: j.matchScore || undefined,
+            matchBreakdown: (j.matchBreakdown as any) || undefined,
+            lifecycleStatus: j.lifecycleStatus as JobLifecycleStatus,
+            recommendedResumeId: j.recommendedResumeId || undefined,
+            discoveredAt: j.discoveredAt,
+          });
+        }
+      }
+
       const dbResumes = await this.prisma.resumeProfile.findMany({
         where: { userId: 'user-rupesh' },
       });
@@ -101,20 +131,45 @@ export class JobsService implements OnModuleInit {
     } catch {
       // Memory fallback
     }
-    this.runDiscoveryPipeline('Initial bootstrap job discovery');
+
+    if (this.jobs.size === 0) {
+      await this.runDiscoveryPipeline('Initial bootstrap job discovery');
+    }
   }
 
   public getCareerProfile(): UserCareerProfile {
     return this.userProfile;
   }
 
-  public getJobs(status?: JobLifecycleStatus, minScore?: number): Job[] {
+  public getJobs(
+    status?: JobLifecycleStatus,
+    minScore?: number,
+    search?: string,
+    company?: string,
+    remoteOnly?: boolean,
+  ): Job[] {
     let list = Array.from(this.jobs.values());
     if (status) {
       list = list.filter((j) => j.lifecycleStatus === status);
     }
     if (minScore) {
       list = list.filter((j) => (j.matchScore || 0) >= minScore);
+    }
+    if (search && search.trim()) {
+      const q = search.toLowerCase().trim();
+      list = list.filter(
+        (j) =>
+          j.title.toLowerCase().includes(q) ||
+          j.company.toLowerCase().includes(q) ||
+          j.skills.some((s) => s.toLowerCase().includes(q)) ||
+          j.location.some((l) => l.toLowerCase().includes(q)),
+      );
+    }
+    if (company && company !== 'all') {
+      list = list.filter((j) => j.company.toLowerCase() === company.toLowerCase());
+    }
+    if (remoteOnly !== undefined) {
+      list = list.filter((j) => (remoteOnly ? j.remote : true));
     }
     return list.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
   }
@@ -129,6 +184,11 @@ export class JobsService implements OnModuleInit {
       throw new Error(`Job with id '${id}' not found`);
     }
     job.lifecycleStatus = status;
+
+    this.prisma.job.update({
+      where: { id },
+      data: { lifecycleStatus: status },
+    }).catch(() => {});
 
     this.auditService.log({
       taskId: 'job-lifecycle-update',
@@ -230,7 +290,7 @@ export class JobsService implements OnModuleInit {
       },
       create: {
         id: fullResume.id,
-        userId: 'user-rupesh',
+        userId: fullResume.userId,
         title: fullResume.title,
         fileName: fullResume.fileName,
         targetRole: fullResume.targetRole,
@@ -280,7 +340,7 @@ export class JobsService implements OnModuleInit {
     } catch (e) {
       // Fallback gracefully
     }
-    const rawJobs: Job[] = [...liveJobs, ...this.getMockSourceJobs()];
+    const rawJobs: Job[] = [...liveJobs];
 
     // 2. Deduplicate
     const existingHashes = new Set(Array.from(this.jobs.values()).map((j) => j.dedupHash));
@@ -293,11 +353,49 @@ export class JobsService implements OnModuleInit {
       job.matchBreakdown = breakdown;
 
       // Select best resume
-      const bestResume = this.resumeCustomizerService.selectBestResume(job, this.userProfile.resumes);
-      job.recommendedResumeId = bestResume.fileName;
+      if (this.userProfile.resumes.length > 0) {
+        const bestResume = this.resumeCustomizerService.selectBestResume(job, this.userProfile.resumes);
+        job.recommendedResumeId = bestResume.fileName;
+      }
       job.lifecycleStatus = JobLifecycleStatus.RECOMMENDED;
 
       this.jobs.set(job.id, job);
+
+      // Persist to PostgreSQL
+      this.prisma.job
+        .upsert({
+          where: { dedupHash: job.dedupHash },
+          update: {
+            matchScore: job.matchScore,
+            matchBreakdown: (job.matchBreakdown as object) ?? undefined,
+            lifecycleStatus: job.lifecycleStatus,
+            recommendedResumeId: job.recommendedResumeId,
+          },
+          create: {
+            id: job.id,
+            userId: 'user-rupesh',
+            externalJobId: job.externalJobId,
+            source: job.source,
+            title: job.title,
+            normalizedTitle: job.normalizedTitle,
+            company: job.company,
+            location: job.location,
+            remote: job.remote,
+            minSalary: job.minSalary,
+            maxSalary: job.maxSalary,
+            currency: job.currency || 'INR',
+            description: job.description,
+            skills: job.skills,
+            url: job.url,
+            dedupHash: job.dedupHash,
+            matchScore: job.matchScore,
+            matchBreakdown: (job.matchBreakdown as object) ?? undefined,
+            lifecycleStatus: job.lifecycleStatus,
+            recommendedResumeId: job.recommendedResumeId,
+            discoveredAt: job.discoveredAt,
+          },
+        })
+        .catch(() => {});
     }
 
     this.auditService.log({
@@ -311,7 +409,7 @@ export class JobsService implements OnModuleInit {
         duplicatesFiltered: duplicateCount,
         newRecommendations: uniqueJobs.length,
       },
-      rationale: `Job Agent completed ingestion pipeline: ${triggerReason}`,
+      rationale: `Job Agent completed live ATS ingestion pipeline: ${triggerReason}`,
     });
 
     return {
@@ -319,83 +417,5 @@ export class JobsService implements OnModuleInit {
       duplicatesRemoved: duplicateCount,
       rankedCount: uniqueJobs.length,
     };
-  }
-
-  private getMockSourceJobs(): Job[] {
-    return [
-      {
-        id: 'job-stripe-1',
-        externalJobId: 'str-4921',
-        source: 'Greenhouse (Stripe)',
-        title: 'Senior Full Stack Developer',
-        normalizedTitle: 'full stack developer',
-        company: 'Stripe',
-        location: ['Remote'],
-        remote: true,
-        minSalary: 2800000,
-        maxSalary: 3600000,
-        currency: 'INR',
-        description: 'Building global developer payment infrastructure using React, TypeScript, Node.js, and PostgreSQL.',
-        skills: ['React', 'TypeScript', 'Node.js', 'PostgreSQL', 'AWS'],
-        url: 'https://stripe.com/jobs/senior-full-stack',
-        dedupHash: '',
-        lifecycleStatus: JobLifecycleStatus.DISCOVERED,
-        discoveredAt: new Date(),
-      },
-      {
-        id: 'job-postman-2',
-        externalJobId: 'post-103',
-        source: 'Lever (Postman)',
-        title: 'Staff Backend Engineer',
-        normalizedTitle: 'backend engineer',
-        company: 'Postman',
-        location: ['Bengaluru', 'Remote'],
-        remote: true,
-        minSalary: 3500000,
-        maxSalary: 4500000,
-        currency: 'INR',
-        description: 'Lead API performance and distributed systems architecture for 30M+ developers.',
-        skills: ['Node.js', 'NestJS', 'PostgreSQL', 'Redis', 'Distributed Systems'],
-        url: 'https://postman.com/careers/backend-staff',
-        dedupHash: '',
-        lifecycleStatus: JobLifecycleStatus.DISCOVERED,
-        discoveredAt: new Date(),
-      },
-      {
-        id: 'job-datadog-3',
-        externalJobId: 'dd-882',
-        source: 'Wellfound (Datadog)',
-        title: 'Full Stack Engineer - Cloud Observability',
-        normalizedTitle: 'full stack engineer',
-        company: 'Datadog',
-        location: ['Remote'],
-        remote: true,
-        minSalary: 2600000,
-        maxSalary: 3400000,
-        currency: 'INR',
-        description: 'Develop rich interactive telemetry dashboards in React and TypeScript with performant Go/Node backends.',
-        skills: ['React', 'TypeScript', 'Docker', 'AWS'],
-        url: 'https://datadog.com/jobs/full-stack-observability',
-        dedupHash: '',
-        lifecycleStatus: JobLifecycleStatus.DISCOVERED,
-        discoveredAt: new Date(),
-      },
-      {
-        id: 'job-dup-stripe',
-        externalJobId: 'str-4921', // Duplicate external ID to test deduplication
-        source: 'LinkedIn Aggregator',
-        title: 'Senior Full Stack Developer',
-        normalizedTitle: 'full stack developer',
-        company: 'Stripe',
-        location: ['Remote'],
-        remote: true,
-        description: 'Cross-posted listing for Stripe Senior Full Stack.',
-        skills: ['React', 'Node.js'],
-        url: 'https://linkedin.com/jobs/view/stripe-dev',
-        dedupHash: '',
-        lifecycleStatus: JobLifecycleStatus.DISCOVERED,
-        discoveredAt: new Date(),
-      },
-    ];
   }
 }
