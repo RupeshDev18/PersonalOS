@@ -3,6 +3,7 @@ import { AgentRegistry } from '@personal-os/agents';
 import { ToolsService } from '../tools/tools.service';
 import { AuditService } from '../audit/audit.service';
 import { GeminiService } from '../llm/gemini.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { JobAgent } from './specialists/job.agent';
 import { FinanceAgent, ResearchAgent, ShoppingAgent, CommunicationAgent } from './specialists/other.agents';
 import { ChiefAgent } from './chief.agent';
@@ -16,6 +17,7 @@ export class AgentsService implements OnModuleInit {
     private readonly toolsService: ToolsService,
     private readonly auditService: AuditService,
     private readonly geminiService: GeminiService,
+    private readonly prisma: PrismaService,
   ) {}
 
   onModuleInit() {
@@ -34,8 +36,14 @@ export class AgentsService implements OnModuleInit {
     this.registry.register(shoppingAgent);
     this.registry.register(communicationAgent);
 
-    // 2. Register Chief Agent with Gemini LLM reasoning
-    this.chiefAgent = new ChiefAgent(gateway, this.registry, this.auditService, this.geminiService);
+    // 2. Register Chief Agent with Gemini LLM reasoning & Prisma memory
+    this.chiefAgent = new ChiefAgent(
+      gateway,
+      this.registry,
+      this.auditService,
+      this.geminiService,
+      this.prisma,
+    );
     this.registry.register(this.chiefAgent);
   }
 

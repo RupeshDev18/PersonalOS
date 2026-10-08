@@ -4,6 +4,7 @@ import {
   Get,
   Headers,
   Post,
+  Query,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
@@ -90,5 +91,19 @@ export class AuthController {
     const token = auth?.startsWith('Bearer ') ? auth.slice(7).trim() : auth?.trim();
     if (token) this.authService.logout(token);
     return { success: true };
+  }
+
+  /** Public — Google OAuth redirect handler alias */
+  @Public()
+  @Get('google/callback')
+  @ApiOperation({ summary: 'Google OAuth callback alias' })
+  googleCallback(@Query('code') code: string, @Query('state') state: string) {
+    // Forward to the connectors callback
+    return {
+      success: true,
+      code,
+      state,
+      redirect: `/api/connectors/google/callback?code=${encodeURIComponent(code || '')}`,
+    };
   }
 }

@@ -273,6 +273,23 @@ export const connectors = {
 
   googleStatus: () => request<unknown>('/api/connectors/google/status'),
 
+  googleAuthUrl: (redirectUri?: string) =>
+    request<{ authUrl: string | null; configured: boolean; message?: string }>(
+      `/api/connectors/google/auth-url${redirectUri ? `?redirectUri=${encodeURIComponent(redirectUri)}` : ''}`,
+    ),
+
+  gmailMessages: (category?: string) =>
+    request<any[]>(`/api/connectors/google/gmail${category ? `?category=${category}` : ''}`),
+
+  driveFiles: (type?: string) =>
+    request<any[]>(`/api/connectors/google/drive${type ? `?type=${type}` : ''}`),
+
+  importDriveResume: (fileId: string) =>
+    request<{ success: boolean; message: string; resume: any }>(
+      `/api/connectors/google/drive/import-resume/${fileId}`,
+      { method: 'POST' },
+    ),
+
   connectGoogle: (email: string, authMethod?: string, credential?: string) =>
     request<unknown>('/api/connectors/google/connect', {
       method: 'POST',

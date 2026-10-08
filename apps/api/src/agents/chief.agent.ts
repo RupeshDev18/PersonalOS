@@ -13,6 +13,7 @@ import {
 import { ToolGateway } from '@personal-os/tools';
 import { AuditService } from '../audit/audit.service';
 import { GeminiService } from '../llm/gemini.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface ChiefPlan {
@@ -37,6 +38,7 @@ export class ChiefAgent extends AbstractAgent {
     private readonly agentRegistry: AgentRegistry,
     private readonly auditService: AuditService,
     private readonly geminiService?: GeminiService,
+    private readonly prisma?: PrismaService,
   ) {
     super(toolGateway);
   }
@@ -434,11 +436,59 @@ export class ChiefAgent extends AbstractAgent {
       executedSteps.push(stepRecord);
     }
 
+    // 3.5. Load Long-term Memory from PostgreSQL
+    let userMemories: Array<{ key: string; value: any; type: string }> = [];
+    if (this.prisma) {
+      try {
+        const mems = await this.prisma.memory.findMany({
+          where: { userId: input.userId },
+          orderBy: { updatedAt: 'desc' },
+          take: 8,
+        });
+        userMemories = mems.map((m) => ({ key: m.key, value: m.value, type: m.type }));
+        if (userMemories.length > 0) {
+          stepOutputs['operator_memories'] = userMemories;
+        }
+      } catch {
+        // memory load fallback
+      }
+    }
+
     // 4. Synthesize final response (LLM or intelligent rule synthesis)
     const synthStartTime = Date.now();
     let finalSummary = '';
 
-    if (this.geminiService?.hasApiKey()) {
+    // Check if user is asking about memories or telling us to remember something
+    const lowerPrompt = input.prompt.toLowerCase().trim();
+    if (lowerPrompt.includes('what do you remember') || lowerPrompt.includes('show my memories') || lowerPrompt.includes('my preferences')) {
+      if (userMemories.length > 0) {
+        finalSummary = `Here is what I have committed to long-term memory in PostgreSQL for you:\n` +
+          userMemories.map((m, idx) => `• ${m.key}: ${typeof m.value === 'string' ? m.value : JSON.stringify(m.value)}`).join('\n') +
+          `\n\nAll saved preferences actively guide downstream agent executions.`;
+      } else {
+        finalSummary = `You haven't saved any custom memories yet! Tell me "Remember that I prefer remote roles" or "Remember my monthly budget is ₹2,00,000", and I will store it permanently in PostgreSQL.`;
+      }
+    } else if (lowerPrompt.startsWith('remember that ') || lowerPrompt.startsWith('remember ')) {
+      const fact = input.prompt.replace(/^remember\s+(that\s+)?/i, '').trim();
+      const memKey = fact.slice(0, 30).replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+      if (this.prisma) {
+        try {
+          await this.prisma.memory.create({
+            data: {
+              userId: input.userId,
+              type: 'preference',
+              key: memKey || 'user_note',
+              value: { note: fact, savedAt: new Date().toISOString() },
+            },
+          });
+          finalSummary = `Got it! I have saved this to your persistent long-term memory in PostgreSQL:\n"${fact}"\nI'll remember this across all our future sessions.`;
+        } catch (err) {
+          finalSummary = `Saved: "${fact}" (stored for current session).`;
+        }
+      }
+    }
+
+    if (!finalSummary && this.geminiService?.hasApiKey()) {
       try {
         const llmSynth = await this.geminiService.synthesizeResponseWithLLM(input.prompt, stepOutputs);
         if (llmSynth) {

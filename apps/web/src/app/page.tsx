@@ -715,6 +715,7 @@ export default function Dashboard() {
               onRefresh={connectorsHook.refresh}
               onConnectGoogle={connectorsHook.connectGoogle}
               onDisconnectGoogle={connectorsHook.disconnectGoogle}
+              onGetGoogleAuthUrl={connectorsHook.getGoogleAuthUrl}
               onSetGeminiKey={connectorsHook.setGeminiKey}
               onTestGemini={connectorsHook.testGemini}
               isGoogleConnected={connectorsHook.isGoogleConnected}

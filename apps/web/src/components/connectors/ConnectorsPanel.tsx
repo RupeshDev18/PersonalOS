@@ -12,6 +12,7 @@ interface ConnectorsPanelProps {
   onRefresh: () => void;
   onConnectGoogle: (email: string, authMethod?: string, credential?: string) => Promise<void>;
   onDisconnectGoogle: () => Promise<void>;
+  onGetGoogleAuthUrl?: (redirectUri?: string) => Promise<{ authUrl: string | null; configured: boolean; message?: string }>;
   onSetGeminiKey: (key: string) => Promise<{ success: boolean; message: string }>;
   onTestGemini: () => Promise<{ success: boolean; message: string }>;
   isGoogleConnected: boolean;
@@ -19,7 +20,7 @@ interface ConnectorsPanelProps {
 
 export default function ConnectorsPanel({
   connectors, loading, error, onRefresh,
-  onConnectGoogle, onDisconnectGoogle,
+  onConnectGoogle, onDisconnectGoogle, onGetGoogleAuthUrl,
   onSetGeminiKey, onTestGemini,
   isGoogleConnected,
 }: ConnectorsPanelProps) {
@@ -32,6 +33,27 @@ export default function ConnectorsPanel({
   const [geminiKey, setGeminiKey] = useState('');
   const [testingGemini, setTestingGemini] = useState(false);
   const [geminiMsg, setGeminiMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const handleOAuthRedirect = async () => {
+    if (!onGetGoogleAuthUrl) return;
+    setConnectingGoogle(true);
+    setGoogleMsg(null);
+    try {
+      const res = await onGetGoogleAuthUrl();
+      if (res.configured && res.authUrl) {
+        window.location.href = res.authUrl;
+      } else {
+        setGoogleMsg({
+          ok: false,
+          text: res.message || 'Google OAuth credentials not configured in .env. Use direct email connect below.',
+        });
+      }
+    } catch (e: unknown) {
+      setGoogleMsg({ ok: false, text: e instanceof Error ? e.message : 'Failed to launch OAuth.' });
+    } finally {
+      setConnectingGoogle(false);
+    }
+  };
 
   const handleConnectGoogle = async () => {
     if (!googleEmail.trim()) return;
@@ -95,18 +117,28 @@ export default function ConnectorsPanel({
         );
       }
       return (
-        <div className="flex items-center gap-2 flex-1">
+        <div className="flex flex-wrap items-center gap-2 flex-1">
+          {onGetGoogleAuthUrl && (
+            <button
+              onClick={handleOAuthRedirect}
+              disabled={connectingGoogle}
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm transition-all"
+              title="Official Google OAuth 2.0"
+            >
+              {connectingGoogle ? <Loader2 size={11} className="animate-spin" /> : <Mail size={11} />}
+              OAuth Consent
+            </button>
+          )}
           <input
-            type="email" placeholder="Gmail address"
+            type="email" placeholder="Or enter Gmail (e.g. dev@gmail.com)"
             value={googleEmail} onChange={(e) => setGoogleEmail(e.target.value)}
-            className="flex-1 text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-300 min-w-0"
+            className="flex-1 text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-300 min-w-[160px]"
           />
           <button
             onClick={handleConnectGoogle}
             disabled={connectingGoogle || !googleEmail.trim()}
-            className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 disabled:opacity-60 transition-colors flex-shrink-0"
+            className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60 transition-colors flex-shrink-0"
           >
-            {connectingGoogle ? <Loader2 size={11} className="animate-spin" /> : <Mail size={11} />}
             Connect
           </button>
         </div>

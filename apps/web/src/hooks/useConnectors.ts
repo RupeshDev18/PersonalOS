@@ -37,6 +37,13 @@ export function useConnectors() {
     await fetch();
   }, [fetch]);
 
+  const getGoogleAuthUrl = useCallback(
+    async (redirectUri?: string) => {
+      return connectorsApi.googleAuthUrl(redirectUri);
+    },
+    [],
+  );
+
   const setGeminiKey = useCallback(
     async (apiKey: string) => {
       const result = await connectorsApi.setGeminiKey(apiKey);
@@ -58,7 +65,7 @@ export function useConnectors() {
     googleConnector, geminiConnector,
     isGoogleConnected, isGeminiActive,
     refresh: fetch,
-    connectGoogle, disconnectGoogle,
+    connectGoogle, disconnectGoogle, getGoogleAuthUrl,
     setGeminiKey, testGemini,
   };
 }

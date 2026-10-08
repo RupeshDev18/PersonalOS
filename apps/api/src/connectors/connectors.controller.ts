@@ -5,6 +5,7 @@ import {
   Param,
   Post,
   Query,
+  Res,
   Inject,
   forwardRef,
   NotFoundException,
@@ -17,6 +18,8 @@ import { GreenhouseConnector } from './greenhouse.connector';
 import { GeminiService } from '../llm/gemini.service';
 import { JobsService } from '../jobs/jobs.service';
 import { CurrentUserId } from '../auth/user.decorator';
+import { Public } from '../auth/auth.guard';
+import { Response } from 'express';
 
 // ---------------------------------------------------------------------------
 // DTOs
@@ -33,6 +36,15 @@ export class ConnectGoogleDto {
   @IsOptional()
   @IsString()
   credential?: string;
+}
+
+export class OAuthCallbackDto {
+  @IsString()
+  code: string;
+
+  @IsOptional()
+  @IsString()
+  redirectUri?: string;
 }
 
 export class UpdateGeminiKeyDto {
@@ -82,6 +94,42 @@ export class ConnectorsController {
   @ApiOperation({ summary: 'Get Google Workspace connection status' })
   getGoogleStatus(@CurrentUserId() _userId: string) {
     return this.googleConnector.getStatus();
+  }
+
+  @Get('google/auth-url')
+  @ApiOperation({ summary: 'Get official Google OAuth 2.0 authorization URL' })
+  getGoogleAuthUrl(
+    @CurrentUserId() _userId: string,
+    @Query('redirectUri') redirectUri?: string,
+  ) {
+    return this.googleConnector.getAuthUrl(redirectUri);
+  }
+
+  @Public()
+  @Get('google/callback')
+  @ApiOperation({ summary: 'Handle Google OAuth 2.0 redirect callback' })
+  async handleGoogleOAuthCallback(
+    @Query('code') code: string,
+    @Query('state') _state: string,
+    @Res() res: Response,
+  ) {
+    if (!code) {
+      return res.redirect('http://localhost:3000/?google=error&reason=missing_code');
+    }
+    try {
+      await this.googleConnector.handleOAuthCallback(code);
+      return res.redirect('http://localhost:3000/?google=connected');
+    } catch (err) {
+      const msg = encodeURIComponent((err as Error).message);
+      return res.redirect(`http://localhost:3000/?google=error&reason=${msg}`);
+    }
+  }
+
+  @Public()
+  @Post('google/callback')
+  @ApiOperation({ summary: 'Handle Google OAuth 2.0 code exchange via POST body' })
+  async postGoogleOAuthCallback(@Body() body: OAuthCallbackDto) {
+    return this.googleConnector.handleOAuthCallback(body.code, body.redirectUri);
   }
 
   @Post('google/connect')

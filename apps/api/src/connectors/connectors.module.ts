@@ -6,9 +6,10 @@ import { ConnectorRegistryService } from './connector-registry.service';
 import { ConnectorsController } from './connectors.controller';
 import { LlmModule } from '../llm/llm.module';
 import { JobsModule } from '../jobs/jobs.module';
+import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
-  imports: [LlmModule, forwardRef(() => JobsModule)],
+  imports: [LlmModule, PrismaModule, forwardRef(() => JobsModule)],
   controllers: [ConnectorsController],
   providers: [
     GreenhouseConnector,
