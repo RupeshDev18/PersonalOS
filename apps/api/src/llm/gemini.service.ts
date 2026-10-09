@@ -267,9 +267,9 @@ ROUTING RULES:
 1. GREETINGS & CASUAL TALK → primaryAgent: "chief", requiredAgents: [], steps: []
 2. JOBS & CAREERS → primaryAgent: "job", requiredAgents: ["job"]
 3. SHOPPING & PURCHASES → primaryAgent: "shopping", requiredAgents: ["shopping","research","finance"]
-4. FINANCE & BUDGET → primaryAgent: "finance", requiredAgents: ["finance"]
+4. FINANCE & BUDGET (spending, balance, ledger) → primaryAgent: "finance", requiredAgents: ["finance"]
 5. RESEARCH (explicit web search needed) → primaryAgent: "research", requiredAgents: ["research"]
-6. COMMUNICATION & EMAILS → primaryAgent: "communication", requiredAgents: ["communication"]
+6. GOOGLE DRIVE, DOCUMENTS, FILES, RESUMES, GMAIL & EMAILS → primaryAgent: "communication", requiredAgents: ["communication"]. (Note: Any search for documents, files, PDFs, or Drive items must route to communication with action "drive.read", NOT finance).
 
 Respond ONLY with valid JSON:
 {

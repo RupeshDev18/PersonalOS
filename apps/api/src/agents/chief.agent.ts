@@ -14,6 +14,7 @@ import { ToolGateway } from '@personal-os/tools';
 import { AuditService } from '../audit/audit.service';
 import { GeminiService } from '../llm/gemini.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { fileLogger } from '../common/file-logger.service';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface ChiefPlan {
@@ -58,9 +59,9 @@ export class ChiefAgent extends AbstractAgent {
             const lower = (a || '').toLowerCase();
             if (lower === 'chief' || lower.includes('chat') || lower.includes('conversation')) return AgentType.CHIEF;
             if (lower.includes('job') || lower.includes('career')) return AgentType.JOB;
-            if (lower.includes('finance') || lower.includes('budget')) return AgentType.FINANCE;
+            if (lower.includes('drive') || lower.includes('doc') || lower.includes('document') || lower.includes('file') || lower.includes('pdf') || lower.includes('email') || lower.includes('gmail') || lower.includes('inbox') || lower.includes('message')) return AgentType.COMMUNICATION;
+            if (lower.includes('finance') || lower.includes('budget') || lower.includes('ledger')) return AgentType.FINANCE;
             if (lower.includes('shop') || lower.includes('buy') || lower.includes('product')) return AgentType.SHOPPING;
-            if (lower.includes('email') || lower.includes('gmail') || lower.includes('inbox') || lower.includes('message')) return AgentType.COMMUNICATION;
             if (lower.includes('research') || lower.includes('search')) return AgentType.RESEARCH;
             return AgentType.CHIEF;
           };
@@ -70,7 +71,7 @@ export class ChiefAgent extends AbstractAgent {
             .map(mapAgent)
             .filter((ag) => ag !== AgentType.CHIEF);
 
-          return {
+          const intentResult = {
             taskType: llmIntent.taskType || 'immediate',
             scheduleExpression: llmIntent.taskType === 'recurring' ? '0 8 * * 1-5' : undefined,
             primaryAgent,
@@ -78,8 +79,18 @@ export class ChiefAgent extends AbstractAgent {
             summary: llmIntent.summary || 'Chief intent parsed via Gemini LLM',
             rawInput: input.prompt,
           };
+
+          fileLogger.log(`Intent parsed via Gemini LLM`, 'ChiefAgent', {
+            prompt: input.prompt,
+            primaryAgent: intentResult.primaryAgent,
+            requiredAgents: intentResult.requiredAgents,
+            summary: intentResult.summary,
+          });
+
+          return intentResult;
         }
       } catch (err) {
+        fileLogger.warn(`Gemini intent extraction error: ${(err as Error).message}`, 'ChiefAgent');
         // Fall back to rule engine
       }
     }
