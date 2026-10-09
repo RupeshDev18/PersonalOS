@@ -1,15 +1,16 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { audit as auditApi } from '@/lib/api';
+import { audit as auditApi, getToken } from '@/lib/api';
 import type { AuditEvent } from '@/lib/types';
 
-export function useAudit(autoRefreshMs = 0) {
+export function useAudit(userId?: string, autoRefreshMs = 0) {
   const [events, setEvents] = useState<AuditEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetch = useCallback(async (limit = 50) => {
+    if (!userId && !getToken()) return;
     setLoading(true);
     setError(null);
     try {
@@ -20,14 +21,16 @@ export function useAudit(autoRefreshMs = 0) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
-    fetch();
-    if (!autoRefreshMs) return;
+    if (userId || getToken()) {
+      fetch();
+    }
+    if (!autoRefreshMs || (!userId && !getToken())) return;
     const id = setInterval(() => fetch(), autoRefreshMs);
     return () => clearInterval(id);
-  }, [fetch, autoRefreshMs]);
+  }, [fetch, userId, autoRefreshMs]);
 
   return { events, loading, error, refresh: fetch };
 }

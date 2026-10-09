@@ -140,11 +140,19 @@ export class CommunicationAgent extends AbstractAgent {
     return { steps: ['fetch_inbox', 'filter_recruiter_threads'] };
   }
 
-  async execute(stepId: string, payload: { taskId: string; userId: string; category?: string }): Promise<StepResult> {
+  async execute(
+    stepId: string,
+    payload: { taskId: string; userId: string; action?: string; category?: string; query?: string; fileType?: string },
+  ): Promise<StepResult> {
+    const actionToRun = payload.action === 'drive.read' ? 'drive.read' : 'email.read';
+    const toolPayload = actionToRun === 'drive.read'
+      ? { query: payload.query, fileType: payload.fileType }
+      : { category: payload.category, query: payload.query };
+
     const data = await this.toolGateway.execute(
-      'email.read',
-      { category: payload.category },
-      { taskId: payload.taskId, stepId, agentType: AgentType.COMMUNICATION, userId: payload.userId }
+      actionToRun,
+      toolPayload,
+      { taskId: payload.taskId, stepId, agentType: AgentType.COMMUNICATION, userId: payload.userId },
     );
     return { stepId, success: true, data };
   }

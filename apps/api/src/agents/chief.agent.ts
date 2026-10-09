@@ -121,13 +121,18 @@ export class ChiefAgent extends AbstractAgent {
     }
 
     // Determine target domain
-    if (text.includes('email') || text.includes('gmail') || text.includes('inbox') || text.includes('recruiter') || text.includes('message') || text.includes('mail')) {
+    const isDrive = text.includes('drive') || text.includes('document') || text.includes('doc') || text.includes('file') || text.includes('pdf') || text.includes('loan') || text.includes('sheet');
+    const isEmail = text.includes('email') || text.includes('gmail') || text.includes('inbox') || text.includes('recruiter') || text.includes('message') || text.includes('mail');
+
+    if (isDrive || isEmail) {
       return {
         taskType,
         scheduleExpression,
         primaryAgent: AgentType.COMMUNICATION,
         requiredAgents: [AgentType.COMMUNICATION],
-        summary: 'Synchronize Gmail inbox, inspect recruiter correspondence, and draft replies',
+        summary: isDrive
+          ? 'Search Google Drive documents and inspect indexed personal files'
+          : 'Synchronize Gmail inbox, inspect recruiter correspondence, and draft replies',
         rawInput: input.prompt,
       };
     }
@@ -246,13 +251,28 @@ export class ChiefAgent extends AbstractAgent {
         payload: { query: input.prompt },
       });
     } else if (intent.primaryAgent === AgentType.COMMUNICATION) {
-      steps.push({
-        agentType: AgentType.COMMUNICATION,
-        name: 'Sync Gmail & Scan Recruiter Threads',
-        description: 'Ingest verified messages from connected Google Workspace and isolate recruiter correspondence',
-        action: 'email.read',
-        payload: { category: 'recruiters' },
-      });
+      const promptLower = input.prompt.toLowerCase();
+      const isDrive = promptLower.includes('drive') || promptLower.includes('document') || promptLower.includes('doc') || promptLower.includes('file') || promptLower.includes('loan') || promptLower.includes('pdf') || promptLower.includes('sheet');
+      const isEmail = promptLower.includes('email') || promptLower.includes('gmail') || promptLower.includes('inbox') || promptLower.includes('message') || promptLower.includes('mail') || promptLower.includes('recruiter');
+
+      if (isDrive) {
+        steps.push({
+          agentType: AgentType.COMMUNICATION,
+          name: 'Search Google Drive Documents',
+          description: 'Search personal documents and files stored in connected Google Drive',
+          action: 'drive.read',
+          payload: { query: input.prompt },
+        });
+      }
+      if (isEmail || !isDrive) {
+        steps.push({
+          agentType: AgentType.COMMUNICATION,
+          name: 'Sync & Scan Gmail Messages',
+          description: 'Search and inspect verified email messages and alerts in Google Workspace',
+          action: 'email.read',
+          payload: { query: input.prompt, category: 'all' },
+        });
+      }
     }
 
     return { intent, steps };
@@ -394,6 +414,7 @@ export class ChiefAgent extends AbstractAgent {
         const stepResult: StepResult = await specialist.execute(stepId, {
           taskId,
           userId: input.userId,
+          action: stepDef.action,
           ...stepDef.payload,
         });
 
@@ -401,6 +422,7 @@ export class ChiefAgent extends AbstractAgent {
         stepRecord.result = stepResult.data as Record<string, unknown>;
         stepRecord.completedAt = new Date();
         stepOutputs[stepDef.name] = stepResult.data;
+        stepOutputs[stepDef.action] = stepResult.data;
 
         const isConnector = stepDef.action.includes('search') || stepDef.action.includes('read');
         orchestrationTrace.push({
@@ -509,9 +531,32 @@ export class ChiefAgent extends AbstractAgent {
       } else if (intent.primaryAgent === AgentType.FINANCE) {
         finalSummary = `Finance Specialist ingested your latest discretionary ledger transactions. Safe purchasing margin verified.`;
       } else if (intent.primaryAgent === AgentType.COMMUNICATION) {
-        finalSummary = `Communication Specialist inspected your synchronized Gmail inbox. You have 2 unread recruiter reach-outs: Stripe (Sarah Jenkins: Technical interview invitation for Senior Full Stack) and Cloudflare (David Lin: Systems & Infrastructure inquiry). Your Google Workspace connection is active!`;
+        const driveOutput = stepOutputs['drive.read'] as any;
+        const emailOutput = stepOutputs['email.read'] as any;
+
+        if (driveOutput) {
+          if (!driveOutput.connected) {
+            finalSummary = `Google Workspace (Drive) is not connected yet. Although your Google Cloud OAuth Client ID and Secret are configured, you need to authorize your Google account. Please navigate to the Connectors tab and click "Connect with Google (OAuth 2.0)" to grant Drive permissions.`;
+          } else if (driveOutput.files && driveOutput.files.length > 0) {
+            const list = driveOutput.files.map((f: any) => `• **${f.name}** (${f.fileType || 'Document'}${f.url ? ` - [Open File](${f.url})` : ''})`).join('\n');
+            finalSummary = `Found ${driveOutput.files.length} document(s) in your connected Google Drive (${driveOutput.account}):\n\n${list}`;
+          } else {
+            finalSummary = `I searched your connected Google Drive (${driveOutput.account}), but found no matching documents for "${input.prompt}".`;
+          }
+        } else if (emailOutput) {
+          if (!emailOutput.connected) {
+            finalSummary = `Google Workspace is not connected yet. Please visit the Connectors tab and click "Connect with Google (OAuth 2.0)" to link your Gmail account.`;
+          } else if (emailOutput.messages && emailOutput.messages.length > 0) {
+            const list = emailOutput.messages.map((m: any) => `• **${m.subject}** (${m.date ? new Date(m.date).toLocaleDateString() : 'Recent'})\n  _${m.snippet || 'No preview'}_`).join('\n\n');
+            finalSummary = `Found ${emailOutput.messages.length} relevant message(s) in your Gmail (${emailOutput.account}):\n\n${list}`;
+          } else {
+            finalSummary = `I searched your connected Gmail (${emailOutput.account}), but found no messages matching "${input.prompt}".`;
+          }
+        } else {
+          finalSummary = `Communication Specialist completed scan. No active items found.`;
+        }
       } else if (isDirect) {
-        finalSummary = `Hey! I'm Chief Ghost, your personal AI operating system coordinator. I'm connected to your Google Workspace (Gmail & Drive), career boards, and financial ledger. How can I assist you today?`;
+        finalSummary = `Hey! I'm Chief Ghost, your personal AI OS coordinator. How can I help you? I can search your Google Drive, scan your Gmail inbox, discover matching jobs, or evaluate purchases.`;
       } else {
         finalSummary = `Chief Agent completed multi-agent delegation across ${executedSteps.length} specialist step(s). Verified tool results and audit trails preserved.`;
       }

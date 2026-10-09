@@ -55,6 +55,8 @@ export const DEFAULT_AGENT_CAPABILITIES: Record<AgentType, CapabilityPermission[
     CapabilityPermission.EMAIL_READ,
     CapabilityPermission.EMAIL_DRAFT,
     CapabilityPermission.EMAIL_SEND,
+    CapabilityPermission.DRIVE_READ,
+    CapabilityPermission.DRIVE_SEARCH,
   ],
   [AgentType.CONTENT]: [
     CapabilityPermission.SOCIAL_DRAFT,

@@ -44,10 +44,24 @@ export class GoogleConnector implements OnModuleInit {
   private messages: GmailMessage[] = [];
   private driveFiles: GoogleDriveFile[] = [];
 
+  private customClientId: string | null = null;
+  private customClientSecret: string | null = null;
+
   constructor(private readonly prisma: PrismaService) {}
 
   async onModuleInit() {
     try {
+      // 1. Check for stored custom OAuth keys in DB
+      const oauthKeys = await this.prisma.connectorConfig.findUnique({
+        where: { id: 'connector-google-oauth-keys' },
+      });
+      if (oauthKeys && oauthKeys.details) {
+        const d = oauthKeys.details as any;
+        this.customClientId = d.clientId || null;
+        this.customClientSecret = d.clientSecret || null;
+      }
+
+      // 2. Check for active user session
       const config = await this.prisma.connectorConfig.findUnique({
         where: { id: 'connector-google-workspace' },
       });
@@ -76,17 +90,66 @@ export class GoogleConnector implements OnModuleInit {
   // OAuth 2.0 Flow Helpers
   // ---------------------------------------------------------------------------
 
+  public getClientId(): string | null {
+    return this.customClientId || process.env.GOOGLE_CLIENT_ID || null;
+  }
+
+  public getClientSecret(): string | null {
+    return this.customClientSecret || process.env.GOOGLE_CLIENT_SECRET || null;
+  }
+
   public isOAuthConfigured(): boolean {
-    return Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+    return Boolean(this.getClientId() && this.getClientSecret());
+  }
+
+  public async saveOAuthCredentials(clientId: string, clientSecret: string): Promise<{ success: boolean; message: string }> {
+    if (!clientId.trim() || !clientSecret.trim()) {
+      throw new BadRequestException('Both Client ID and Client Secret are required.');
+    }
+    this.customClientId = clientId.trim();
+    this.customClientSecret = clientSecret.trim();
+
+    await this.prisma.connectorConfig.upsert({
+      where: { id: 'connector-google-oauth-keys' },
+      update: {
+        name: 'Google OAuth Client Keys',
+        type: 'credentials',
+        status: 'configured',
+        isLive: true,
+        details: {
+          clientId: this.customClientId,
+          clientSecret: this.customClientSecret,
+          maskedId: `${this.customClientId.slice(0, 12)}...`,
+        },
+        updatedAt: new Date(),
+      },
+      create: {
+        id: 'connector-google-oauth-keys',
+        name: 'Google OAuth Client Keys',
+        type: 'credentials',
+        status: 'configured',
+        isLive: true,
+        details: {
+          clientId: this.customClientId,
+          clientSecret: this.customClientSecret,
+          maskedId: `${this.customClientId.slice(0, 12)}...`,
+        },
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Google Cloud OAuth 2.0 Client credentials saved. You can now connect with Google.',
+    };
   }
 
   public getAuthUrl(redirectUri?: string): { authUrl: string | null; configured: boolean; message?: string } {
-    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientId = this.getClientId();
     if (!clientId) {
       return {
         authUrl: null,
         configured: false,
-        message: 'GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are not set in .env. Configure them to enable 1-click Google OAuth.',
+        message: 'Google Cloud Client ID and Secret are not yet configured. Please enter them in the setup modal below or provide GOOGLE_CLIENT_ID in .env.',
       };
     }
 
@@ -116,8 +179,8 @@ export class GoogleConnector implements OnModuleInit {
   }
 
   public async handleOAuthCallback(code: string, redirectUri?: string): Promise<GoogleStatus> {
-    const clientId = process.env.GOOGLE_CLIENT_ID;
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    const clientId = this.getClientId();
+    const clientSecret = this.getClientSecret();
     const uri = redirectUri || process.env.GOOGLE_REDIRECT_URI || 'http://localhost:4000/api/connectors/google/callback';
 
     if (!clientId || !clientSecret) {
@@ -468,14 +531,6 @@ export class GoogleConnector implements OnModuleInit {
       }
     }
 
-    // 3. Populate contextual demo items if offline/sandbox mode to keep interface functional
-    if (!fetchedRealGmail && this.messages.length === 0) {
-      this.populateContextualGmailMessages();
-    }
-    if (!fetchedRealDrive && this.driveFiles.length === 0) {
-      this.populateContextualDriveFiles();
-    }
-
     this.lastSync = new Date();
     await this.persistState();
     return this.getStatus();
@@ -484,6 +539,85 @@ export class GoogleConnector implements OnModuleInit {
   // ---------------------------------------------------------------------------
   // Data accessors
   // ---------------------------------------------------------------------------
+
+  public async searchMessages(query?: string, filterCategory?: string): Promise<GmailMessage[]> {
+    if (!this.connected) return [];
+
+    let liveResults: GmailMessage[] = [];
+    if (this.accessToken && query && query.trim()) {
+      await this.refreshAccessTokenIfNeeded();
+      try {
+        const stopWords = new Set(['from', 'my', 'mail', 'email', 'can', 'you', 'tell', 'me', 'how', 'much', 'i', 'the', 'a', 'an', 'what', 'is', 'did', 'for', 'in', 'and', 'to']);
+        const tokens = query.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((w) => w && !stopWords.has(w));
+        const qParam = tokens.length > 0 ? tokens.join(' ') : query.trim();
+
+        const searchUrl = `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(qParam)}&maxResults=10`;
+        const res = await fetch(searchUrl, {
+          headers: { Authorization: `Bearer ${this.accessToken}` },
+        });
+
+        if (res.ok) {
+          const listData = await res.json();
+          const messageIds: string[] = (listData.messages || []).map((m: any) => m.id);
+
+          for (const msgId of messageIds.slice(0, 5)) {
+            try {
+              const itemRes = await fetch(
+                `https://gmail.googleapis.com/gmail/v1/users/me/messages/${msgId}?format=metadata`,
+                { headers: { Authorization: `Bearer ${this.accessToken}` } },
+              );
+              if (itemRes.ok) {
+                const item = await itemRes.json();
+                const headers: Array<{ name: string; value: string }> = item.payload?.headers || [];
+                const getHeader = (name: string) => headers.find((h) => h.name.toLowerCase() === name.toLowerCase())?.value || '';
+
+                const fromRaw = getHeader('From');
+                const subject = getHeader('Subject') || '(No Subject)';
+                const dateRaw = getHeader('Date') || new Date().toISOString();
+                const isUnread = (item.labelIds || []).includes('UNREAD');
+
+                liveResults.push({
+                  id: item.id,
+                  threadId: item.threadId,
+                  from: fromRaw,
+                  fromName: fromRaw.split('<')[0].replace(/"/g, '').trim() || fromRaw,
+                  to: getHeader('To') || this.email || '',
+                  subject,
+                  snippet: item.snippet || '',
+                  bodyText: item.snippet || '',
+                  date: new Date(dateRaw).toISOString(),
+                  isUnread,
+                  category: this.categorizeEmail(fromRaw, subject, item.snippet || ''),
+                  company: this.extractCompanyFromEmail(fromRaw),
+                });
+              }
+            } catch {
+              // skip single message error
+            }
+          }
+        }
+      } catch (e) {
+        this.logger.warn(`searchMessages Gmail API error: ${(e as Error).message}`);
+      }
+    }
+
+    if (liveResults.length > 0) {
+      return liveResults;
+    }
+
+    let results = this.getMessages(filterCategory);
+    if (query && query.trim()) {
+      const qTokens = query.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((w) => w.length > 1);
+      if (qTokens.length > 0) {
+        const matched = results.filter((m) => {
+          const text = `${m.subject} ${m.snippet} ${m.from}`.toLowerCase();
+          return qTokens.some((t) => text.includes(t));
+        });
+        if (matched.length > 0) return matched;
+      }
+    }
+    return results;
+  }
 
   public getMessages(filterCategory?: string): GmailMessage[] {
     if (!this.connected) return [];
@@ -540,95 +674,5 @@ export class GoogleConnector implements OnModuleInit {
     if (domain.includes('figma')) return 'Figma';
     if (domain.includes('google')) return 'Google';
     return undefined;
-  }
-
-  private populateContextualGmailMessages(): void {
-    const now = new Date();
-    this.messages = [
-      {
-        id: 'msg-gmail-1',
-        threadId: 'th-stripe-recruiter',
-        from: 'recruiting@stripe.com',
-        fromName: 'Stripe Recruiting Team',
-        to: this.email || 'user@gmail.com',
-        subject: 'Invitation to Connect: Senior Full Stack Engineer at Stripe',
-        snippet: 'Hi Rupesh, we came across your work in distributed systems and Next.js/NestJS architecture. Would love to set up a preliminary chat with our technical hiring team.',
-        bodyText: 'Hi Rupesh,\n\nWe reviewed your recent engineering portfolio and experience with high-throughput API architectures. Your profile aligns well with our Core Infrastructure team. Are you open for a 30-minute intro call this week?',
-        date: new Date(now.getTime() - 1000 * 60 * 45).toISOString(),
-        isUnread: true,
-        category: 'recruiters',
-        company: 'Stripe',
-      },
-      {
-        id: 'msg-gmail-2',
-        threadId: 'th-cloud-billing',
-        from: 'billing@aws.amazon.com',
-        fromName: 'Amazon Web Services',
-        to: this.email || 'user@gmail.com',
-        subject: 'AWS Billing Statement: Invoice Available for Account 4821',
-        snippet: 'Your monthly statement for AWS services has been generated. Amount: ₹3,800. Auto-debit scheduled for your primary card.',
-        bodyText: 'Hello,\n\nYour AWS invoice for the recent billing cycle is ₹3,800. All active resources in ap-south-1 are operating normally.',
-        date: new Date(now.getTime() - 1000 * 60 * 360).toISOString(),
-        isUnread: false,
-        category: 'finance',
-      },
-      {
-        id: 'msg-gmail-3',
-        threadId: 'th-cloudflare-career',
-        from: 'jobs@cloudflare.com',
-        fromName: 'Cloudflare Careers',
-        to: this.email || 'user@gmail.com',
-        subject: 'Application Received: Systems Engineer (Edge Compute)',
-        snippet: 'Thank you for your application to Cloudflare. Our engineering leads are reviewing your resume packet.',
-        bodyText: 'Thank you for expressing interest in Cloudflare! Your application packet has been forwarded to the Edge Platforms hiring committee.',
-        date: new Date(now.getTime() - 1000 * 60 * 1440).toISOString(),
-        isUnread: false,
-        category: 'recruiters',
-        company: 'Cloudflare',
-      },
-    ];
-  }
-
-  private populateContextualDriveFiles(): void {
-    this.driveFiles = [
-      {
-        id: 'drive-res-1',
-        name: 'Fullstack-AWS-v3.md',
-        mimeType: 'text/markdown',
-        sizeBytes: 14200,
-        lastModified: new Date().toISOString(),
-        fileType: 'resume',
-        contentMarkdown: `# Rupesh Yadav
-Senior Full Stack & AI Systems Engineer
-Email: ry993494787@gmail.com | Bangalore, India
-
-## Summary
-Full Stack Engineer with 5+ years of experience architecting resilient distributed systems, NestJS microservices, Next.js web applications, and autonomous AI agent workflows.
-
-## Technical Skills
-- TypeScript, Node.js, NestJS, Next.js, React, TailwindCSS
-- PostgreSQL, Redis, Prisma ORM, BullMQ
-- Docker, AWS, Distributed Event Buses, OAuth 2.0`,
-      },
-      {
-        id: 'drive-res-2',
-        name: 'Staff-Distributed-Systems.md',
-        mimeType: 'text/markdown',
-        sizeBytes: 18500,
-        lastModified: new Date(Date.now() - 86400000 * 2).toISOString(),
-        fileType: 'resume',
-        contentMarkdown: `# Rupesh Yadav
-Staff Distributed Systems & AI Architect
-Specializing in High-Throughput Microservices and Agentic RAG pipelines.`,
-      },
-      {
-        id: 'drive-doc-3',
-        name: 'PersonalOS-Architecture-Design.pdf',
-        mimeType: 'application/pdf',
-        sizeBytes: 420000,
-        lastModified: new Date(Date.now() - 86400000 * 5).toISOString(),
-        fileType: 'pdf',
-      },
-    ];
   }
 }

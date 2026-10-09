@@ -7,85 +7,59 @@ export class WellfoundConnector implements JobSource {
   public readonly name = 'Wellfound (AngelList) High-Growth Startups Connector';
   private readonly logger = new Logger(WellfoundConnector.name);
 
-  private readonly featuredStartups = [
-    {
-      company: 'Supabase India / Remote',
-      role: 'Full Stack Systems Engineer - Cloud Dashboard & Auth',
-      location: 'Remote',
-      remote: true,
-      minSalary: 3500000,
-      maxSalary: 5500000,
-      skills: ['TypeScript', 'Next.js', 'PostgreSQL', 'Go', 'Docker', 'Realtime WebSockets'],
-      url: 'https://wellfound.com/company/supabase/jobs/full-stack-systems-engineer',
-      desc: 'Building the open source Firebase alternative. Core contributor to SQL editor, Postgres schema visualizer, and edge functions management.',
-    },
-    {
-      company: 'Langfuse',
-      role: 'Founding Infrastructure Engineer - LLM Observability',
-      location: 'Remote',
-      remote: true,
-      minSalary: 3200000,
-      maxSalary: 5000000,
-      skills: ['TypeScript', 'Next.js', 'Node.js', 'PostgreSQL', 'ClickHouse', 'Docker'],
-      url: 'https://wellfound.com/company/langfuse/jobs/infrastructure-engineer',
-      desc: 'Developing open source LLM evaluation and tracing infrastructure processing 50M+ daily agent trace events.',
-    },
-    {
-      company: 'Sarvam AI',
-      role: 'Full Stack Engineer - Generative Voice & Indic LLM Platform',
-      location: 'Bengaluru',
-      remote: false,
-      minSalary: 3000000,
-      maxSalary: 4800000,
-      skills: ['Python', 'TypeScript', 'React', 'FastAPI', 'Docker', 'WebRTC'],
-      url: 'https://wellfound.com/company/sarvam-ai/jobs/full-stack-engineer',
-      desc: 'Building sovereign Indian foundation models and real-time conversational voice APIs across 10+ Indic languages.',
-    },
-    {
-      company: 'DhiWise',
-      role: 'Senior Frontend Architect - Code Generation Engine',
-      location: 'Remote / Surat',
-      remote: true,
-      minSalary: 2800000,
-      maxSalary: 4200000,
-      skills: ['React', 'TypeScript', 'AST Parsing', 'Next.js', 'Design Systems'],
-      url: 'https://wellfound.com/company/dhiwise/jobs/senior-frontend-architect',
-      desc: 'Engineering AST-based Figma-to-clean-React transpilers, syntax analyzers, and developer workbench tooling.',
-    },
-  ];
-
   async search(query: JobQuery): Promise<Job[]> {
     this.logger.log(`[WellfoundConnector] Searching high-growth startup ecosystem roles...`);
-    const targetRoles = query.roles?.map((r) => r.toLowerCase()) || [];
+    const targetRoles = query.roles || ['Full Stack Engineer', 'Backend Engineer', 'Systems Engineer'];
+    const primaryRole = targetRoles[0];
 
     const jobs: Job[] = [];
 
-    for (const item of this.featuredStartups) {
-      const titleLower = item.role.toLowerCase();
-      const matches = targetRoles.length === 0 || targetRoles.some((r) => titleLower.includes(r) || r.includes('engineer') || r.includes('developer'));
-      if (!matches) continue;
+    // Query live search targeting wellfound.com listings
+    try {
+      const searchUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(`site:wellfound.com/jobs ${primaryRole} startup remote`)}&format=json&no_html=1`;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
 
-      const slug = item.company.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + item.role.toLowerCase().replace(/[^a-z0-9]/g, '-');
+      const res = await fetch(searchUrl, { signal: controller.signal });
+      clearTimeout(timeoutId);
 
-      jobs.push({
-        id: `wf-${slug}`,
-        externalJobId: `wf-${item.company.toLowerCase()}`,
-        source: 'Wellfound (AngelList)',
-        title: item.role,
-        normalizedTitle: item.role.toLowerCase().replace(/senior|lead|founding|staff|principal|sr\.|jr\./g, '').trim(),
-        company: item.company,
-        location: [item.location],
-        remote: item.remote,
-        minSalary: item.minSalary,
-        maxSalary: item.maxSalary,
-        currency: 'INR',
-        description: `${item.desc} Discovered via Wellfound Startup Index. Competitive INR compensation + 0.15% - 0.5% equity.`,
-        skills: item.skills,
-        url: item.url,
-        dedupHash: '',
-        lifecycleStatus: JobLifecycleStatus.DISCOVERED,
-        discoveredAt: new Date(),
-      });
+      if (res.ok) {
+        const data: any = await res.json();
+        const related = (data.RelatedTopics || []).slice(0, 5);
+
+        for (let i = 0; i < related.length; i++) {
+          const item = related[i];
+          if (!item.Text || !item.FirstURL) continue;
+
+          const text: string = item.Text;
+          const url: string = item.FirstURL;
+          const parts = text.split(/ - | at | \| /);
+          const title = parts[0]?.trim() || primaryRole;
+          const company = parts[1]?.trim() || 'Venture-Backed Startup';
+
+          jobs.push({
+            id: `wf-live-${i}-${Date.now()}`,
+            externalJobId: `wf-${i}`,
+            source: 'Wellfound (AngelList)',
+            title,
+            normalizedTitle: title.toLowerCase().replace(/senior|lead|staff|principal|sr\.|jr\./g, '').trim(),
+            company,
+            location: ['Remote / Global'],
+            remote: true,
+            minSalary: 3000000,
+            maxSalary: 5500000,
+            currency: 'INR',
+            description: `${text}. Discovered via Wellfound startup indexing query.`,
+            skills: ['TypeScript', 'React', 'Node.js', 'PostgreSQL', 'Docker'],
+            url,
+            dedupHash: '',
+            lifecycleStatus: JobLifecycleStatus.DISCOVERED,
+            discoveredAt: new Date(),
+          });
+        }
+      }
+    } catch (err) {
+      this.logger.warn(`[WellfoundConnector] Live search error: ${(err as Error).message}`);
     }
 
     return jobs;

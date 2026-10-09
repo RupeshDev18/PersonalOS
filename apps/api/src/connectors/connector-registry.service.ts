@@ -6,16 +6,11 @@ import { WebSearchConnector } from './web-search.connector';
 import { GeminiService } from '../llm/gemini.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AccountAggregatorConnector } from './account-aggregator.connector';
+import { GitHubConnector } from './github.connector';
+import { SlackConnector } from './slack.connector';
 
 // ---------------------------------------------------------------------------
 // ConnectorRegistryService
-//
-// Single place that knows about every connector in the system.
-// Adding a new connector (e.g. Slack, Outlook) means:
-//   1. Create a new XxxConnector class with a getInfo(): ConnectorInfo method.
-//   2. Inject it here and add it to getAll().
-//   3. Nothing else needs to change — the controller, frontend, and shared
-//      type already handle the ConnectorInfo[] shape.
 // ---------------------------------------------------------------------------
 
 @Injectable()
@@ -27,6 +22,8 @@ export class ConnectorRegistryService {
     private readonly geminiService: GeminiService,
     private readonly notificationsService: NotificationsService,
     private readonly accountAggregatorConnector: AccountAggregatorConnector,
+    private readonly githubConnector: GitHubConnector,
+    private readonly slackConnector: SlackConnector,
   ) {}
 
   /** Returns live status for every registered connector. */
@@ -34,6 +31,12 @@ export class ConnectorRegistryService {
     return [
       // 1. Google Workspace (Gmail + Drive) — live state from the connector
       this.googleConnector.getInfo(),
+
+      // 1b. GitHub Developer Index (Repositories, Stars, Contributions)
+      this.githubConnector.getInfo(),
+
+      // 1c. Slack Incoming Webhook Bridge (Team Alerts & Approvals)
+      this.slackConnector.getInfo(),
 
       // 2. Greenhouse — always live (public API, no auth needed)
       {

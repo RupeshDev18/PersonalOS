@@ -11,15 +11,33 @@ export function useAuth() {
 
   // Attempt to restore session from localStorage on mount
   useEffect(() => {
+    const handleUnauthorized = () => {
+      clearToken();
+      setUser(null);
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('pos:unauthorized', handleUnauthorized);
+    }
+
     const token = getToken();
     if (!token) {
       setLoading(false);
-      return;
+      return () => {
+        if (typeof window !== 'undefined') {
+          window.removeEventListener('pos:unauthorized', handleUnauthorized);
+        }
+      };
     }
     auth.me()
       .then(setUser)
       .catch(() => clearToken())   // stale token — clear it
       .finally(() => setLoading(false));
+
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('pos:unauthorized', handleUnauthorized);
+      }
+    };
   }, []);
 
   const login = useCallback(async (email: string, password?: string) => {

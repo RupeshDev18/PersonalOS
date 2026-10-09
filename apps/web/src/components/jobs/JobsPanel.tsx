@@ -24,6 +24,7 @@ interface JobsPanelProps {
   onStatusChange: (id: string, status: JobLifecycleStatus) => void;
   onTriggerDiscovery: () => void;
   onResumeRefresh: () => void;
+  onNavigateConnectors?: () => void;
 }
 
 export default function JobsPanel({
@@ -31,6 +32,7 @@ export default function JobsPanel({
   search, onSearch, statusFilter, onStatusFilter,
   remoteOnly, onRemoteOnly, minScore, onMinScore,
   onStatusChange, onTriggerDiscovery, onResumeRefresh,
+  onNavigateConnectors,
 }: JobsPanelProps) {
   const [tab, setTab] = useState<'jobs' | 'resumes'>('jobs');
   const [sourceFilter, setSourceFilter] = useState('');
@@ -84,7 +86,14 @@ export default function JobsPanel({
             />
 
             {error && (
-              <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
+              <div className="flex items-center justify-between p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700">
+                <span>{error}</span>
+                {onNavigateConnectors && (
+                  <button onClick={onNavigateConnectors} className="font-semibold text-indigo-600 hover:underline ml-2">
+                    Check Connectors →
+                  </button>
+                )}
+              </div>
             )}
 
             {loading ? (
@@ -92,14 +101,32 @@ export default function JobsPanel({
                 <Loader2 size={24} className="text-indigo-400 animate-spin" />
               </div>
             ) : filteredJobs.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-sm text-slate-500">No jobs found matching criteria.</p>
-                <button
-                  onClick={onTriggerDiscovery}
-                  className="mt-3 text-xs text-indigo-600 hover:underline"
-                >
-                  Trigger discovery
-                </button>
+              <div className="text-center py-12 px-4 border border-dashed border-slate-200 rounded-2xl bg-white space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto">
+                  <Zap size={22} />
+                </div>
+                <h4 className="text-sm font-semibold text-slate-800">No jobs indexed yet</h4>
+                <p className="text-xs text-slate-500 max-w-md mx-auto">
+                  PersonalOS aggregates live jobs from Greenhouse ATS, Indian Unicorn boards, and startup platforms. Click below to run discovery or configure job sources in Connectors.
+                </p>
+                <div className="flex items-center justify-center gap-3 pt-2">
+                  <button
+                    onClick={onTriggerDiscovery}
+                    disabled={discovering}
+                    className="flex items-center gap-1.5 text-xs px-3.5 py-2 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700 shadow-sm transition-all"
+                  >
+                    <RefreshCw size={12} className={discovering ? 'animate-spin' : ''} />
+                    {discovering ? 'Discovering…' : 'Trigger Live Discovery'}
+                  </button>
+                  {onNavigateConnectors && (
+                    <button
+                      onClick={onNavigateConnectors}
+                      className="text-xs px-3.5 py-2 rounded-xl border border-slate-200 text-slate-600 font-medium hover:bg-slate-50 transition-colors"
+                    >
+                      Configure Connectors
+                    </button>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="space-y-3">

@@ -136,13 +136,30 @@ export class ToolsService implements OnModuleInit {
       name: 'Gmail Inbox Ingestion',
       description: 'Reads synced personal messages and recruiter reach-outs from Google Workspace',
       requiredCapability: CapabilityPermission.EMAIL_READ,
-      execute: async (input?: { category?: string }) => {
-        const messages = this.googleConnector.getMessages(input?.category);
+      execute: async (input?: { category?: string; query?: string }) => {
+        const status = this.googleConnector.getStatus();
+        if (!status.connected) {
+          return {
+            connected: false,
+            message: 'Google Workspace is not connected. Connect your Google account in the Connectors tab to scan your Gmail inbox.',
+            messages: [],
+          };
+        }
+        const messages = await this.googleConnector.searchMessages(input?.query, input?.category);
         return {
-          account: this.googleConnector.getStatus().email,
+          connected: true,
+          account: status.email,
           totalMessages: messages.length,
           unreadCount: messages.filter((m) => m.isUnread).length,
-          messages: messages.slice(0, 5),
+          query: input?.query,
+          messages: messages.slice(0, 5).map((m) => ({
+            id: m.id,
+            from: m.from,
+            subject: m.subject,
+            snippet: m.snippet,
+            date: m.date,
+            category: m.category,
+          })),
         };
       },
     });
@@ -153,10 +170,28 @@ export class ToolsService implements OnModuleInit {
       name: 'Google Drive Document Indexing',
       description: 'Browses and searches personal resumes, cover letters, and documents stored in Drive',
       requiredCapability: CapabilityPermission.DRIVE_READ,
-      execute: async (input?: { fileType?: string }) => {
-        const files = this.googleConnector.getDriveFiles(input?.fileType);
+      execute: async (input?: { fileType?: string; query?: string }) => {
+        const status = this.googleConnector.getStatus();
+        if (!status.connected) {
+          return {
+            connected: false,
+            message: 'Google Workspace (Drive) is not connected. Although OAuth keys may be saved, you need to click "Connect with Google (OAuth 2.0)" in the Connectors tab to authorize access.',
+            files: [],
+          };
+        }
+        let files = this.googleConnector.getDriveFiles(input?.fileType);
+        if (input?.query) {
+          const keywords = input.query.toLowerCase()
+            .replace(/[?.,!]/g, '')
+            .split(/\s+/)
+            .filter((w) => !['can', 'you', 'search', 'my', 'in', 'drive', 'for', 'and', 'list', 'them', 'the', 'find', 'show'].includes(w));
+          if (keywords.length > 0) {
+            files = files.filter((f) => keywords.some((k) => f.name.toLowerCase().includes(k) || (f.fileType && f.fileType.toLowerCase().includes(k))));
+          }
+        }
         return {
-          account: this.googleConnector.getStatus().email,
+          connected: true,
+          account: status.email,
           totalFilesIndexed: files.length,
           files: files.map((f) => ({
             id: f.id,

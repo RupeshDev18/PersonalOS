@@ -15,6 +15,8 @@ import { IsEmail, IsOptional, IsString } from 'class-validator';
 import { ConnectorRegistryService } from './connector-registry.service';
 import { GoogleConnector, GoogleAuthMethod } from './google.connector';
 import { GreenhouseConnector } from './greenhouse.connector';
+import { GitHubConnector } from './github.connector';
+import { SlackConnector } from './slack.connector';
 import { GeminiService } from '../llm/gemini.service';
 import { JobsService } from '../jobs/jobs.service';
 import { CurrentUserId } from '../auth/user.decorator';
@@ -36,6 +38,28 @@ export class ConnectGoogleDto {
   @IsOptional()
   @IsString()
   credential?: string;
+}
+
+export class GoogleOAuthCredentialsDto {
+  @IsString()
+  clientId: string;
+
+  @IsString()
+  clientSecret: string;
+}
+
+export class ConnectGithubDto {
+  @IsString()
+  token: string;
+}
+
+export class ConnectSlackDto {
+  @IsString()
+  webhookUrl: string;
+
+  @IsOptional()
+  @IsString()
+  channelName?: string;
 }
 
 export class OAuthCallbackDto {
@@ -64,6 +88,8 @@ export class ConnectorsController {
     private readonly googleConnector: GoogleConnector,
     private readonly greenhouseConnector: GreenhouseConnector,
     private readonly geminiService: GeminiService,
+    private readonly githubConnector: GitHubConnector,
+    private readonly slackConnector: SlackConnector,
     @Inject(forwardRef(() => JobsService))
     private readonly jobsService: JobsService,
   ) {}
@@ -256,5 +282,125 @@ export class ConnectorsController {
   @ApiOperation({ summary: 'Diagnose the Gemini key format and Google API response' })
   diagnoseGemini(@CurrentUserId() _userId: string) {
     return this.geminiService.diagnoseKey();
+  }
+
+  // -------------------------------------------------------------------------
+  // Google OAuth Credentials Config
+  // -------------------------------------------------------------------------
+
+  @Post('google/config-credentials')
+  @ApiOperation({ summary: 'Store custom Google Cloud OAuth client credentials' })
+  async saveGoogleOAuthKeys(
+    @CurrentUserId() _userId: string,
+    @Body() body: GoogleOAuthCredentialsDto,
+  ) {
+    return this.googleConnector.saveOAuthCredentials(body.clientId, body.clientSecret);
+  }
+
+  // -------------------------------------------------------------------------
+  // GitHub Developer Index
+  // -------------------------------------------------------------------------
+
+  @Get('github/status')
+  @ApiOperation({ summary: 'Get GitHub connection status and repository statistics' })
+  getGitHubStatus(@CurrentUserId() _userId: string) {
+    return this.githubConnector.getStatus();
+  }
+
+  @Post('github/connect')
+  @ApiOperation({ summary: 'Connect GitHub via Personal Access Token' })
+  async connectGitHub(
+    @CurrentUserId() _userId: string,
+    @Body() dto: ConnectGithubDto,
+  ) {
+    return this.githubConnector.connect(dto.token);
+  }
+
+  @Post('github/disconnect')
+  @ApiOperation({ summary: 'Disconnect GitHub integration' })
+  async disconnectGitHub(@CurrentUserId() _userId: string) {
+    return this.githubConnector.disconnect();
+  }
+
+  @Get('github/repos')
+  @ApiOperation({ summary: 'Get indexed GitHub repositories' })
+  getGitHubRepos(@CurrentUserId() _userId: string) {
+    return this.githubConnector.getRepos();
+  }
+
+  @Post('github/sync-to-profile')
+  @ApiOperation({ summary: 'Enrich candidate profile with GitHub repositories and top languages' })
+  async syncGitHubToProfile(@CurrentUserId() _userId: string) {
+    const status = this.githubConnector.getStatus();
+    if (!status.connected) {
+      throw new NotFoundException('GitHub is not connected. Connect with your Personal Access Token first.');
+    }
+
+    const repos = this.githubConnector.getRepos();
+    const topLanguages = status.topLanguages;
+
+    // Create an automated GitHub project portfolio resume in the vault
+    const portfolioMarkdown = `# ${status.profile?.name || status.username} - GitHub Developer Portfolio
+**GitHub Profile:** ${status.profile?.htmlUrl || `https://github.com/${status.username}`}
+**Public Repositories:** ${status.repoCount} | **Total Stars:** ${status.totalStars}
+**Core Languages:** ${topLanguages.join(', ')}
+
+${status.profile?.bio ? `> ${status.profile.bio}\n` : ''}
+## Featured Repositories
+${repos
+  .slice(0, 8)
+  .map(
+    (r) =>
+      `### [${r.name}](${r.htmlUrl}) (${r.language || 'Code'})\n- **Stars:** ${r.stars} | **Forks:** ${r.forks}\n- ${r.description || 'Production codebase'}\n${r.topics.length > 0 ? `- **Topics:** ${r.topics.join(', ')}\n` : ''}`,
+  )
+  .join('\n')}
+`;
+
+    const saved = this.jobsService.addOrUpdateResume({
+      id: `resume-github-${Date.now()}`,
+      title: `${status.username} - GitHub Live Portfolio`,
+      fileName: `github-${status.username}-portfolio.md`,
+      targetRole: 'Senior Full Stack & Distributed Systems Architect',
+      tags: ['GitHub Sync', ...topLanguages],
+      contentMarkdown: portfolioMarkdown,
+      isDefault: false,
+    });
+
+    return {
+      success: true,
+      message: `Enriched profile with ${repos.length} GitHub repositories and created portfolio resume.`,
+      resume: saved,
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // Slack Incoming Webhook
+  // -------------------------------------------------------------------------
+
+  @Get('slack/status')
+  @ApiOperation({ summary: 'Get Slack connection status' })
+  getSlackStatus(@CurrentUserId() _userId: string) {
+    return this.slackConnector.getStatus();
+  }
+
+  @Post('slack/connect')
+  @ApiOperation({ summary: 'Connect Slack via Incoming Webhook URL' })
+  async connectSlack(
+    @CurrentUserId() _userId: string,
+    @Body() dto: ConnectSlackDto,
+  ) {
+    return this.slackConnector.connect(dto.webhookUrl, dto.channelName);
+  }
+
+  @Post('slack/disconnect')
+  @ApiOperation({ summary: 'Disconnect Slack integration' })
+  async disconnectSlack(@CurrentUserId() _userId: string) {
+    return this.slackConnector.disconnect();
+  }
+
+  @Post('slack/test')
+  @ApiOperation({ summary: 'Send a test notification to the configured Slack channel' })
+  async testSlack(@CurrentUserId() _userId: string) {
+    return this.slackConnector.testMessage();
   }
 }

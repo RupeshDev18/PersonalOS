@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { jobs as jobsApi } from '@/lib/api';
+import { jobs as jobsApi, getToken } from '@/lib/api';
 import type { Job, JobLifecycleStatus, UserCareerProfile } from '@/lib/types';
 
-export function useJobs() {
+export function useJobs(userId?: string) {
   const [jobList, setJobList] = useState<Job[]>([]);
   const [profile, setProfile] = useState<UserCareerProfile | null>(null);
   const [loading, setLoading] = useState(false);
@@ -18,6 +18,7 @@ export function useJobs() {
   const [minScore, setMinScore] = useState<number | undefined>(undefined);
 
   const fetchJobs = useCallback(async () => {
+    if (!userId && !getToken()) return;
     setLoading(true);
     setError(null);
     try {
@@ -33,22 +34,27 @@ export function useJobs() {
     } finally {
       setLoading(false);
     }
-  }, [search, statusFilter, remoteOnly, minScore]);
+  }, [userId, search, statusFilter, remoteOnly, minScore]);
 
   const fetchProfile = useCallback(async () => {
+    if (!userId && !getToken()) return;
     try {
       const data = await jobsApi.profile();
       setProfile(data);
     } catch { /* profile not critical */ }
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
-    fetchJobs();
-  }, [fetchJobs]);
+    if (userId || getToken()) {
+      fetchJobs();
+    }
+  }, [fetchJobs, userId]);
 
   useEffect(() => {
-    fetchProfile();
-  }, [fetchProfile]);
+    if (userId || getToken()) {
+      fetchProfile();
+    }
+  }, [fetchProfile, userId]);
 
   const triggerDiscovery = useCallback(async () => {
     setDiscovering(true);

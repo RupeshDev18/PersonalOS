@@ -63,6 +63,12 @@ async function request<T>(
   options: RequestInit = {},
 ): Promise<T> {
   const token = getToken();
+  const isAuthEndpoint = path.startsWith('/api/auth/login') || path.startsWith('/api/auth/signup');
+
+  if (!token && !isAuthEndpoint) {
+    throw new Error('Not signed in. Please log in or connect your account.');
+  }
+
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
@@ -72,6 +78,13 @@ async function request<T>(
   const res = await fetch(`${BASE}${path}`, { ...options, headers });
 
   if (!res.ok) {
+    if (res.status === 401 && !isAuthEndpoint) {
+      clearToken();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('pos:unauthorized'));
+      }
+      throw new Error('Session disconnected. Please sign in again.');
+    }
     let message = `HTTP ${res.status}`;
     try {
       const body = await res.json();
@@ -384,6 +397,46 @@ export const connectors = {
 
   syncGoogle: () =>
     request<unknown>('/api/connectors/google/sync', { method: 'POST' }),
+
+  saveGoogleOAuthKeys: (clientId: string, clientSecret: string) =>
+    request<{ success: boolean; message: string }>('/api/connectors/google/config-credentials', {
+      method: 'POST',
+      body: JSON.stringify({ clientId, clientSecret }),
+    }),
+
+  githubStatus: () => request<any>('/api/connectors/github/status'),
+
+  githubConnect: (token: string) =>
+    request<any>('/api/connectors/github/connect', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+    }),
+
+  githubDisconnect: () =>
+    request<any>('/api/connectors/github/disconnect', { method: 'POST' }),
+
+  githubRepos: () => request<any[]>('/api/connectors/github/repos'),
+
+  githubSyncProfile: () =>
+    request<{ success: boolean; message: string; resume: any }>('/api/connectors/github/sync-to-profile', {
+      method: 'POST',
+    }),
+
+  slackStatus: () => request<any>('/api/connectors/slack/status'),
+
+  slackConnect: (webhookUrl: string, channelName?: string) =>
+    request<any>('/api/connectors/slack/connect', {
+      method: 'POST',
+      body: JSON.stringify({ webhookUrl, channelName }),
+    }),
+
+  slackDisconnect: () =>
+    request<any>('/api/connectors/slack/disconnect', { method: 'POST' }),
+
+  slackTest: () =>
+    request<{ success: boolean; message: string }>('/api/connectors/slack/test', {
+      method: 'POST',
+    }),
 
   setGeminiKey: (apiKey: string) =>
     request<{ success: boolean; message: string; model?: string }>(

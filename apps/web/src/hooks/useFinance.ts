@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { finance as financeApi } from '@/lib/api';
+import { finance as financeApi, getToken } from '@/lib/api';
 import type { SpendingAnalysis, Transaction } from '@/lib/types';
 
 export interface BankAccountInfo {
@@ -14,7 +14,7 @@ export interface BankAccountInfo {
   lastUpdated: string;
 }
 
-export function useFinance() {
+export function useFinance(userId?: string) {
   const [analysis, setAnalysis] = useState<SpendingAnalysis | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccountInfo[]>([]);
@@ -23,6 +23,7 @@ export function useFinance() {
   const [error, setError] = useState<string | null>(null);
 
   const fetch = useCallback(async () => {
+    if (!userId && !getToken()) return;
     setLoading(true);
     setError(null);
     try {
@@ -39,11 +40,13 @@ export function useFinance() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
-    fetch();
-  }, [fetch]);
+    if (userId || getToken()) {
+      fetch();
+    }
+  }, [fetch, userId]);
 
   const syncBanks = useCallback(async () => {
     setActionLoading(true);

@@ -8,9 +8,10 @@ import { jobs as jobsApi } from '@/lib/api';
 interface ResumeVaultProps {
   resumes: ResumeProfile[];
   onRefresh: () => void;
+  onNavigateConnectors?: () => void;
 }
 
-export default function ResumeVault({ resumes, onRefresh }: ResumeVaultProps) {
+export default function ResumeVault({ resumes, onRefresh, onNavigateConnectors }: ResumeVaultProps) {
   const [showAdd, setShowAdd] = useState(false);
   const [title, setTitle] = useState('');
   const [targetRole, setTargetRole] = useState('');
@@ -89,7 +90,21 @@ export default function ResumeVault({ resumes, onRefresh }: ResumeVaultProps) {
       )}
 
       {resumes.length === 0 && !showAdd && (
-        <p className="text-xs text-slate-400 text-center py-4">No resumes yet. Add one above.</p>
+        <div className="text-center py-10 px-4 border border-dashed border-slate-200 rounded-2xl bg-white space-y-2">
+          <FileText size={26} className="text-slate-300 mx-auto mb-1" />
+          <h4 className="text-xs font-semibold text-slate-700">No resumes in vault yet</h4>
+          <p className="text-[11px] text-slate-400 max-w-xs mx-auto">
+            Add your markdown resume manually above, sync your repositories via GitHub connector, or connect Google Workspace to scan Drive documents.
+          </p>
+          {onNavigateConnectors && (
+            <button
+              onClick={onNavigateConnectors}
+              className="text-xs text-indigo-600 font-medium hover:underline pt-1 inline-block"
+            >
+              Configure Connectors →
+            </button>
+          )}
+        </div>
       )}
 
       {resumes.map((r) => (

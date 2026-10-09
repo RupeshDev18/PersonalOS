@@ -56,7 +56,9 @@ export default function AuditPanel({ events, loading, error, onRefresh }: AuditP
 
       <div className="flex-1 overflow-y-auto mt-3 bg-white border border-slate-100 mx-4 mb-4 rounded-xl">
         {error && (
-          <p className="text-xs text-red-500 px-4 py-3">{error}</p>
+          <div className="p-3 m-3 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700">
+            {error}
+          </div>
         )}
         {loading ? (
           <div className="flex items-center justify-center py-12">

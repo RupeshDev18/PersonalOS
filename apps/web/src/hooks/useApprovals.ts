@@ -1,15 +1,16 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { approvals as approvalsApi } from '@/lib/api';
+import { approvals as approvalsApi, getToken } from '@/lib/api';
 import type { ApprovalRequest } from '@/lib/types';
 
-export function useApprovals() {
+export function useApprovals(userId?: string) {
   const [list, setList] = useState<ApprovalRequest[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetch = useCallback(async () => {
+    if (!userId && !getToken()) return;
     setLoading(true);
     setError(null);
     try {
@@ -20,9 +21,13 @@ export function useApprovals() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [userId]);
 
-  useEffect(() => { fetch(); }, [fetch]);
+  useEffect(() => { 
+    if (userId || getToken()) {
+      fetch(); 
+    }
+  }, [fetch, userId]);
 
   const decide = useCallback(
     async (id: string, decision: 'approve' | 'reject', note?: string) => {

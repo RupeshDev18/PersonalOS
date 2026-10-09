@@ -1,15 +1,18 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { connectors as connectorsApi } from '@/lib/api';
+import { connectors as connectorsApi, getToken } from '@/lib/api';
 import type { ConnectorInfo } from '@/lib/types';
 
-export function useConnectors() {
+export function useConnectors(userId?: string) {
   const [list, setList] = useState<ConnectorInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetch = useCallback(async () => {
+    if (!userId && !getToken()) {
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -20,9 +23,13 @@ export function useConnectors() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [userId]);
 
-  useEffect(() => { fetch(); }, [fetch]);
+  useEffect(() => { 
+    if (userId || getToken()) {
+      fetch(); 
+    }
+  }, [fetch, userId]);
 
   const connectGoogle = useCallback(
     async (email: string, authMethod?: string, credential?: string) => {

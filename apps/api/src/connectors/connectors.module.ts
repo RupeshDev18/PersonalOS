@@ -6,6 +6,8 @@ import { WellfoundConnector } from './wellfound.connector';
 import { WebSearchConnector } from './web-search.connector';
 import { GoogleConnector } from './google.connector';
 import { AccountAggregatorConnector } from './account-aggregator.connector';
+import { GitHubConnector } from './github.connector';
+import { SlackConnector } from './slack.connector';
 import { ConnectorRegistryService } from './connector-registry.service';
 import { ConnectorsController } from './connectors.controller';
 import { LlmModule } from '../llm/llm.module';
@@ -24,6 +26,8 @@ import { NotificationsModule } from '../notifications/notifications.module';
     WebSearchConnector,
     GoogleConnector,
     AccountAggregatorConnector,
+    GitHubConnector,
+    SlackConnector,
     ConnectorRegistryService,
   ],
   exports: [
@@ -34,6 +38,8 @@ import { NotificationsModule } from '../notifications/notifications.module';
     WebSearchConnector,
     GoogleConnector,
     AccountAggregatorConnector,
+    GitHubConnector,
+    SlackConnector,
     ConnectorRegistryService,
   ],
 })

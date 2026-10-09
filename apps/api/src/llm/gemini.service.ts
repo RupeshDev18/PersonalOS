@@ -6,15 +6,22 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 // Ordered by preference: fastest + most capable first.
 // discoverBestModel() will refine this list at runtime by querying the API.
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Real Gemini model names.
+// Ordered by preference: fastest + most capable first.
+// discoverBestModel() will refine this list at runtime by querying the API.
+// ---------------------------------------------------------------------------
 const MODEL_PREFERENCE_ORDER = [
+  'gemini-3.8-flash',
+  'gemini-3.7-flash',
+  'gemini-3.6-flash',
+  'gemini-3.5-flash',
+  'gemini-2.5-flash-lite',
+  'gemini-flash-latest',
+  'gemini-pro-latest',
   'gemini-2.5-flash',
-  'gemini-2.5-flash-preview-05-20',
   'gemini-2.0-flash',
-  'gemini-2.0-flash-lite',
   'gemini-1.5-flash',
-  'gemini-1.5-flash-latest',
-  'gemini-1.5-pro',
-  'gemini-1.5-pro-latest',
 ];
 
 @Injectable()
@@ -23,6 +30,7 @@ export class GeminiService {
   private genAI: GoogleGenerativeAI | null = null;
   private apiKey: string | null = null;
   private modelName: string = MODEL_PREFERENCE_ORDER[0];
+  private availableModels: string[] = [];
 
   constructor() {
     this.initGemini();
@@ -97,6 +105,7 @@ export class GeminiService {
         .map((m) => m.name.replace(/^models\//, ''));
 
       this.logger.log(`Gemini models available for this key: ${available.join(', ')}`);
+      this.availableModels = available;
 
       for (const pref of MODEL_PREFERENCE_ORDER) {
         if (available.includes(pref)) {
@@ -210,7 +219,7 @@ export class GeminiService {
   ): Promise<string | null> {
     if (!this.genAI) return null;
 
-    const candidates = [this.modelName, ...MODEL_PREFERENCE_ORDER].filter(
+    const candidates = [this.modelName, ...MODEL_PREFERENCE_ORDER, ...this.availableModels].filter(
       (v, i, a) => a.indexOf(v) === i,
     );
 
@@ -297,16 +306,23 @@ User prompt: "${prompt}"`;
     const hasData = Object.keys(specialistData ?? {}).length > 0;
 
     const promptText = hasData
-      ? `You are Chief Ghost, a personal AI OS coordinator.
+      ? `You are Chief Ghost, the personal AI OS coordinator.
 The user asked: "${prompt}"
 
-Specialist agents provided:
+Specialist agent findings:
 ${JSON.stringify(specialistData, null, 2)}
 
-Give a concise, direct, friendly recommendation with clear rationale.`
-      : `You are Chief Ghost, a personal AI OS coordinator.
+Instructions:
+1. If any specialist step reports { connected: false } or mentions a connector is disconnected, inform the user clearly and politely. For Google Workspace, explain that while their OAuth keys might be saved in their environment, they still need to complete the one-time authorization by clicking "Connect with Google (OAuth 2.0)" in the Connectors tab.
+2. If files, emails, or job postings are present, summarize or list them clearly with markdown formatting.
+3. Be concise, direct, and helpful. Avoid robotic filler.`
+      : `You are Chief Ghost, the user's personal AI OS coordinator.
 The user said: "${prompt}"
-Reply warmly and briefly. Introduce yourself as the central coordinator with specialist agents (Jobs, Finance, Shopping, Research, Communication). Ask how you can help.`;
+
+Instructions:
+1. Answer the user's inquiry directly, accurately, and conversationally.
+2. If they are asking to search or perform actions on external services (such as Google Drive, Gmail, GitHub, or Slack) that require integration, let them know they can connect their account under the Connectors tab.
+3. Do NOT repeat a generic canned greeting if they asked a specific question.`;
 
     try {
       const text = await this.generateContentWithFallback(promptText);

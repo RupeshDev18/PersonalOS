@@ -24,7 +24,7 @@ import { useConnectors } from '@/hooks/useConnectors';
 import { useFinance } from '@/hooks/useFinance';
 
 // Types
-import type { ActivePanel } from '@/lib/types';
+import type { ActivePanel, UserProfile } from '@/lib/types';
 
 // ---------------------------------------------------------------------------
 // Finance panel — inline because it is simple enough not to warrant its own
@@ -47,7 +47,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 
-function FinancePanel() {
+function FinancePanel({ userId }: { userId?: string }) {
   const {
     analysis,
     transactions,
@@ -60,7 +60,7 @@ function FinancePanel() {
     linkAa,
     importCsv,
     createTransaction,
-  } = useFinance();
+  } = useFinance(userId);
 
   // Modals state
   const [showImportModal, setShowImportModal] = useState(false);
@@ -700,7 +700,13 @@ function FinancePanel() {
 // Profile panel — inline lightweight implementation
 // ---------------------------------------------------------------------------
 import { User } from 'lucide-react';
-function ProfilePanel({ user }: { user: ReturnType<typeof useAuth>['user'] }) {
+function ProfilePanel({
+  user,
+  onNavigateConnectors,
+}: {
+  user: ReturnType<typeof useAuth>['user'];
+  onNavigateConnectors?: () => void;
+}) {
   if (!user) return null;
   return (
     <div className="flex flex-col h-full">
@@ -737,14 +743,36 @@ function ProfilePanel({ user }: { user: ReturnType<typeof useAuth>['user'] }) {
           </div>
         </div>
         <div className="playful-card p-4">
-          <p className="text-xs font-semibold text-slate-600 mb-2">Connected Accounts</p>
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-slate-600">Google Workspace</span>
-            {user.connectedAccounts?.google?.connected ? (
-              <span className="text-emerald-600 font-medium">{user.connectedAccounts.google.email}</span>
-            ) : (
-              <span className="text-slate-400">Not connected</span>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-semibold text-slate-600">Connected Integrations</p>
+            {onNavigateConnectors && (
+              <button
+                onClick={onNavigateConnectors}
+                className="text-[11px] text-indigo-600 hover:underline font-medium"
+              >
+                Manage in Connectors →
+              </button>
             )}
+          </div>
+          <div className="space-y-2 text-xs">
+            <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100">
+              <div>
+                <p className="font-medium text-slate-700">Google Workspace</p>
+                <p className="text-[10px] text-slate-400">Gmail inbox & Google Drive</p>
+              </div>
+              {user.connectedAccounts?.google?.connected ? (
+                <span className="text-emerald-700 font-medium bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded text-[11px]">
+                  {user.connectedAccounts.google.email}
+                </span>
+              ) : (
+                <button
+                  onClick={onNavigateConnectors}
+                  className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+                >
+                  Connect →
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -756,17 +784,22 @@ function ProfilePanel({ user }: { user: ReturnType<typeof useAuth>['user'] }) {
 // Root Dashboard
 // ---------------------------------------------------------------------------
 
-export default function Dashboard() {
+function AuthenticatedDashboard({
+  user,
+  onLogout,
+}: {
+  user: UserProfile;
+  onLogout: () => void;
+}) {
   const [activePanel, setActivePanel] = useState<ActivePanel>('chat');
   const [isApiReachable, setIsApiReachable] = useState(true);
 
-  // Hooks
-  const { user, loading: authLoading, error: authError, login, signup, logout } = useAuth();
+  // Hooks are ONLY executed when user is verified and authenticated
   const chat = useChat();
-  const jobsHook = useJobs();
-  const approvals = useApprovals();
-  const audit = useAudit();
-  const connectorsHook = useConnectors();
+  const jobsHook = useJobs(user.id);
+  const approvals = useApprovals(user.id);
+  const audit = useAudit(user.id);
+  const connectorsHook = useConnectors(user.id);
 
   // Periodically check API reachability
   useEffect(() => {
@@ -791,26 +824,6 @@ export default function Dashboard() {
     if (activePanel === 'connectors') connectorsHook.refresh();
   }, [activePanel, jobsHook, approvals, audit, connectorsHook]);
 
-  // Auth loading state
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <Loader2 size={32} className="text-indigo-400 animate-spin" />
-      </div>
-    );
-  }
-
-  // Not authenticated
-  if (!user) {
-    return (
-      <AuthScreen
-        onLogin={async (email, pw) => { await login(email, pw); }}
-        onSignup={async (name, email, pw, title) => { await signup(name, email, pw, title); }}
-        error={authError}
-      />
-    );
-  }
-
   // Main app shell
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
@@ -827,7 +840,7 @@ export default function Dashboard() {
           user={user}
           activePanel={activePanel}
           isApiReachable={isApiReachable}
-          onLogout={logout}
+          onLogout={onLogout}
           onRefresh={handleRefresh}
         />
 
@@ -859,10 +872,11 @@ export default function Dashboard() {
               onStatusChange={jobsHook.updateStatus}
               onTriggerDiscovery={jobsHook.triggerDiscovery}
               onResumeRefresh={jobsHook.fetchProfile}
+              onNavigateConnectors={() => setActivePanel('connectors')}
             />
           )}
 
-          {activePanel === 'finance' && <FinancePanel />}
+          {activePanel === 'finance' && <FinancePanel userId={user.id} />}
 
           {activePanel === 'approvals' && (
             <ApprovalsPanel
@@ -871,6 +885,7 @@ export default function Dashboard() {
               error={approvals.error}
               onDecide={approvals.decide}
               onRefresh={approvals.refresh}
+              onNavigateConnectors={() => setActivePanel('connectors')}
             />
           )}
 
@@ -898,9 +913,41 @@ export default function Dashboard() {
             />
           )}
 
-          {activePanel === 'profile' && <ProfilePanel user={user} />}
+          {activePanel === 'profile' && (
+            <ProfilePanel
+              user={user}
+              onNavigateConnectors={() => setActivePanel('connectors')}
+            />
+          )}
         </main>
       </div>
     </div>
   );
+}
+
+export default function Dashboard() {
+  // Auth state
+  const { user, loading: authLoading, error: authError, login, signup, logout } = useAuth();
+
+  // Auth loading state
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <Loader2 size={32} className="text-indigo-400 animate-spin" />
+      </div>
+    );
+  }
+
+  // Not authenticated
+  if (!user) {
+    return (
+      <AuthScreen
+        onLogin={async (email, pw) => { await login(email, pw); }}
+        onSignup={async (name, email, pw, title) => { await signup(name, email, pw, title); }}
+        error={authError}
+      />
+    );
+  }
+
+  return <AuthenticatedDashboard user={user} onLogout={logout} />;
 }
