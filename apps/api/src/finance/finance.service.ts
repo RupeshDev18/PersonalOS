@@ -35,6 +35,8 @@ export interface CsvImportResult {
   transactions: Transaction[];
 }
 
+import { AccountAggregatorConnector, AABankAccount, AASyncResult } from '../connectors/account-aggregator.connector';
+
 @Injectable()
 export class FinanceService implements OnModuleInit {
   private readonly logger = new Logger(FinanceService.name);
@@ -44,6 +46,7 @@ export class FinanceService implements OnModuleInit {
   constructor(
     private readonly auditService: AuditService,
     private readonly prisma: PrismaService,
+    private readonly accountAggregatorConnector: AccountAggregatorConnector,
   ) {}
 
   async onModuleInit() {
@@ -512,5 +515,80 @@ export class FinanceService implements OnModuleInit {
         isRecurring: true,
       },
     ]);
+  }
+
+  public async linkAccountAggregator(userId: string, mobileOrVpa: string, banks?: string[]) {
+    const consent = await this.accountAggregatorConnector.initiateConsent(mobileOrVpa, banks);
+
+    this.auditService.log({
+      taskId: 'aa-consent-link',
+      userId,
+      agentId: 'agent-finance',
+      eventType: AuditEventType.TOOL_COMPLETED,
+      toolName: 'finance.aa_link',
+      outputPayload: consent as unknown as Record<string, unknown>,
+      rationale: `Linked Indian Bank accounts via RBI Account Aggregator for user ${userId}`,
+    });
+
+    return consent;
+  }
+
+  public async getBankAccounts(_userId: string): Promise<AABankAccount[]> {
+    const data = await this.accountAggregatorConnector.fetchLiveAccountsAndTransactions();
+    return data.accounts;
+  }
+
+  public async syncBankAccounts(userId: string): Promise<AASyncResult> {
+    const taskId = uuidv4();
+    const data = await this.accountAggregatorConnector.fetchLiveAccountsAndTransactions();
+
+    let newCount = 0;
+    for (const rawTx of data.transactions) {
+      // Check if already in DB
+      const existing = await this.prisma.transaction.findFirst({
+        where: {
+          userId,
+          merchant: rawTx.merchant,
+          amount: Math.abs(rawTx.amount),
+        },
+      });
+
+      if (!existing) {
+        await this.addTransaction(userId, {
+          merchant: rawTx.merchant,
+          amount: rawTx.amount,
+          currency: 'INR',
+          description: rawTx.narration,
+          category: rawTx.category,
+          date: rawTx.timestamp,
+          accountId: `acc-${rawTx.bank.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+          isRecurring: false,
+        });
+        newCount++;
+      }
+    }
+
+    this.auditService.log({
+      taskId,
+      userId,
+      agentId: 'agent-finance',
+      eventType: AuditEventType.TOOL_COMPLETED,
+      toolName: 'finance.aa_sync',
+      outputPayload: {
+        accountsSynced: data.accounts.length,
+        syncedTransactionsCount: data.transactions.length,
+        newTransactionsImported: newCount,
+      },
+      rationale: `Reconciled ${data.accounts.length} bank accounts and imported ${newCount} new transactions via Account Aggregator.`,
+    });
+
+    return {
+      success: true,
+      accounts: data.accounts,
+      syncedTransactionsCount: data.transactions.length,
+      newTransactionsCount: newCount,
+      syncedAt: new Date().toISOString(),
+      message: `Successfully synchronized ${data.accounts.length} bank accounts and imported ${newCount} new transactions.`,
+    };
   }
 }

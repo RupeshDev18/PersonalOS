@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Plug, RefreshCw, Loader2, Key, Mail, LogOut } from 'lucide-react';
+import { Plug, RefreshCw, Loader2, Key, Mail, LogOut, Send, Bot } from 'lucide-react';
 import ConnectorCard from './ConnectorCard';
+import { notifications } from '@/lib/api';
 import type { ConnectorInfo } from '@/lib/types';
 
 interface ConnectorsPanelProps {
@@ -33,6 +34,44 @@ export default function ConnectorsPanel({
   const [geminiKey, setGeminiKey] = useState('');
   const [testingGemini, setTestingGemini] = useState(false);
   const [geminiMsg, setGeminiMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  // Telegram form state
+  const [telegramToken, setTelegramToken] = useState('');
+  const [telegramChatId, setTelegramChatId] = useState('');
+  const [savingTelegram, setSavingTelegram] = useState(false);
+  const [telegramMsg, setTelegramMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const handleSaveTelegram = async () => {
+    if (!telegramToken.trim()) return;
+    setSavingTelegram(true);
+    setTelegramMsg(null);
+    try {
+      const res = await notifications.config(telegramToken.trim(), telegramChatId.trim() || undefined);
+      setTelegramMsg({ ok: res.success, text: res.message });
+      if (res.success) {
+        setTelegramToken('');
+        setTelegramChatId('');
+        onRefresh();
+      }
+    } catch (e: unknown) {
+      setTelegramMsg({ ok: false, text: e instanceof Error ? e.message : 'Failed to configure Telegram.' });
+    } finally {
+      setSavingTelegram(false);
+    }
+  };
+
+  const handleTestTelegram = async () => {
+    setSavingTelegram(true);
+    setTelegramMsg(null);
+    try {
+      const res = await notifications.test();
+      setTelegramMsg({ ok: res.success, text: res.message });
+    } catch (e: unknown) {
+      setTelegramMsg({ ok: false, text: e instanceof Error ? e.message : 'Test dispatch failed.' });
+    } finally {
+      setSavingTelegram(false);
+    }
+  };
 
   const handleOAuthRedirect = async () => {
     if (!onGetGoogleAuthUrl) return;
@@ -174,11 +213,54 @@ export default function ConnectorsPanel({
       );
     }
 
+    if (connector.id === 'connector-telegram') {
+      return (
+        <div className="flex flex-col gap-2 w-full pt-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="password"
+              placeholder="Bot Token (e.g. 123456:ABC...)"
+              value={telegramToken}
+              onChange={(e) => setTelegramToken(e.target.value)}
+              className="flex-1 text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-300 min-w-[170px]"
+            />
+            <input
+              type="text"
+              placeholder="Chat ID (optional)"
+              value={telegramChatId}
+              onChange={(e) => setTelegramChatId(e.target.value)}
+              className="w-28 text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-300"
+            />
+            <button
+              onClick={handleSaveTelegram}
+              disabled={savingTelegram || !telegramToken.trim()}
+              className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 disabled:opacity-60 transition-colors flex-shrink-0"
+            >
+              {savingTelegram ? <Loader2 size={11} className="animate-spin" /> : <Bot size={11} />}
+              Save & Link
+            </button>
+            {connector.status === 'connected' && (
+              <button
+                onClick={handleTestTelegram}
+                disabled={savingTelegram}
+                className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors flex-shrink-0"
+              >
+                <Send size={11} /> Test Alert
+              </button>
+            )}
+          </div>
+          <p className="text-[11px] text-slate-400">
+            Tip: Message your bot with <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-600">/start</code> to automatically bind your chat ID.
+          </p>
+        </div>
+      );
+    }
+
     return null;
   };
 
   // Status messages
-  const statusMsg = googleMsg ?? geminiMsg;
+  const statusMsg = googleMsg ?? geminiMsg ?? telegramMsg;
 
   return (
     <div className="flex flex-col h-full">

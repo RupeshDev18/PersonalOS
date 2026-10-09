@@ -14,6 +14,7 @@ import { ConnectorsModule } from './connectors/connectors.module';
 import { LlmModule } from './llm/llm.module';
 import { AuthModule } from './auth/auth.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { PrismaModule } from './prisma/prisma.module';
     ConnectorsModule,
     LlmModule,
     AuthModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

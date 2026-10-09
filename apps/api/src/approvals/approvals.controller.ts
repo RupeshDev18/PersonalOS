@@ -38,4 +38,22 @@ export class ApprovalsController {
   ) {
     return this.approvalsService.decide(id, body.decision, body.note);
   }
+
+  @Post()
+  @ApiOperation({ summary: 'Create a new capability approval request' })
+  create(
+    @CurrentUserId() userId: string,
+    @Body() body: any,
+  ) {
+    return this.approvalsService.createApprovalRequest({
+      taskId: body.taskId || 'task-manual',
+      stepId: body.stepId || 'step-manual',
+      userId: userId || 'user-rupesh',
+      actionType: body.actionType,
+      capabilityRequired: body.capabilityRequired,
+      title: body.title,
+      description: body.description,
+      payload: body.payload || {},
+    });
+  }
 }

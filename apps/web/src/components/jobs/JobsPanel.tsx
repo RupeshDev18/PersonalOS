@@ -33,6 +33,11 @@ export default function JobsPanel({
   onStatusChange, onTriggerDiscovery, onResumeRefresh,
 }: JobsPanelProps) {
   const [tab, setTab] = useState<'jobs' | 'resumes'>('jobs');
+  const [sourceFilter, setSourceFilter] = useState('');
+
+  const filteredJobs = sourceFilter
+    ? jobs.filter((j) => j.source.toLowerCase().includes(sourceFilter.toLowerCase()))
+    : jobs;
 
   return (
     <div className="flex flex-col h-full">
@@ -72,9 +77,10 @@ export default function JobsPanel({
             <JobFilters
               search={search} onSearch={onSearch}
               statusFilter={statusFilter} onStatusFilter={onStatusFilter}
+              sourceFilter={sourceFilter} onSourceFilter={setSourceFilter}
               remoteOnly={remoteOnly} onRemoteOnly={onRemoteOnly}
               minScore={minScore} onMinScore={onMinScore}
-              totalCount={jobs.length}
+              totalCount={filteredJobs.length}
             />
 
             {error && (
@@ -85,9 +91,9 @@ export default function JobsPanel({
               <div className="flex items-center justify-center py-12">
                 <Loader2 size={24} className="text-indigo-400 animate-spin" />
               </div>
-            ) : jobs.length === 0 ? (
+            ) : filteredJobs.length === 0 ? (
               <div className="text-center py-12">
-                <p className="text-sm text-slate-500">No jobs found.</p>
+                <p className="text-sm text-slate-500">No jobs found matching criteria.</p>
                 <button
                   onClick={onTriggerDiscovery}
                   className="mt-3 text-xs text-indigo-600 hover:underline"
@@ -97,7 +103,7 @@ export default function JobsPanel({
               </div>
             ) : (
               <div className="space-y-3">
-                {jobs.map((job) => (
+                {filteredJobs.map((job) => (
                   <JobCard key={job.id} job={job} onStatusChange={onStatusChange} />
                 ))}
               </div>

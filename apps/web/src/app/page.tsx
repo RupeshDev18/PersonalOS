@@ -43,14 +43,34 @@ import {
   Check,
   X,
   Search,
+  Building2,
+  ShieldCheck,
 } from 'lucide-react';
 
 function FinancePanel() {
-  const { analysis, transactions, loading, actionLoading, error, refresh, importCsv, createTransaction } = useFinance();
+  const {
+    analysis,
+    transactions,
+    bankAccounts,
+    loading,
+    actionLoading,
+    error,
+    refresh,
+    syncBanks,
+    linkAa,
+    importCsv,
+    createTransaction,
+  } = useFinance();
 
   // Modals state
   const [showImportModal, setShowImportModal] = useState(false);
   const [showManualModal, setShowManualModal] = useState(false);
+  const [showLinkAaModal, setShowLinkAaModal] = useState(false);
+
+  // AA form state
+  const [vpaInput, setVpaInput] = useState('9934947870@onemoney');
+  const [syncingBanks, setSyncingBanks] = useState(false);
+  const [aaStatusMsg, setAaStatusMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   // Import form state
   const [csvContent, setCsvContent] = useState('');
@@ -106,6 +126,36 @@ function FinancePanel() {
     }
   };
 
+  const handleSyncBanks = async () => {
+    setSyncingBanks(true);
+    setAaStatusMsg(null);
+    try {
+      const res = await syncBanks();
+      setAaStatusMsg({ ok: true, text: res.message });
+      setTimeout(() => setAaStatusMsg(null), 5000);
+    } catch (e: unknown) {
+      setAaStatusMsg({ ok: false, text: e instanceof Error ? e.message : 'Sync failed.' });
+    } finally {
+      setSyncingBanks(false);
+    }
+  };
+
+  const handleLinkAa = async () => {
+    if (!vpaInput.trim()) return;
+    setSyncingBanks(true);
+    setAaStatusMsg(null);
+    try {
+      const res = await linkAa(vpaInput.trim());
+      setAaStatusMsg({ ok: true, text: `Consent active for ${res.fipsCovered.join(', ')}.` });
+      setShowLinkAaModal(false);
+      setTimeout(() => setAaStatusMsg(null), 5000);
+    } catch (e: unknown) {
+      setAaStatusMsg({ ok: false, text: e instanceof Error ? e.message : 'Linking failed.' });
+    } finally {
+      setSyncingBanks(false);
+    }
+  };
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -152,6 +202,25 @@ function FinancePanel() {
 
         <div className="flex items-center gap-2">
           <button
+            onClick={handleSyncBanks}
+            disabled={syncingBanks}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200/80 rounded-lg hover:bg-emerald-100 shadow-sm transition-all"
+            title="Reconcile bank accounts via RBI Account Aggregator"
+          >
+            {syncingBanks ? <Loader2 size={13} className="animate-spin" /> : <Building2 size={13} />}
+            <span>Sync Banks (AA)</span>
+          </button>
+
+          <button
+            onClick={() => setShowLinkAaModal(true)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 shadow-sm transition-all"
+            title="Link Indian Bank accounts via Account Aggregator"
+          >
+            <ShieldCheck size={13} className="text-emerald-600" />
+            <span>Link Bank</span>
+          </button>
+
+          <button
             onClick={() => setShowImportModal(true)}
             className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 shadow-sm transition-all"
             title="Import bank statement CSV"
@@ -184,6 +253,46 @@ function FinancePanel() {
           <p className="text-xs text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-lg">
             {error}
           </p>
+        )}
+
+        {aaStatusMsg && (
+          <p className={`text-xs px-3.5 py-2.5 rounded-xl border ${aaStatusMsg.ok ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}`}>
+            {aaStatusMsg.text}
+          </p>
+        )}
+
+        {/* Live Bank Accounts Section */}
+        {bankAccounts.length > 0 && (
+          <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-4 text-white shadow-md">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-md bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                  <Building2 size={14} />
+                </div>
+                <span className="text-xs font-bold tracking-wide uppercase text-slate-200">
+                  RBI Account Aggregator (Live Bank Feeds)
+                </span>
+              </div>
+              <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                Active Auto-Reconciliation
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {bankAccounts.map((acc) => (
+                <div key={acc.maskedAccountNumber} className="bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/10 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-semibold text-white">{acc.fipName}</p>
+                    <p className="text-[11px] text-slate-300 mt-0.5 font-mono">{acc.accountType} {acc.maskedAccountNumber}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-bold text-emerald-400">₹{acc.currentBalance.toLocaleString('en-IN')}</p>
+                    <p className="text-[9px] text-slate-400">Available Balance</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
 
         {analysis && (
@@ -514,6 +623,73 @@ function FinancePanel() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Link Account Aggregator Modal */}
+      {showLinkAaModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50/50">
+              <div className="flex items-center gap-2">
+                <Building2 size={16} className="text-emerald-600" />
+                <h3 className="text-sm font-bold text-slate-900">Link Bank (Account Aggregator)</h3>
+              </div>
+              <button
+                onClick={() => setShowLinkAaModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 text-xs text-emerald-800 space-y-1">
+                <p className="font-semibold flex items-center gap-1.5">
+                  <ShieldCheck size={14} className="text-emerald-600" />
+                  RBI Regulated • 100% Read-Only Consent
+                </p>
+                <p className="text-[11px] text-emerald-700 leading-relaxed">
+                  Money transfers are permanently disabled. PersonalOS only receives cryptographic transaction streams for your personal ledger.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Mobile Number or AA VPA Handle
+                </label>
+                <input
+                  type="text"
+                  value={vpaInput}
+                  onChange={(e) => setVpaInput(e.target.value)}
+                  placeholder="e.g. 9934947870@onemoney"
+                  className="w-full text-xs px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 font-mono"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Supported banks: HDFC, ICICI, SBI, Axis, Kotak via Setu/OneMoney.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowLinkAaModal(false)}
+                  className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLinkAa}
+                  disabled={syncingBanks || !vpaInput.trim()}
+                  className="flex items-center gap-1.5 text-xs font-medium px-4 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60 transition-colors shadow-sm"
+                >
+                  {syncingBanks ? <Loader2 size={12} className="animate-spin" /> : <ShieldCheck size={12} />}
+                  Authorize Consent Link
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

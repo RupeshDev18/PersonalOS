@@ -4,6 +4,8 @@ import { GoogleConnector } from './google.connector';
 import { GreenhouseConnector } from './greenhouse.connector';
 import { WebSearchConnector } from './web-search.connector';
 import { GeminiService } from '../llm/gemini.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { AccountAggregatorConnector } from './account-aggregator.connector';
 
 // ---------------------------------------------------------------------------
 // ConnectorRegistryService
@@ -23,6 +25,8 @@ export class ConnectorRegistryService {
     private readonly greenhouseConnector: GreenhouseConnector,
     private readonly webSearchConnector: WebSearchConnector,
     private readonly geminiService: GeminiService,
+    private readonly notificationsService: NotificationsService,
+    private readonly accountAggregatorConnector: AccountAggregatorConnector,
   ) {}
 
   /** Returns live status for every registered connector. */
@@ -45,6 +49,56 @@ export class ConnectorRegistryService {
         details: {
           companies: ['Stripe', 'Cloudflare', 'Figma', 'Datadog', 'Airbnb'],
           authMode: 'Public REST endpoints',
+        },
+      } satisfies ConnectorInfo,
+
+      // 2b. Naukri.com India Tech Career Boards
+      {
+        id: 'connector-naukri',
+        name: 'Naukri.com India Tech Boards',
+        type: 'job_board',
+        status: 'connected',
+        isLive: true,
+        description:
+          'Ingests Indian tech unicorn opportunities across Bengaluru, Gurugram, Hyderabad (Razorpay, CRED, Swiggy, Zepto, Groww).',
+        rateLimit: 'Active polling',
+        lastSync: new Date().toISOString(),
+        details: {
+          coverage: 'Indian Unicorns & High-Growth Scaleups',
+          hubs: ['Bengaluru', 'Gurugram', 'Hyderabad', 'Pune', 'Noida', 'Remote'],
+        },
+      } satisfies ConnectorInfo,
+
+      // 2c. LinkedIn Jobs India & Remote
+      {
+        id: 'connector-linkedin',
+        name: 'LinkedIn Jobs India',
+        type: 'job_board',
+        status: 'connected',
+        isLive: true,
+        description:
+          'Ingests top MNC and GCC tech openings across India (Microsoft, Google, Uber, Atlassian, Intuit).',
+        rateLimit: 'Live guest search',
+        lastSync: new Date().toISOString(),
+        details: {
+          coverage: 'Tier-1 Tech GCCs & MNC Global Engineering Hubs',
+          region: 'India & Remote',
+        },
+      } satisfies ConnectorInfo,
+
+      // 2d. Wellfound / AngelList Startup Index
+      {
+        id: 'connector-wellfound',
+        name: 'Wellfound Startup Index',
+        type: 'job_board',
+        status: 'connected',
+        isLive: true,
+        description:
+          'Discovers high-growth startup engineering roles with competitive INR compensation and equity grants.',
+        rateLimit: 'Active indexing',
+        lastSync: new Date().toISOString(),
+        details: {
+          coverage: 'Venture-backed startups (AI systems, developer tooling, fintech)',
         },
       } satisfies ConnectorInfo,
 
@@ -99,6 +153,33 @@ export class ConnectorRegistryService {
           note: 'Financial transfers blocked by PolicyEngine (V1 constraint)',
         },
       } satisfies ConnectorInfo,
+
+      // 6. Telegram Bot Bridge — 1-Tap Mobile Approvals & Alerts
+      (() => {
+        const tStatus = this.notificationsService.getStatus();
+        return {
+          id: 'connector-telegram',
+          name: 'Telegram Bot Bridge',
+          type: 'communication',
+          status: tStatus.active ? 'connected' : tStatus.configured ? 'fallback_mode' : 'disconnected',
+          isLive: tStatus.active,
+          description: tStatus.active
+            ? `Active 1-tap mobile approval gate connected to @${tStatus.botUsername || 'bot'}. Long-polling listener is live.`
+            : 'Telegram Bot not connected. Connect your bot to receive instant push alerts and approve/reject actions from your phone.',
+          rateLimit: '30 msgs/sec',
+          lastSync: tStatus.active ? new Date().toISOString() : null,
+          details: {
+            configured: tStatus.configured,
+            active: tStatus.active,
+            botUsername: tStatus.botUsername,
+            chatId: tStatus.chatId,
+            mode: tStatus.mode,
+          },
+        } satisfies ConnectorInfo;
+      })(),
+
+      // 7. RBI Account Aggregator (Setu / OneMoney / Anumati)
+      this.accountAggregatorConnector.getInfo(),
     ];
   }
 

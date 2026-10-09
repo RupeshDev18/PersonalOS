@@ -40,6 +40,42 @@ All background workers and connectors are running smoothly.`;
       // ignore
     }
 
+    // Deliver to Telegram bot if credentials are present
+    let botToken = process.env.TELEGRAM_BOT_TOKEN;
+    let chatId = process.env.TELEGRAM_CHAT_ID;
+
+    if (!botToken || !chatId) {
+      try {
+        const config = await this.prisma.connectorConfig.findUnique({
+          where: { id: 'connector-telegram' },
+        });
+        if (config?.details) {
+          const d = config.details as any;
+          if (d.botToken) botToken = d.botToken;
+          if (d.chatId) chatId = d.chatId;
+        }
+      } catch {
+        // fallback
+      }
+    }
+
+    if (botToken && chatId) {
+      try {
+        await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: `☀️ <b>PersonalOS Morning Briefing</b>\n\n${summaryReport}`,
+            parse_mode: 'HTML',
+          }),
+        });
+        console.log(`[DailySummaryWorker] Successfully delivered briefing to Telegram chat ${chatId}.`);
+      } catch (err) {
+        console.warn(`[DailySummaryWorker] Telegram delivery failed: ${(err as Error).message}`);
+      }
+    }
+
     console.log(`[DailySummaryWorker] Summary generated successfully.`);
     return summaryReport;
   }

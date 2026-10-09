@@ -144,12 +144,18 @@ export class AuthService {
     _password?: string,
   ): { user: UserProfile; token: string } {
     const cleanEmail = email?.trim().toLowerCase();
-    const found = Array.from(this.users.values()).find(
+    let found = Array.from(this.users.values()).find(
       (u) => u.email.toLowerCase() === cleanEmail,
     );
+
+    // Support developer aliases for primary operator profile
+    if (!found && cleanEmail && (cleanEmail === 'rupesh.dev@gmail.com' || cleanEmail === 'rupesh@gmail.com' || cleanEmail === 'rupesh.yadav@gmail.com')) {
+      found = this.users.get('user-rupesh');
+    }
+
     if (!found) {
       throw new UnauthorizedException(
-        'No account associated with this email address.',
+        'No account associated with this email address. Please switch to Sign Up to create your operator account.',
       );
     }
     return { user: found, token: this.createSession(found.id) };

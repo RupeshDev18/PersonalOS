@@ -1,9 +1,10 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, Res } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { JobLifecycleStatus, ResumeProfile, UserCareerProfile } from '@personal-os/shared';
 import { JobsService } from './jobs.service';
 import { CurrentUserId } from '../auth/user.decorator';
 import { IsEnum } from 'class-validator';
+import { Response } from 'express';
 
 export class UpdateJobStatusDto {
   @IsEnum(JobLifecycleStatus)
@@ -113,5 +114,42 @@ export class JobsController {
     @Body() body: UpdateJobStatusDto,
   ) {
     return this.jobsService.updateJobStatus(id, body.status);
+  }
+
+  @Get(':id/download-resume-pdf')
+  @ApiOperation({ summary: 'Compile and stream ATS-friendly resume PDF' })
+  async downloadResumePdf(
+    @CurrentUserId() _userId: string,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    const { buffer, fileName } = await this.jobsService.generateResumePdf(id);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Content-Length', buffer.length);
+    res.end(buffer);
+  }
+
+  @Post(':id/generate-cover-letter')
+  @ApiOperation({ summary: 'Synthesize tailored cover letter for this job' })
+  generateCoverLetter(
+    @CurrentUserId() _userId: string,
+    @Param('id') id: string,
+  ) {
+    return this.jobsService.generateCoverLetter(id);
+  }
+
+  @Get(':id/download-cover-letter-pdf')
+  @ApiOperation({ summary: 'Compile and stream tailored cover letter PDF' })
+  async downloadCoverLetterPdf(
+    @CurrentUserId() _userId: string,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    const { buffer, fileName } = await this.jobsService.generateCoverLetterPdf(id);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Content-Length', buffer.length);
+    res.end(buffer);
   }
 }

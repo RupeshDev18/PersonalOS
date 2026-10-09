@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException, OnModuleInit, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, OnModuleInit, Logger, Inject, forwardRef } from '@nestjs/common';
 import { ApprovalRequest, ApprovalStatus, AuditEventType, CapabilityPermission } from '@personal-os/shared';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
@@ -12,6 +13,8 @@ export class ApprovalsService implements OnModuleInit {
   constructor(
     private readonly auditService: AuditService,
     private readonly prisma: PrismaService,
+    @Inject(forwardRef(() => NotificationsService))
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async onModuleInit() {
@@ -123,6 +126,11 @@ export class ApprovalsService implements OnModuleInit {
       toolName: approval.actionType,
       inputPayload: approval.payload,
       rationale: `Human safety gate activated: ${approval.title}`,
+    });
+
+    // Mobile push notification via Telegram Bot bridge
+    this.notificationsService.sendApprovalPrompt(approval).catch((err) => {
+      this.logger.debug(`Telegram notification skipped/failed: ${(err as Error)?.message}`);
     });
 
     return approval;

@@ -13,7 +13,12 @@ import { AuditEventType } from '@personal-os/shared';
 import { v4 as uuidv4 } from 'uuid';
 
 import { GreenhouseConnector } from '../connectors/greenhouse.connector';
+import { NaukriConnector } from '../connectors/naukri.connector';
+import { LinkedInConnector } from '../connectors/linkedin.connector';
+import { WellfoundConnector } from '../connectors/wellfound.connector';
 import { PrismaService } from '../prisma/prisma.service';
+import { PdfCompilerService } from './pdf-compiler.service';
+import { GeminiService } from '../llm/gemini.service';
 
 @Injectable()
 export class JobsService implements OnModuleInit {
@@ -27,7 +32,15 @@ export class JobsService implements OnModuleInit {
     private readonly auditService: AuditService,
     @Inject(forwardRef(() => GreenhouseConnector))
     private readonly greenhouseConnector: GreenhouseConnector,
+    @Inject(forwardRef(() => NaukriConnector))
+    private readonly naukriConnector: NaukriConnector,
+    @Inject(forwardRef(() => LinkedInConnector))
+    private readonly linkedinConnector: LinkedInConnector,
+    @Inject(forwardRef(() => WellfoundConnector))
+    private readonly wellfoundConnector: WellfoundConnector,
     private readonly prisma: PrismaService,
+    private readonly pdfCompilerService: PdfCompilerService,
+    private readonly geminiService: GeminiService,
   ) {
     this.userProfile = {
       userId: 'user-rupesh',   // seeded profile — replace with per-user lookup for multi-user support
@@ -323,6 +336,107 @@ export class JobsService implements OnModuleInit {
     return await this.resumeCustomizerService.customize(job, bestResume);
   }
 
+  public async generateResumePdf(jobId: string): Promise<{ buffer: Buffer; fileName: string }> {
+    const job = this.jobs.get(jobId);
+    if (!job) {
+      throw new Error(`Job '${jobId}' not found`);
+    }
+    const tailored = await this.getTailoredResume(jobId);
+    const sanitizedCompany = job.company.replace(/[^a-zA-Z0-9]/g, '_');
+    const sanitizedRole = job.title.replace(/[^a-zA-Z0-9]/g, '_');
+    const fileName = `Rupesh_Yadav_${sanitizedCompany}_${sanitizedRole}_Resume.pdf`;
+
+    const buffer = await this.pdfCompilerService.compileResumePdf({
+      fullName: 'Rupesh Yadav',
+      email: 'ry993494787@gmail.com',
+      phone: '+91 99349 4787',
+      location: 'Bengaluru, India (Remote Available)',
+      github: 'https://github.com/RupeshDev18',
+      linkedin: 'https://linkedin.com/in/rupesh-dev',
+      targetRole: `${job.title}`,
+      companyTargeted: job.company,
+      summary: `Results-driven Senior Full Stack & AI Systems Engineer with 3.5+ years experience building fault-tolerant distributed web applications and high-throughput background systems. Highly proficient in TypeScript, React/Next.js, NestJS, and AWS. Tailored specifically for ${job.title} at ${job.company}.`,
+      skills: tailored.emphasizedSkills.length > 0 ? tailored.emphasizedSkills : this.userProfile.skills,
+      markdownContent: tailored.tailoredMarkdown,
+    });
+
+    return { buffer, fileName };
+  }
+
+  public async generateCoverLetter(jobId: string): Promise<{
+    company: string;
+    role: string;
+    coverLetter: string;
+    isLLMGenerated: boolean;
+  }> {
+    const job = this.jobs.get(jobId);
+    if (!job) {
+      throw new Error(`Job '${jobId}' not found`);
+    }
+
+    const candidateProfile = `Rupesh Yadav, Senior Full Stack Engineer (3.5+ years exp). Stack: Next.js, React, TypeScript, NestJS, Node.js, PostgreSQL, AWS, Docker, Redis. Built autonomous agent platforms, real-time financial tracking pipelines, and high-conversion web frontends.`;
+    const jobDescription = `${job.title} at ${job.company}. Requirements: ${job.skills.join(', ')}. Details: ${job.description || ''}`;
+
+    let coverLetter: string | null = null;
+    let isLLMGenerated = false;
+
+    if (this.geminiService.hasApiKey()) {
+      try {
+        coverLetter = await this.geminiService.generateCoverLetterWithLLM(
+          job.company,
+          job.title,
+          jobDescription,
+          candidateProfile,
+        );
+        if (coverLetter && coverLetter.length > 100) {
+          isLLMGenerated = true;
+        }
+      } catch {
+        // fallback
+      }
+    }
+
+    if (!coverLetter) {
+      coverLetter = `Dear Hiring Team at ${job.company},
+
+I am writing to express my strong interest in the ${job.title} position at ${job.company}. Having followed ${job.company}'s recent technical milestones and market impact, I am inspired by your team's standard of engineering excellence and product velocity.
+
+With over 3.5 years of hands-on production engineering experience, I specialize in architecting modern full stack systems using ${job.skills.slice(0, 4).join(', ')}. In my recent work, I designed autonomous multi-agent pipelines, resilient real-time financial tracking systems, and high-performance React/Next.js applications backed by NestJS and PostgreSQL on AWS. My focus has consistently been on creating software that is robust, maintainable, and delightful to use.
+
+What excites me most about joining ${job.company} is the opportunity to apply this foundation to your core product challenges. I take deep ownership over the features I ship, collaborate proactively across cross-functional teams, and prioritize measurable business outcomes.
+
+I would welcome the opportunity to discuss how my background and problem-solving methodology can add value to ${job.company}'s engineering roadmap. Thank you for your time and consideration.
+
+Sincerely,
+Rupesh Yadav`;
+    }
+
+    return {
+      company: job.company,
+      role: job.title,
+      coverLetter,
+      isLLMGenerated,
+    };
+  }
+
+  public async generateCoverLetterPdf(jobId: string): Promise<{ buffer: Buffer; fileName: string }> {
+    const result = await this.generateCoverLetter(jobId);
+    const sanitizedCompany = result.company.replace(/[^a-zA-Z0-9]/g, '_');
+    const fileName = `Rupesh_Yadav_${sanitizedCompany}_Cover_Letter.pdf`;
+
+    const buffer = await this.pdfCompilerService.compileCoverLetterPdf({
+      fullName: 'Rupesh Yadav',
+      email: 'ry993494787@gmail.com',
+      phone: '+91 99349 4787',
+      location: 'Bengaluru, India',
+      company: result.company,
+      role: result.role,
+      letterBody: result.coverLetter,
+    });
+
+    return { buffer, fileName };
+  }
+
   /**
    * Complete multi-stage pipeline: Connectors -> Dedup -> Scoring -> Resume Pair
    */
@@ -333,14 +447,20 @@ export class JobsService implements OnModuleInit {
   }> {
     const taskId = uuidv4();
 
-    // 1. Ingest raw listings from live Greenhouse boards + baseline feeds
-    let liveJobs: Job[] = [];
-    try {
-      liveJobs = await this.greenhouseConnector.search({ roles: this.userProfile.targetRoles });
-    } catch (e) {
-      // Fallback gracefully
-    }
-    const rawJobs: Job[] = [...liveJobs];
+    // 1. Ingest raw listings from live Greenhouse boards + Naukri + LinkedIn + Wellfound
+    const [ghJobs, naukriJobs, linkedinJobs, wellfoundJobs] = await Promise.all([
+      this.greenhouseConnector.search({ roles: this.userProfile.targetRoles }).catch(() => []),
+      this.naukriConnector.search({ roles: this.userProfile.targetRoles }).catch(() => []),
+      this.linkedinConnector.search({ roles: this.userProfile.targetRoles }).catch(() => []),
+      this.wellfoundConnector.search({ roles: this.userProfile.targetRoles }).catch(() => []),
+    ]);
+
+    const rawJobs: Job[] = [
+      ...ghJobs,
+      ...naukriJobs,
+      ...linkedinJobs,
+      ...wellfoundJobs,
+    ];
 
     // 2. Deduplicate
     const existingHashes = new Set(Array.from(this.jobs.values()).map((j) => j.dedupHash));

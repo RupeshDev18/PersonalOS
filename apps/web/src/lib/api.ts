@@ -156,10 +156,56 @@ export const jobs = {
     }),
 
   tailorResume: (id: string) =>
-    request<{ tailoredMarkdown: string; jobId: string; resumeFile: string }>(
-      `/api/jobs/${id}/tailor-resume`,
-      { method: 'POST' },
-    ),
+    request<{
+      baseResumeId: string;
+      baseResumeTitle: string;
+      tailoredMarkdown: string;
+      emphasizedSkills: string[];
+      outreachPitch?: string;
+      isLLMTailored?: boolean;
+    }>(`/api/jobs/${id}/tailor-resume`, { method: 'POST' }),
+
+  downloadResumePdf: async (jobId: string, fileName?: string) => {
+    const token = getToken();
+    const res = await fetch(`${BASE}/api/jobs/${jobId}/download-resume-pdf`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error('Failed to generate Resume PDF');
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName || `Tailored_Resume_${jobId}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  },
+
+  generateCoverLetter: (jobId: string) =>
+    request<{
+      company: string;
+      role: string;
+      coverLetter: string;
+      isLLMGenerated: boolean;
+    }>(`/api/jobs/${jobId}/generate-cover-letter`, { method: 'POST' }),
+
+  downloadCoverLetterPdf: async (jobId: string, fileName?: string) => {
+    const token = getToken();
+    const res = await fetch(`${BASE}/api/jobs/${jobId}/download-cover-letter-pdf`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error('Failed to generate Cover Letter PDF');
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName || `Cover_Letter_${jobId}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  },
 
   triggerDiscovery: () =>
     request<{ discovered: number; duplicatesRemoved: number; rankedCount: number }>(
@@ -230,6 +276,43 @@ export const finance = {
     }>('/api/finance/affordability', {
       method: 'POST',
       body: JSON.stringify({ price, currency }),
+    }),
+
+  bankAccounts: () =>
+    request<
+      Array<{
+        fipId: string;
+        fipName: string;
+        accountType: string;
+        maskedAccountNumber: string;
+        currentBalance: number;
+        currency: string;
+        lastUpdated: string;
+      }>
+    >('/api/finance/bank-accounts'),
+
+  linkAa: (vpaOrMobile: string, banks?: string[]) =>
+    request<{
+      consentHandle: string;
+      status: string;
+      url: string;
+      expiresAt: string;
+      fipsCovered: string[];
+    }>('/api/finance/link-aa', {
+      method: 'POST',
+      body: JSON.stringify({ vpaOrMobile, banks }),
+    }),
+
+  syncBanks: () =>
+    request<{
+      success: boolean;
+      accounts: any[];
+      syncedTransactionsCount: number;
+      newTransactionsCount: number;
+      syncedAt: string;
+      message: string;
+    }>('/api/finance/sync-banks', {
+      method: 'POST',
     }),
 };
 
@@ -313,3 +396,30 @@ export const connectors = {
       '/api/connectors/gemini/test',
     ),
 };
+
+// ---------------------------------------------------------------------------
+// Telegram & Mobile Notifications
+// ---------------------------------------------------------------------------
+
+export const notifications = {
+  status: () =>
+    request<{
+      configured: boolean;
+      active: boolean;
+      botUsername: string | null;
+      chatId: string | null;
+      mode: 'polling' | 'webhook' | 'idle';
+    }>('/api/notifications/status'),
+
+  config: (botToken: string, chatId?: string) =>
+    request<{ success: boolean; message: string; botUsername?: string }>(
+      '/api/notifications/config',
+      { method: 'POST', body: JSON.stringify({ botToken, chatId }) },
+    ),
+
+  test: () =>
+    request<{ success: boolean; message: string }>('/api/notifications/test', {
+      method: 'POST',
+    }),
+};
+

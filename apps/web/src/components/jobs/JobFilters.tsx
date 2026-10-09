@@ -17,6 +17,8 @@ interface JobFiltersProps {
   onSearch: (v: string) => void;
   statusFilter: JobLifecycleStatus | '';
   onStatusFilter: (v: JobLifecycleStatus | '') => void;
+  sourceFilter?: string;
+  onSourceFilter?: (v: string) => void;
   remoteOnly: boolean;
   onRemoteOnly: (v: boolean) => void;
   minScore: number | undefined;
@@ -27,6 +29,7 @@ interface JobFiltersProps {
 export default function JobFilters({
   search, onSearch,
   statusFilter, onStatusFilter,
+  sourceFilter = '', onSourceFilter,
   remoteOnly, onRemoteOnly,
   minScore, onMinScore,
   totalCount,
@@ -83,6 +86,24 @@ export default function JobFilters({
             />
           </div>
         </div>
+      </div>
+
+      {/* Source pills */}
+      <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+        <span className="text-[11px] font-medium text-slate-400 mr-1">Source:</span>
+        {['All', 'Greenhouse', 'Naukri', 'LinkedIn', 'Wellfound'].map((src) => (
+          <button
+            key={src}
+            onClick={() => onSourceFilter?.(src === 'All' ? '' : src)}
+            className={`text-[11px] px-2.5 py-1 rounded-lg font-medium transition-colors ${
+              (src === 'All' && !sourceFilter) || sourceFilter === src
+                ? 'bg-slate-800 text-white shadow-xs'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            {src}
+          </button>
+        ))}
       </div>
 
       <p className="text-xs text-slate-400">{totalCount} job{totalCount !== 1 ? 's' : ''} found</p>

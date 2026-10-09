@@ -3,8 +3,9 @@
 import React, { useState } from 'react';
 import {
   ExternalLink, MapPin, Building2, Bookmark, BookmarkCheck,
-  ChevronDown, ChevronUp, FileText, CheckCircle2, AlertCircle,
+  ChevronDown, ChevronUp, FileText, CheckCircle2, AlertCircle, Sparkles,
 } from 'lucide-react';
+import TailoredApplicationModal from './TailoredApplicationModal';
 import type { Job, JobLifecycleStatus } from '@/lib/types';
 
 const STATUS_COLORS: Record<JobLifecycleStatus, string> = {
@@ -39,6 +40,7 @@ interface JobCardProps {
 
 export default function JobCard({ job, onStatusChange }: JobCardProps) {
   const [expanded, setExpanded] = useState(false);
+  const [showApplicationModal, setShowApplicationModal] = useState(false);
   const isSaved = job.lifecycleStatus === 'SAVED';
 
   return (
@@ -159,14 +161,30 @@ export default function JobCard({ job, onStatusChange }: JobCardProps) {
           {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
           Details
         </button>
+        <button
+          onClick={() => setShowApplicationModal(true)}
+          className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm font-medium transition-all"
+          title="Download Tailored ATS Resume & Cover Letter"
+        >
+          <Sparkles size={12} />
+          Tailored Package
+        </button>
         <a
           href={job.url} target="_blank" rel="noopener noreferrer"
-          className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"
+          className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
         >
           <ExternalLink size={12} />
           Apply
         </a>
       </div>
+
+      {showApplicationModal && (
+        <TailoredApplicationModal
+          job={job}
+          isOpen={showApplicationModal}
+          onClose={() => setShowApplicationModal(false)}
+        />
+      )}
     </div>
   );
 }

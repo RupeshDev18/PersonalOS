@@ -348,4 +348,42 @@ ${baseResumeMarkdown}`;
       return null;
     }
   }
+
+  /**
+   * Generates a tailored, persuasive cover letter without hallucinated facts.
+   */
+  public async generateCoverLetterWithLLM(
+    company: string,
+    role: string,
+    jobDescription: string,
+    candidateProfile: string,
+  ): Promise<string | null> {
+    if (!this.genAI) return null;
+
+    const promptText = `You are an elite Career Strategist and Executive Headhunter.
+Write an ATS-optimized, high-converting, tailored cover letter for the following opportunity.
+
+STRICT CONSTRAINTS:
+1. Candidate: ${candidateProfile}
+2. Target Company: ${company}
+3. Target Role: ${role}
+4. Job Requirements & Context: ${jobDescription}
+5. Do NOT invent companies worked at or fake credentials. Anchor strictly on the candidate's real stack and impact.
+6. Tone: Confident, articulate, outcome-oriented, engineering-minded.
+7. Format cleanly with standard formal business layout:
+   - Header with Candidate Details & Date
+   - Hiring Team / Engineering Leadership Address
+   - Compelling Hook / Opener demonstrating knowledge of ${company}
+   - Core Value Proposition & 2-3 specific technical achievements matching their stack
+   - Collaborative alignment & cultural resonance
+   - Professional closing with proactive next steps call-to-action`;
+
+    try {
+      const text = await this.generateContentWithFallback(promptText);
+      return text?.trim() ?? null;
+    } catch (err) {
+      this.logger.error(`Cover letter generation failed: ${err}`);
+      return null;
+    }
+  }
 }

@@ -100,4 +100,25 @@ export class FinanceController {
   ) {
     return this.financeService.evaluateAffordability(userId, body.price, body.currency);
   }
+
+  @Post('link-aa')
+  @ApiOperation({ summary: 'Initiate Account Aggregator consent link for Indian bank accounts' })
+  linkAccountAggregator(
+    @CurrentUserId() userId: string,
+    @Body() body: { vpaOrMobile: string; banks?: string[] },
+  ) {
+    return this.financeService.linkAccountAggregator(userId, body.vpaOrMobile, body.banks);
+  }
+
+  @Get('bank-accounts')
+  @ApiOperation({ summary: 'Get live bank balances linked via Account Aggregator' })
+  getBankAccounts(@CurrentUserId() userId: string) {
+    return this.financeService.getBankAccounts(userId);
+  }
+
+  @Post('sync-banks')
+  @ApiOperation({ summary: 'Reconcile and sync bank transactions via Account Aggregator' })
+  syncBanks(@CurrentUserId() userId: string) {
+    return this.financeService.syncBankAccounts(userId);
+  }
 }
