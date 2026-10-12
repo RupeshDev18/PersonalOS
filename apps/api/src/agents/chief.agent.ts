@@ -14,6 +14,7 @@ import { ToolGateway } from '@personal-os/tools';
 import { AuditService } from '../audit/audit.service';
 import { GeminiService } from '../llm/gemini.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { ChiefGraphService } from './langgraph/chief-graph.service';
 import { fileLogger } from '../common/file-logger.service';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -40,6 +41,7 @@ export class ChiefAgent extends AbstractAgent {
     private readonly auditService: AuditService,
     private readonly geminiService?: GeminiService,
     private readonly prisma?: PrismaService,
+    private readonly graphService?: ChiefGraphService,
   ) {
     super(toolGateway);
   }
@@ -347,6 +349,47 @@ export class ChiefAgent extends AbstractAgent {
       rationale: 'Chief Agent initiated task planning and multi-agent coordination',
     });
 
+    // 1.5. Execute via LangGraph Autonomous State Machine (if active)
+    const history = (input.context?.conversationHistory as Array<{ role: string; content: string }>) || [];
+    if (this.graphService && (this.geminiService?.hasApiKey() || process.env.OPENAI_API_KEY || process.env.OLLAMA_BASE_URL)) {
+      try {
+        fileLogger.log(`Delegating to LangGraph autonomous graph: "${input.prompt}"`, 'ChiefAgent', { taskId, historyTurns: history.length });
+        const graphResult = await this.graphService.execute({
+          prompt: input.prompt,
+          userId: input.userId,
+          taskId,
+          conversationHistory: history,
+          gateway: this.toolGateway,
+        });
+
+        this.auditService.log({
+          taskId,
+          userId: input.userId,
+          agentId: this.id,
+          eventType: AuditEventType.TASK_COMPLETED,
+          rationale: 'LangGraph multi-agent execution completed',
+        });
+
+        return {
+          taskId,
+          intent: {
+            taskType: 'immediate',
+            primaryAgent: AgentType.CHIEF,
+            requiredAgents: [AgentType.CHIEF],
+            summary: input.prompt.slice(0, 80),
+            rawInput: input.prompt,
+          },
+          steps: [],
+          summary: graphResult.summary,
+          details: graphResult.toolOutputs,
+          orchestrationTrace: graphResult.traces,
+        };
+      } catch (err: any) {
+        fileLogger.warn(`LangGraph execution failed, falling back to deterministic pipeline: ${err.message}`, 'ChiefAgent');
+      }
+    }
+
+    // Fallback: Deterministic Pipeline
     // Trace 1: Intent & Reasoning
     const startTime = Date.now();
     const intent = await this.understand(input);

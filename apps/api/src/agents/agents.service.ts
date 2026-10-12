@@ -4,6 +4,7 @@ import { ToolsService } from '../tools/tools.service';
 import { AuditService } from '../audit/audit.service';
 import { GeminiService } from '../llm/gemini.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { ChiefGraphService } from './langgraph/chief-graph.service';
 import { JobAgent } from './specialists/job.agent';
 import { FinanceAgent, ResearchAgent, ShoppingAgent, CommunicationAgent } from './specialists/other.agents';
 import { ChiefAgent } from './chief.agent';
@@ -18,6 +19,7 @@ export class AgentsService implements OnModuleInit {
     private readonly auditService: AuditService,
     private readonly geminiService: GeminiService,
     private readonly prisma: PrismaService,
+    private readonly graphService: ChiefGraphService,
   ) {}
 
   onModuleInit() {
@@ -36,13 +38,14 @@ export class AgentsService implements OnModuleInit {
     this.registry.register(shoppingAgent);
     this.registry.register(communicationAgent);
 
-    // 2. Register Chief Agent with Gemini LLM reasoning & Prisma memory
+    // 2. Register Chief Agent with LangGraph engine, Gemini LLM reasoning & Prisma memory
     this.chiefAgent = new ChiefAgent(
       gateway,
       this.registry,
       this.auditService,
       this.geminiService,
       this.prisma,
+      this.graphService,
     );
     this.registry.register(this.chiefAgent);
   }
