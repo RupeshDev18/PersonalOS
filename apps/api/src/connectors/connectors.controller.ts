@@ -22,6 +22,7 @@ import { JobsService } from '../jobs/jobs.service';
 import { CurrentUserId } from '../auth/user.decorator';
 import { Public } from '../auth/auth.guard';
 import { Response } from 'express';
+import { createChatModel } from '../agents/langgraph/model-factory';
 
 // ---------------------------------------------------------------------------
 // DTOs
@@ -74,6 +75,23 @@ export class OAuthCallbackDto {
 export class UpdateGeminiKeyDto {
   @IsString()
   apiKey: string;
+}
+
+export class UpdateLLMConfigDto {
+  @IsString()
+  provider: 'gemini' | 'openai' | 'ollama' | 'openrouter';
+
+  @IsOptional()
+  @IsString()
+  apiKey?: string;
+
+  @IsOptional()
+  @IsString()
+  modelName?: string;
+
+  @IsOptional()
+  @IsString()
+  baseURL?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -250,6 +268,89 @@ export class ConnectorsController {
         url: j.url,
       })),
     };
+  }
+
+  // -------------------------------------------------------------------------
+  // Multi-Provider LLM Configuration (LangGraph)
+  // -------------------------------------------------------------------------
+
+  @Get('llm/config')
+  @ApiOperation({ summary: 'Get active LLM provider and model configuration' })
+  getLLMConfig(@CurrentUserId() _userId: string) {
+    const provider = process.env.LLM_PROVIDER || 'gemini';
+    const model =
+      provider === 'gemini'
+        ? process.env.GEMINI_MODEL_NAME || 'gemini-2.5-flash'
+        : provider === 'ollama'
+        ? process.env.OLLAMA_MODEL_NAME || 'hermes3'
+        : process.env.OPENAI_MODEL_NAME || 'gpt-4o-mini';
+
+    const apiKey =
+      provider === 'gemini'
+        ? process.env.GEMINI_API_KEY
+        : provider === 'openai'
+        ? process.env.OPENAI_API_KEY
+        : process.env.OPENROUTER_API_KEY;
+
+    return {
+      provider,
+      modelName: model,
+      baseURL: process.env.OLLAMA_BASE_URL || 'http://localhost:11434/v1',
+      configured: Boolean(apiKey || provider === 'ollama'),
+      apiKeyMasked: apiKey ? `${apiKey.slice(0, 4)}••••••${apiKey.slice(-4)}` : null,
+    };
+  }
+
+  @Post('llm/config')
+  @ApiOperation({ summary: 'Save active LLM provider and test connection' })
+  async updateLLMConfig(
+    @CurrentUserId() _userId: string,
+    @Body() body: UpdateLLMConfigDto,
+  ) {
+    process.env.LLM_PROVIDER = body.provider;
+    if (body.apiKey) {
+      if (body.provider === 'gemini') {
+        process.env.GEMINI_API_KEY = body.apiKey;
+        this.geminiService.setApiKey(body.apiKey);
+      } else if (body.provider === 'openai') {
+        process.env.OPENAI_API_KEY = body.apiKey;
+      } else if (body.provider === 'openrouter') {
+        process.env.OPENROUTER_API_KEY = body.apiKey;
+      }
+    }
+    if (body.modelName) {
+      if (body.provider === 'gemini') process.env.GEMINI_MODEL_NAME = body.modelName;
+      else if (body.provider === 'openai') process.env.OPENAI_MODEL_NAME = body.modelName;
+      else if (body.provider === 'ollama') process.env.OLLAMA_MODEL_NAME = body.modelName;
+    }
+    if (body.baseURL) {
+      process.env.OLLAMA_BASE_URL = body.baseURL;
+    }
+
+    try {
+      const model = createChatModel({
+        provider: body.provider,
+        apiKey: body.apiKey,
+        modelName: body.modelName,
+        baseURL: body.baseURL,
+      });
+
+      const res = await model.invoke('Reply with "CONNECTED" only.');
+      const reply = typeof res.content === 'string' ? res.content.trim() : 'CONNECTED';
+
+      return {
+        success: true,
+        message: `Connected successfully to ${body.provider} (${body.modelName || 'default'}). Response: ${reply}`,
+        provider: body.provider,
+        modelName: body.modelName,
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: `Connection test failed for ${body.provider}: ${err.message}`,
+        provider: body.provider,
+      };
+    }
   }
 
   // -------------------------------------------------------------------------

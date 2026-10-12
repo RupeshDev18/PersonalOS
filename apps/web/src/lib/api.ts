@@ -459,6 +459,31 @@ export const connectors = {
     request<{ success: boolean; message: string; model?: string }>(
       '/api/connectors/gemini/test',
     ),
+
+  getLLMConfig: () =>
+    request<{
+      provider: string;
+      modelName: string;
+      baseURL: string;
+      configured: boolean;
+      apiKeyMasked: string | null;
+    }>('/api/connectors/llm/config'),
+
+  updateLLMConfig: (config: {
+    provider: string;
+    apiKey?: string;
+    modelName?: string;
+    baseURL?: string;
+  }) =>
+    request<{
+      success: boolean;
+      message: string;
+      provider?: string;
+      modelName?: string;
+    }>('/api/connectors/llm/config', {
+      method: 'POST',
+      body: JSON.stringify(config),
+    }),
 };
 
 // ---------------------------------------------------------------------------

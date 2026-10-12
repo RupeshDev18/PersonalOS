@@ -153,5 +153,113 @@ export function createLangGraphTools(gateway: ToolGateway, userId: string, taskI
     },
   );
 
-  return [driveTool, gmailTool, jobSearchTool, webSearchTool, financeTool, shoppingTool];
+  const readDriveDocTool = tool(
+    async (input) => {
+      fileLogger.log(`LangGraph invoking tool: read_drive_document`, 'LangGraphTools', { input, userId, taskId });
+      try {
+        const res = await gateway.execute(
+          'drive.file.read_content',
+          { fileIdOrName: input.fileIdOrName },
+          { taskId, userId, agentType: AgentType.COMMUNICATION },
+        );
+        return typeof res === 'string' ? res : JSON.stringify(res, null, 2);
+      } catch (err: any) {
+        return `Failed to read document content: ${err.message}`;
+      }
+    },
+    {
+      name: 'read_drive_document',
+      description:
+        'Reads raw contents, text, or summaries of a Google Drive document, PDF, or Google Doc/Sheet. Use this when the user asks to inspect, read, or summarize what is inside a specific document.',
+      schema: z.object({
+        fileIdOrName: z.string().describe('File ID or exact filename of the document to inspect (e.g. "claim-form.pdf", "aadhar_card.pdf", "Interview_Strategy_Guide.md")'),
+      }),
+    },
+  );
+
+  const githubReposTool = tool(
+    async (input) => {
+      fileLogger.log(`LangGraph invoking tool: search_github_repos`, 'LangGraphTools', { input, userId, taskId });
+      try {
+        const res = await gateway.execute(
+          'github.read',
+          { query: input.query },
+          { taskId, userId, agentType: AgentType.RESEARCH },
+        );
+        return typeof res === 'string' ? res : JSON.stringify(res, null, 2);
+      } catch (err: any) {
+        return `Failed to fetch GitHub repositories: ${err.message}`;
+      }
+    },
+    {
+      name: 'search_github_repos',
+      description:
+        'Lists and searches the user connected GitHub repositories, languages, stars, and developer profile.',
+      schema: z.object({
+        query: z.string().optional().describe('Keyword, repository name, or programming language (e.g. "PersonalOS", "typescript", "react")'),
+      }),
+    },
+  );
+
+  const githubFileTool = tool(
+    async (input) => {
+      fileLogger.log(`LangGraph invoking tool: read_github_file`, 'LangGraphTools', { input, userId, taskId });
+      try {
+        const res = await gateway.execute(
+          'github.file.read',
+          { repoName: input.repoName, path: input.path || 'README.md' },
+          { taskId, userId, agentType: AgentType.RESEARCH },
+        );
+        return typeof res === 'string' ? res : JSON.stringify(res, null, 2);
+      } catch (err: any) {
+        return `Failed to read GitHub file: ${err.message}`;
+      }
+    },
+    {
+      name: 'read_github_file',
+      description:
+        'Reads raw file content (README.md, package.json, source code) directly from a GitHub repository.',
+      schema: z.object({
+        repoName: z.string().describe('Name of the repository (e.g. "PersonalOS")'),
+        path: z.string().optional().describe('Path to the file to read (default is "README.md")'),
+      }),
+    },
+  );
+
+  const slackAlertTool = tool(
+    async (input) => {
+      fileLogger.log(`LangGraph invoking tool: send_slack_alert`, 'LangGraphTools', { input, userId, taskId });
+      try {
+        const res = await gateway.execute(
+          'slack.send',
+          { message: input.message },
+          { taskId, userId, agentType: AgentType.COMMUNICATION },
+        );
+        return typeof res === 'string' ? res : JSON.stringify(res, null, 2);
+      } catch (err: any) {
+        return `Failed to dispatch Slack message: ${err.message}`;
+      }
+    },
+    {
+      name: 'send_slack_alert',
+      description:
+        'Dispatches an alert, brief, or notification to the user connected Slack channel.',
+      schema: z.object({
+        message: z.string().describe('The notification message or summary text to send to Slack'),
+      }),
+    },
+  );
+
+  return [
+    driveTool,
+    readDriveDocTool,
+    gmailTool,
+    jobSearchTool,
+    webSearchTool,
+    financeTool,
+    shoppingTool,
+    githubReposTool,
+    githubFileTool,
+    slackAlertTool,
+  ];
 }

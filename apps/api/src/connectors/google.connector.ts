@@ -761,4 +761,102 @@ export class GoogleConnector implements OnModuleInit {
     if (domain.includes('google')) return 'Google';
     return undefined;
   }
+
+  /**
+   * Reads raw file or exported document contents from Google Drive
+   */
+  public async readDriveFileContent(fileIdOrName: string): Promise<{
+    id: string;
+    name: string;
+    mimeType: string;
+    content: string;
+    url?: string;
+  }> {
+    if (!this.connected) {
+      throw new Error('Google Workspace is not connected. Connect your Google account in the Connectors tab.');
+    }
+
+    await this.refreshAccessTokenIfNeeded();
+    if (!this.accessToken) {
+      throw new Error('Missing Google access token.');
+    }
+
+    let fileId = fileIdOrName.trim();
+    let fileName = fileIdOrName;
+    let mimeType = '';
+    let webViewLink = '';
+
+    const isLikelyId = /^[a-zA-Z0-9_-]{25,}$/.test(fileId);
+    if (!isLikelyId) {
+      const matches = await this.searchDriveFiles(fileIdOrName);
+      if (matches.length === 0) {
+        throw new Error(`Could not locate any Drive file matching "${fileIdOrName}".`);
+      }
+      fileId = matches[0].id;
+      fileName = matches[0].name;
+      webViewLink = matches[0].url || '';
+    }
+
+    // Fetch file metadata
+    const metaRes = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,name,mimeType,webViewLink,size`,
+      { headers: { Authorization: `Bearer ${this.accessToken}` } },
+    );
+
+    if (!metaRes.ok) {
+      throw new Error(`Failed to fetch metadata for file ${fileId} (HTTP ${metaRes.status})`);
+    }
+
+    const meta = (await metaRes.json()) as any;
+    fileName = meta.name || fileName;
+    mimeType = meta.mimeType || '';
+    webViewLink = meta.webViewLink || webViewLink;
+
+    let content = '';
+
+    if (mimeType === 'application/vnd.google-apps.document') {
+      const exportRes = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=text/plain`,
+        { headers: { Authorization: `Bearer ${this.accessToken}` } },
+      );
+      if (exportRes.ok) content = await exportRes.text();
+    } else if (mimeType === 'application/vnd.google-apps.spreadsheet') {
+      const exportRes = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=text/csv`,
+        { headers: { Authorization: `Bearer ${this.accessToken}` } },
+      );
+      if (exportRes.ok) content = await exportRes.text();
+    } else {
+      const mediaRes = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+        { headers: { Authorization: `Bearer ${this.accessToken}` } },
+      );
+      if (mediaRes.ok) {
+        if (
+          mimeType.includes('text') ||
+          mimeType.includes('json') ||
+          mimeType.includes('markdown') ||
+          fileName.endsWith('.txt') ||
+          fileName.endsWith('.md')
+        ) {
+          content = await mediaRes.text();
+        } else if (mimeType.includes('pdf')) {
+          const buffer = await mediaRes.arrayBuffer();
+          const bytes = Buffer.from(buffer);
+          const extracted = bytes.toString('utf-8').replace(/[^\x20-\x7E\n\r\t]/g, ' ');
+          content = extracted.slice(0, 8000).trim() || `[PDF Document (${(bytes.length / 1024).toFixed(1)} KB)]`;
+        } else {
+          content = `[File: ${fileName} (${mimeType}), Size: ${meta.size || 'unknown'} bytes]`;
+        }
+      }
+    }
+
+    return {
+      id: fileId,
+      name: fileName,
+      mimeType,
+      content: content.slice(0, 15000),
+      url: webViewLink,
+    };
+  }
 }

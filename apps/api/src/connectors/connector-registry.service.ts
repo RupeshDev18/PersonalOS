@@ -122,21 +122,31 @@ export class ConnectorRegistryService {
         },
       } satisfies ConnectorInfo,
 
-      // 4. Google Gemini LLM — status driven by whether the key is configured
+      // 4. Multi-Provider AI Reasoning Engine (LangGraph) — Gemini, Ollama, OpenAI, OpenRouter
       {
         id: 'connector-gemini',
-        name: 'Google Gemini',
+        name: 'AI Reasoning Engine (LangGraph)',
         type: 'llm_engine',
-        status: this.geminiService.hasApiKey() ? 'connected' : 'fallback_mode',
-        isLive: this.geminiService.hasApiKey(),
-        description: this.geminiService.hasApiKey()
-          ? 'Gemini LLM active — powering intent parsing and response synthesis.'
-          : 'No API key configured. Running in deterministic fallback mode. Set GEMINI_API_KEY in .env to activate.',
-        rateLimit: '15 req/min (free tier)',
-        lastSync: this.geminiService.hasApiKey() ? new Date().toISOString() : null,
+        status:
+          process.env.GEMINI_API_KEY ||
+          process.env.OPENAI_API_KEY ||
+          process.env.OPENROUTER_API_KEY ||
+          process.env.LLM_PROVIDER === 'ollama'
+            ? 'connected'
+            : 'fallback_mode',
+        isLive: true,
+        description:
+          'Multi-provider LangGraph engine supporting Google Gemini (gemini-2.5-flash / gemini-3.6-flash), Local Ollama (Hermes 3), OpenAI, and OpenRouter for parallel tool calling and deep reasoning.',
+        rateLimit: 'Adaptive / Provider-dependent',
+        lastSync: new Date().toISOString(),
         details: {
-          configured: this.geminiService.hasApiKey(),
-          instructions: 'Get a free key at https://aistudio.google.com',
+          provider: process.env.LLM_PROVIDER || 'gemini',
+          model:
+            process.env.GEMINI_MODEL_NAME ||
+            process.env.OPENAI_MODEL_NAME ||
+            process.env.OLLAMA_MODEL_NAME ||
+            'gemini-2.5-flash',
+          instructions: 'Configure keys or local Ollama endpoint directly from the switcher below.',
         },
       } satisfies ConnectorInfo,
 

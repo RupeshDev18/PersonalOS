@@ -207,6 +207,102 @@ export class GitHubConnector implements OnModuleInit {
     return this.repos;
   }
 
+  public async searchRepos(query?: string): Promise<GitHubRepo[]> {
+    if (!this.connected) return [];
+    if (!query || !query.trim()) return this.repos;
+
+    const q = query.toLowerCase().trim();
+    return this.repos.filter((r) =>
+      r.name.toLowerCase().includes(q) ||
+      (r.description && r.description.toLowerCase().includes(q)) ||
+      (r.language && r.language.toLowerCase().includes(q)) ||
+      r.topics.some((t) => t.toLowerCase().includes(q)),
+    );
+  }
+
+  /**
+   * Reads raw file content (e.g. README.md, package.json) from a specific repository
+   */
+  public async readFile(repoName: string, path: string = 'README.md'): Promise<{
+    repo: string;
+    path: string;
+    content: string;
+    size: number;
+    url: string;
+  }> {
+    if (!this.connected || !this.token) {
+      throw new Error('GitHub is not connected. Please connect your GitHub account in the Connectors tab.');
+    }
+
+    const cleanRepo = repoName.includes('/') ? repoName : `${this.username}/${repoName}`;
+    const cleanPath = path.replace(/^\//, '');
+    const url = `https://api.github.com/repos/${cleanRepo}/contents/${cleanPath}`;
+
+    const res = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${this.token}`,
+        Accept: 'application/vnd.github.v3+json',
+        'User-Agent': 'PersonalOS-Agent',
+      },
+    });
+
+    if (!res.ok) {
+      throw new Error(`Failed to read file ${cleanPath} from ${cleanRepo} (HTTP ${res.status})`);
+    }
+
+    const data: any = await res.json();
+    if (data.type !== 'file') {
+      throw new Error(`Path ${cleanPath} in ${cleanRepo} is a ${data.type}, not a file.`);
+    }
+
+    const rawContent = data.content ? Buffer.from(data.content, 'base64').toString('utf-8') : '';
+
+    return {
+      repo: cleanRepo,
+      path: cleanPath,
+      content: rawContent.slice(0, 15000), // Cap at 15k characters for LLM context
+      size: data.size,
+      url: data.html_url,
+    };
+  }
+
+  /**
+   * Fetches recent commits from a repository
+   */
+  public async getRecentCommits(repoName: string, limit: number = 5): Promise<Array<{
+    sha: string;
+    message: string;
+    author: string;
+    date: string;
+  }>> {
+    if (!this.connected || !this.token) return [];
+
+    const cleanRepo = repoName.includes('/') ? repoName : `${this.username}/${repoName}`;
+    const url = `https://api.github.com/repos/${cleanRepo}/commits?per_page=${limit}`;
+
+    try {
+      const res = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${this.token}`,
+          Accept: 'application/vnd.github.v3+json',
+          'User-Agent': 'PersonalOS-Agent',
+        },
+      });
+
+      if (!res.ok) return [];
+
+      const data: any[] = await res.json();
+      return data.map((c) => ({
+        sha: c.sha.slice(0, 7),
+        message: c.commit?.message?.split('\n')[0] || 'Commit',
+        author: c.commit?.author?.name || c.author?.login || 'Author',
+        date: c.commit?.author?.date || '',
+      }));
+    } catch {
+      return [];
+    }
+  }
+
   public getTopLanguages(): string[] {
     const counts: Record<string, number> = {};
     for (const r of this.repos) {

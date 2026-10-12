@@ -24,6 +24,10 @@ export const DEFAULT_AGENT_CAPABILITIES: Record<AgentType, CapabilityPermission[
     CapabilityPermission.EMAIL_DRAFT,
     CapabilityPermission.DRIVE_READ,
     CapabilityPermission.DRIVE_SEARCH,
+    CapabilityPermission.GITHUB_READ,
+    CapabilityPermission.GITHUB_FILE_READ,
+    CapabilityPermission.SLACK_READ,
+    CapabilityPermission.SLACK_SEND,
     CapabilityPermission.SOCIAL_READ,
     CapabilityPermission.SOCIAL_DRAFT,
   ],
@@ -96,6 +100,12 @@ export const CAPABILITY_POLICIES: Record<CapabilityPermission, ActionPolicy> = {
 
   [CapabilityPermission.DRIVE_READ]: ActionPolicy.AUTOMATIC,
   [CapabilityPermission.DRIVE_SEARCH]: ActionPolicy.AUTOMATIC,
+
+  [CapabilityPermission.GITHUB_READ]: ActionPolicy.AUTOMATIC,
+  [CapabilityPermission.GITHUB_FILE_READ]: ActionPolicy.AUTOMATIC,
+
+  [CapabilityPermission.SLACK_READ]: ActionPolicy.AUTOMATIC,
+  [CapabilityPermission.SLACK_SEND]: ActionPolicy.AUTOMATIC,
 
   [CapabilityPermission.SOCIAL_READ]: ActionPolicy.AUTOMATIC,
   [CapabilityPermission.SOCIAL_DRAFT]: ActionPolicy.AUTOMATIC,

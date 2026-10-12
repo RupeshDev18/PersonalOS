@@ -31,6 +31,14 @@ export enum CapabilityPermission {
   DRIVE_READ = 'drive.read',
   DRIVE_SEARCH = 'drive.search',
 
+  // Developer / GitHub capabilities
+  GITHUB_READ = 'github.read',
+  GITHUB_FILE_READ = 'github.file.read',
+
+  // Messaging & Slack capabilities
+  SLACK_READ = 'slack.read',
+  SLACK_SEND = 'slack.send',
+
   // Social capabilities
   SOCIAL_READ = 'social.read',
   SOCIAL_DRAFT = 'social.draft',

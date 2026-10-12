@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Plug,
   RefreshCw,
@@ -17,6 +17,9 @@ import {
   CheckCircle,
   ExternalLink,
   Code2,
+  Cpu,
+  Sparkles,
+  Server,
 } from 'lucide-react';
 import ConnectorCard from './ConnectorCard';
 import { notifications, connectors as apiConnectors } from '@/lib/api';
@@ -69,7 +72,28 @@ export default function ConnectorsPanel({
   const [testingSlack, setTestingSlack] = useState(false);
   const [slackMsg, setSlackMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
-  // Gemini state
+  // Multi-Provider LLM state (LangGraph Engine)
+  const [llmProvider, setLlmProvider] = useState<'gemini' | 'ollama' | 'openai' | 'openrouter'>('gemini');
+  const [llmModel, setLlmModel] = useState('gemini-2.5-flash');
+  const [llmApiKey, setLlmApiKey] = useState('');
+  const [llmBaseUrl, setLlmBaseUrl] = useState('http://localhost:11434/v1');
+  const [savingLlm, setSavingLlm] = useState(false);
+  const [llmMsg, setLlmMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  useEffect(() => {
+    apiConnectors
+      .getLLMConfig()
+      .then((cfg) => {
+        if (cfg) {
+          if (cfg.provider) setLlmProvider(cfg.provider as any);
+          if (cfg.modelName) setLlmModel(cfg.modelName);
+          if (cfg.baseURL) setLlmBaseUrl(cfg.baseURL);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Gemini state (legacy helper)
   const [geminiKey, setGeminiKey] = useState('');
   const [testingGemini, setTestingGemini] = useState(false);
   const [geminiMsg, setGeminiMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -233,6 +257,31 @@ export default function ConnectorsPanel({
       setSlackMsg({ ok: false, text: e instanceof Error ? e.message : 'Failed to dispatch Slack test alert.' });
     } finally {
       setTestingSlack(false);
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // Multi-Provider LLM handlers (LangGraph)
+  // ---------------------------------------------------------------------------
+  const handleSaveLLMConfig = async () => {
+    setSavingLlm(true);
+    setLlmMsg(null);
+    try {
+      const res = await apiConnectors.updateLLMConfig({
+        provider: llmProvider,
+        apiKey: llmApiKey.trim() || undefined,
+        modelName: llmModel.trim() || undefined,
+        baseURL: llmBaseUrl.trim() || undefined,
+      });
+      setLlmMsg({ ok: res.success, text: res.message });
+      if (res.success) {
+        setLlmApiKey('');
+        onRefresh();
+      }
+    } catch (e: unknown) {
+      setLlmMsg({ ok: false, text: e instanceof Error ? e.message : 'Failed to update LLM configuration.' });
+    } finally {
+      setSavingLlm(false);
     }
   };
 
@@ -489,34 +538,226 @@ export default function ConnectorsPanel({
       );
     }
 
-    // 4. Gemini LLM
+    // 4. Multi-Provider LLM & Reasoning Engine (LangGraph)
     if (connector.id === 'connector-gemini') {
       return (
-        <div className="flex items-center gap-2 flex-1 pt-1">
-          <input
-            type="password"
-            placeholder="Gemini API key (AIzaSy…)"
-            value={geminiKey}
-            onChange={(e) => setGeminiKey(e.target.value)}
-            className="flex-1 text-xs px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-400 min-w-0"
-          />
-          <button
-            onClick={handleSetGeminiKey}
-            disabled={testingGemini || !geminiKey.trim()}
-            className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 disabled:opacity-60 transition-colors flex-shrink-0 font-medium"
-          >
-            {testingGemini ? <Loader2 size={11} className="animate-spin" /> : <Key size={11} />}
-            Save
-          </button>
-          {connector.status === 'connected' && (
-            <button
-              onClick={handleTestGemini}
-              disabled={testingGemini}
-              className="text-xs px-2.5 py-1.5 rounded-lg bg-slate-50 text-slate-500 hover:bg-slate-100 transition-colors flex-shrink-0 font-medium"
-            >
-              Test
-            </button>
-          )}
+        <div className="flex flex-col gap-3 w-full pt-1">
+          {/* Provider Tabs */}
+          <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-lg">
+            {(
+              [
+                { id: 'gemini', label: 'Gemini', icon: Sparkles },
+                { id: 'ollama', label: 'Ollama (Hermes)', icon: Server },
+                { id: 'openai', label: 'OpenAI', icon: Cpu },
+                { id: 'openrouter', label: 'OpenRouter', icon: Bot },
+              ] as const
+            ).map((p) => {
+              const Icon = p.icon;
+              const isActive = llmProvider === p.id;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => {
+                    setLlmProvider(p.id);
+                    if (p.id === 'gemini' && !['gemini-2.5-flash', 'gemini-3.6-flash', 'gemini-1.5-flash'].includes(llmModel)) {
+                      setLlmModel('gemini-2.5-flash');
+                    } else if (p.id === 'ollama') {
+                      setLlmModel('hermes3');
+                      setLlmBaseUrl('http://localhost:11434/v1');
+                    } else if (p.id === 'openai') {
+                      setLlmModel('gpt-4o-mini');
+                    } else if (p.id === 'openrouter') {
+                      setLlmModel('meta-llama/llama-3.3-70b-instruct');
+                    }
+                  }}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md text-xs font-medium transition-all ${
+                    isActive
+                      ? 'bg-white text-indigo-700 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <Icon size={12} />
+                  <span>{p.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Quick Model Selector Pills */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+            <span className="text-[11px] text-slate-400 font-medium">Model:</span>
+            {llmProvider === 'gemini' && (
+              <>
+                {['gemini-2.5-flash', 'gemini-3.6-flash', 'gemini-1.5-flash'].map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setLlmModel(m)}
+                    className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors ${
+                      llmModel === m
+                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700 font-medium'
+                        : 'border-slate-200 text-slate-600 hover:border-slate-300'
+                    }`}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </>
+            )}
+            {llmProvider === 'ollama' && (
+              <>
+                {['hermes3', 'llama3.2', 'mistral', 'qwen2.5-coder'].map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setLlmModel(m)}
+                    className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors ${
+                      llmModel === m
+                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700 font-medium'
+                        : 'border-slate-200 text-slate-600 hover:border-slate-300'
+                    }`}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </>
+            )}
+            {llmProvider === 'openai' && (
+              <>
+                {['gpt-4o-mini', 'gpt-4o', 'o3-mini'].map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setLlmModel(m)}
+                    className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors ${
+                      llmModel === m
+                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700 font-medium'
+                        : 'border-slate-200 text-slate-600 hover:border-slate-300'
+                    }`}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </>
+            )}
+            {llmProvider === 'openrouter' && (
+              <>
+                {[
+                  'meta-llama/llama-3.3-70b-instruct',
+                  'deepseek/deepseek-chat',
+                  'anthropic/claude-3.5-sonnet',
+                ].map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setLlmModel(m)}
+                    className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors ${
+                      llmModel === m
+                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700 font-medium'
+                        : 'border-slate-200 text-slate-600 hover:border-slate-300'
+                    }`}
+                  >
+                    {m.split('/')[1] || m}
+                  </button>
+                ))}
+              </>
+            )}
+          </div>
+
+          {/* Configuration Inputs */}
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="text"
+                placeholder="Model Name"
+                value={llmModel}
+                onChange={(e) => setLlmModel(e.target.value)}
+                className="w-48 text-xs px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-400 font-mono"
+              />
+
+              {llmProvider === 'ollama' ? (
+                <input
+                  type="text"
+                  placeholder="Ollama Base URL (http://localhost:11434/v1)"
+                  value={llmBaseUrl}
+                  onChange={(e) => setLlmBaseUrl(e.target.value)}
+                  className="flex-1 text-xs px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-400 min-w-[200px]"
+                />
+              ) : (
+                <input
+                  type="password"
+                  placeholder={
+                    llmProvider === 'gemini'
+                      ? 'Gemini API Key (AIzaSy...)'
+                      : llmProvider === 'openai'
+                      ? 'OpenAI API Key (sk-...)'
+                      : 'OpenRouter API Key (sk-or-...)'
+                  }
+                  value={llmApiKey}
+                  onChange={(e) => setLlmApiKey(e.target.value)}
+                  className="flex-1 text-xs px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-400 min-w-[200px]"
+                />
+              )}
+
+              <button
+                type="button"
+                onClick={handleSaveLLMConfig}
+                disabled={savingLlm}
+                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-60 transition-colors flex-shrink-0 font-medium shadow-sm"
+              >
+                {savingLlm ? <Loader2 size={11} className="animate-spin" /> : <Key size={11} />}
+                Apply & Test Engine
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between text-[11px] text-slate-400">
+              {llmProvider === 'ollama' ? (
+                <span>
+                  Runs 100% locally on your machine via Ollama. No API key required.
+                </span>
+              ) : llmProvider === 'gemini' ? (
+                <span>
+                  Get a free Gemini API key at{' '}
+                  <a
+                    href="https://aistudio.google.com/apikey"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-indigo-600 underline"
+                  >
+                    aistudio.google.com
+                  </a>
+                </span>
+              ) : llmProvider === 'openai' ? (
+                <span>
+                  Configure at{' '}
+                  <a
+                    href="https://platform.openai.com/api-keys"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-indigo-600 underline"
+                  >
+                    platform.openai.com
+                  </a>
+                </span>
+              ) : (
+                <span>
+                  Access open-weight models at{' '}
+                  <a
+                    href="https://openrouter.ai/keys"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-indigo-600 underline"
+                  >
+                    openrouter.ai
+                  </a>
+                </span>
+              )}
+              <span className="font-mono text-slate-500">
+                Active: {llmProvider}/{llmModel}
+              </span>
+            </div>
+          </div>
         </div>
       );
     }
@@ -568,7 +809,7 @@ export default function ConnectorsPanel({
     return null;
   };
 
-  const statusMsg = googleMsg ?? githubMsg ?? slackMsg ?? geminiMsg ?? telegramMsg;
+  const statusMsg = llmMsg ?? googleMsg ?? githubMsg ?? slackMsg ?? geminiMsg ?? telegramMsg;
 
   return (
     <div className="flex flex-col h-full">

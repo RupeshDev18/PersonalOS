@@ -6,6 +6,8 @@ import { AuditService } from '../audit/audit.service';
 import { GreenhouseConnector } from '../connectors/greenhouse.connector';
 import { WebSearchConnector } from '../connectors/web-search.connector';
 import { GoogleConnector } from '../connectors/google.connector';
+import { GitHubConnector } from '../connectors/github.connector';
+import { SlackConnector } from '../connectors/slack.connector';
 import { fileLogger } from '../common/file-logger.service';
 
 @Injectable()
@@ -18,6 +20,8 @@ export class ToolsService implements OnModuleInit {
     private readonly greenhouseConnector: GreenhouseConnector,
     private readonly webSearchConnector: WebSearchConnector,
     private readonly googleConnector: GoogleConnector,
+    private readonly githubConnector: GitHubConnector,
+    private readonly slackConnector: SlackConnector,
   ) {
     this.policyEngine = new PolicyEngine();
     this.toolGateway = new ToolGateway(this.policyEngine, (event) => {
@@ -206,6 +210,119 @@ export class ToolsService implements OnModuleInit {
             url: f.url,
           })),
         };
+      },
+    });
+
+    // 7. Google Drive Deep Document Reader
+    this.toolGateway.registerTool({
+      id: 'drive.file.read_content',
+      name: 'Google Drive Deep File Content Reader',
+      description: 'Reads raw text, PDF, and Google Doc/Sheet content directly from Google Drive',
+      requiredCapability: CapabilityPermission.DRIVE_READ,
+      execute: async (input: { fileIdOrName: string }) => {
+        const status = this.googleConnector.getStatus();
+        if (!status.connected) {
+          return {
+            connected: false,
+            message: 'Google Workspace is not connected. Connect your Google account in the Connectors tab.',
+          };
+        }
+        const fileData = await this.googleConnector.readDriveFileContent(input.fileIdOrName);
+        fileLogger.log(`Tool drive.file.read_content read file "${fileData.name}"`, 'ToolsService', {
+          fileId: fileData.id,
+          length: fileData.content.length,
+        });
+        return fileData;
+      },
+    });
+
+    // 8. GitHub Repos & Profile Tool
+    this.toolGateway.registerTool({
+      id: 'github.read',
+      name: 'GitHub Repositories & Profile Indexing',
+      description: 'Lists and searches user repositories, starred projects, languages, and profile info',
+      requiredCapability: CapabilityPermission.GITHUB_READ,
+      execute: async (input?: { query?: string }) => {
+        const status = this.githubConnector.getStatus();
+        if (!status.connected) {
+          return {
+            connected: false,
+            message: 'GitHub is not connected. Connect your GitHub Personal Access Token in the Connectors tab.',
+            repos: [],
+          };
+        }
+        const repos = await this.githubConnector.searchRepos(input?.query);
+        fileLogger.log(`Tool github.read found ${repos.length} repositories`, 'ToolsService', {
+          username: status.username,
+          query: input?.query,
+        });
+        return {
+          connected: true,
+          username: status.username,
+          profile: status.profile,
+          repoCount: repos.length,
+          topLanguages: status.topLanguages,
+          repos: repos.slice(0, 10).map((r) => ({
+            name: r.name,
+            fullName: r.fullName,
+            description: r.description,
+            language: r.language,
+            stars: r.stars,
+            url: r.htmlUrl,
+            updatedAt: r.updatedAt,
+          })),
+        };
+      },
+    });
+
+    // 9. GitHub Code & File Content Tool
+    this.toolGateway.registerTool({
+      id: 'github.file.read',
+      name: 'GitHub Raw File Content Reader',
+      description: 'Reads raw source code, README.md, package.json, or config files from a GitHub repository',
+      requiredCapability: CapabilityPermission.GITHUB_FILE_READ,
+      execute: async (input: { repoName: string; path?: string }) => {
+        const status = this.githubConnector.getStatus();
+        if (!status.connected) {
+          return {
+            connected: false,
+            message: 'GitHub is not connected. Connect your GitHub account in the Connectors tab.',
+          };
+        }
+        const fileResult = await this.githubConnector.readFile(input.repoName, input.path || 'README.md');
+        fileLogger.log(`Tool github.file.read read ${fileResult.path} from ${fileResult.repo}`, 'ToolsService');
+        return fileResult;
+      },
+    });
+
+    // 10. Slack Alert & Notification Tool
+    this.toolGateway.registerTool({
+      id: 'slack.send',
+      name: 'Slack Notification Dispatcher',
+      description: 'Sends notifications, alerts, or summaries to configured Slack channel',
+      requiredCapability: CapabilityPermission.SLACK_SEND,
+      execute: async (input: { message: string }) => {
+        const status = this.slackConnector.getStatus();
+        if (!status.connected) {
+          return {
+            connected: false,
+            message: 'Slack is not connected. Configure an incoming webhook URL in the Connectors tab.',
+          };
+        }
+        const result = await this.slackConnector.sendMessage(input.message);
+        fileLogger.log(`Tool slack.send dispatched alert to ${status.channelName}`, 'ToolsService');
+        return result;
+      },
+    });
+
+    // 11. Slack Connection Status Tool
+    this.toolGateway.registerTool({
+      id: 'slack.read',
+      name: 'Slack Connection Status',
+      description: 'Checks if Slack incoming webhook bridge is configured and active',
+      requiredCapability: CapabilityPermission.SLACK_READ,
+      execute: async () => {
+        return this.slackConnector.getStatus();
       },
     });
   }
