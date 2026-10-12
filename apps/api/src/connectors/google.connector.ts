@@ -626,6 +626,92 @@ export class GoogleConnector implements OnModuleInit {
       : this.messages;
   }
 
+  public async searchDriveFiles(query?: string, fileTypeFilter?: string): Promise<GoogleDriveFile[]> {
+    if (!this.connected) return [];
+
+    let liveResults: GoogleDriveFile[] = [];
+    if (this.accessToken) {
+      await this.refreshAccessTokenIfNeeded();
+      try {
+        let qFilter = 'trashed = false';
+        if (query && query.trim()) {
+          const stopWords = new Set([
+            'can', 'you', 'search', 'my', 'drive', 'in', 'for', 'and', 'list', 'them',
+            'the', 'is', 'there', 'one', 'folder', 'name', 'check', 'that', 'its',
+            'content', 'contents', 'to', 'show', 'all', 'please'
+          ]);
+          const tokens = query
+            .replace(/[?.,!'"]/g, ' ')
+            .split(/\s+/)
+            .filter((w) => w && !stopWords.has(w.toLowerCase()));
+
+          if (tokens.length > 0) {
+            const clauses = tokens.map((t) => `name contains '${t.replace(/'/g, "\\'")}'`);
+            qFilter = `trashed = false and (${clauses.join(' or ')})`;
+          }
+        }
+
+        const driveUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(qFilter)}&pageSize=50&fields=files(id,name,mimeType,modifiedTime,size,webViewLink,parents)`;
+        const res = await fetch(driveUrl, {
+          headers: { Authorization: `Bearer ${this.accessToken}` },
+        });
+
+        if (res.ok) {
+          const driveData = await res.json();
+          const items = driveData.files || [];
+
+          for (const item of items) {
+            const isFolder = item.mimeType === 'application/vnd.google-apps.folder';
+            liveResults.push({
+              id: item.id,
+              name: isFolder ? `📁 ${item.name} (Folder)` : item.name,
+              mimeType: item.mimeType,
+              sizeBytes: Number(item.size || 0),
+              lastModified: item.modifiedTime || new Date().toISOString(),
+              fileType: isFolder ? ('folder' as any) : this.classifyDriveFile(item.name, item.mimeType),
+              url: item.webViewLink,
+              contentMarkdown: `# ${item.name}\n\nGoogle Drive synchronized item (ID: ${item.id}).`,
+            });
+
+            if (isFolder) {
+              try {
+                const childRes = await fetch(
+                  `https://www.googleapis.com/drive/v3/files?q='${item.id}'+in+parents+and+trashed=false&pageSize=30&fields=files(id,name,mimeType,modifiedTime,size,webViewLink)`,
+                  { headers: { Authorization: `Bearer ${this.accessToken}` } }
+                );
+                if (childRes.ok) {
+                  const childData = await childRes.json();
+                  for (const c of childData.files || []) {
+                    liveResults.push({
+                      id: c.id,
+                      name: `↳ ${c.name} (Inside ${item.name})`,
+                      mimeType: c.mimeType,
+                      sizeBytes: Number(c.size || 0),
+                      lastModified: c.modifiedTime || new Date().toISOString(),
+                      fileType: this.classifyDriveFile(c.name, c.mimeType),
+                      url: c.webViewLink,
+                      contentMarkdown: `# ${c.name}\n\nLocated inside folder ${item.name}.`,
+                    });
+                  }
+                }
+              } catch (e) {
+                // skip children error
+              }
+            }
+          }
+        }
+      } catch (err) {
+        this.logger.warn(`searchDriveFiles error: ${(err as Error).message}`);
+      }
+    }
+
+    if (liveResults.length > 0) {
+      return liveResults;
+    }
+
+    return this.getDriveFiles(fileTypeFilter);
+  }
+
   public getDriveFiles(fileTypeFilter?: string): GoogleDriveFile[] {
     if (!this.connected) return [];
     return fileTypeFilter

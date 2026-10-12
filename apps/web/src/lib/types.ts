@@ -69,11 +69,13 @@ export interface ChatMessage {
   id: string;
   sender: 'user' | 'chief';
   text: string;
+  agentType?: string;
   orchestrationTrace?: OrchestrationStepTrace[];
   timestamp: string;
 }
 
 export interface ChatResponse {
+  conversationId?: string;
   summary: string;
   orchestrationTrace: OrchestrationStepTrace[];
   intent?: {

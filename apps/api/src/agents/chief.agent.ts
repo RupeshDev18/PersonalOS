@@ -53,7 +53,8 @@ export class ChiefAgent extends AbstractAgent {
     // 1. If Gemini LLM is active, attempt dynamic intent parsing
     if (this.geminiService?.hasApiKey()) {
       try {
-        const llmIntent = await this.geminiService.understandIntentWithLLM(input.prompt);
+        const history = (input.context?.conversationHistory as Array<{ role: string; content: string }>) || [];
+        const llmIntent = await this.geminiService.understandIntentWithLLM(input.prompt, history);
         if (llmIntent) {
           const mapAgent = (a: string): AgentType => {
             const lower = (a || '').toLowerCase();
@@ -66,10 +67,29 @@ export class ChiefAgent extends AbstractAgent {
             return AgentType.CHIEF;
           };
 
-          const primaryAgent = mapAgent(llmIntent.primaryAgent);
-          const requiredAgents = (llmIntent.requiredAgents || [])
+          let primaryAgent = mapAgent(llmIntent.primaryAgent);
+          let requiredAgents = (llmIntent.requiredAgents || [])
             .map(mapAgent)
             .filter((ag) => ag !== AgentType.CHIEF);
+
+          const hasDriveKeywords = text.includes('drive') || text.includes('document') || text.includes('doc') || text.includes('folder') || text.includes('file') || text.includes('pdf') || text.includes('loan') || text.includes('sheet');
+          const hasEmailKeywords = text.includes('email') || text.includes('gmail') || text.includes('inbox') || text.includes('recruiter') || text.includes('message') || text.includes('mail');
+
+          if (primaryAgent === AgentType.CHIEF || requiredAgents.length === 0) {
+            if (hasDriveKeywords || hasEmailKeywords) {
+              primaryAgent = AgentType.COMMUNICATION;
+              requiredAgents = [AgentType.COMMUNICATION];
+            } else if (text.includes('job') || text.includes('career') || text.includes('resume')) {
+              primaryAgent = AgentType.JOB;
+              requiredAgents = [AgentType.JOB];
+            } else if (text.includes('buy') || text.includes('shopping') || text.includes('price')) {
+              primaryAgent = AgentType.SHOPPING;
+              requiredAgents = [AgentType.SHOPPING, AgentType.RESEARCH, AgentType.FINANCE];
+            } else if (text.includes('spend') || text.includes('budget') || text.includes('balance') || text.includes('ledger')) {
+              primaryAgent = AgentType.FINANCE;
+              requiredAgents = [AgentType.FINANCE];
+            }
+          }
 
           const intentResult = {
             taskType: llmIntent.taskType || 'immediate',
@@ -132,7 +152,7 @@ export class ChiefAgent extends AbstractAgent {
     }
 
     // Determine target domain
-    const isDrive = text.includes('drive') || text.includes('document') || text.includes('doc') || text.includes('file') || text.includes('pdf') || text.includes('loan') || text.includes('sheet');
+    const isDrive = text.includes('drive') || text.includes('document') || text.includes('doc') || text.includes('folder') || text.includes('file') || text.includes('pdf') || text.includes('loan') || text.includes('sheet');
     const isEmail = text.includes('email') || text.includes('gmail') || text.includes('inbox') || text.includes('recruiter') || text.includes('message') || text.includes('mail');
 
     if (isDrive || isEmail) {
@@ -263,7 +283,20 @@ export class ChiefAgent extends AbstractAgent {
       });
     } else if (intent.primaryAgent === AgentType.COMMUNICATION) {
       const promptLower = input.prompt.toLowerCase();
-      const isDrive = promptLower.includes('drive') || promptLower.includes('document') || promptLower.includes('doc') || promptLower.includes('file') || promptLower.includes('loan') || promptLower.includes('pdf') || promptLower.includes('sheet');
+      const history = (input.context?.conversationHistory as Array<{ role: string; content: string }>) || [];
+
+      // Check if the prompt is referential to recent context (e.g. "are these documents...", "check that folder")
+      const isReferential = promptLower.includes('these') || promptLower.includes('those') || promptLower.includes('that') || promptLower.includes('them') || promptLower.includes('it');
+      let driveQuery = input.prompt;
+
+      if (isReferential && history.length > 0) {
+        const lastContext = history.slice(-4).map((h) => h.content).join(' ');
+        if (lastContext.includes('001LoanDocument') || lastContext.toLowerCase().includes('loan')) {
+          driveQuery = `001LoanDocument loan ${input.prompt}`;
+        }
+      }
+
+      const isDrive = promptLower.includes('drive') || promptLower.includes('document') || promptLower.includes('doc') || promptLower.includes('folder') || promptLower.includes('file') || promptLower.includes('loan') || promptLower.includes('pdf') || promptLower.includes('sheet') || isReferential;
       const isEmail = promptLower.includes('email') || promptLower.includes('gmail') || promptLower.includes('inbox') || promptLower.includes('message') || promptLower.includes('mail') || promptLower.includes('recruiter');
 
       if (isDrive) {
@@ -272,10 +305,10 @@ export class ChiefAgent extends AbstractAgent {
           name: 'Search Google Drive Documents',
           description: 'Search personal documents and files stored in connected Google Drive',
           action: 'drive.read',
-          payload: { query: input.prompt },
+          payload: { query: driveQuery },
         });
       }
-      if (isEmail || !isDrive) {
+      if (isEmail || (!isDrive && !isReferential)) {
         steps.push({
           agentType: AgentType.COMMUNICATION,
           name: 'Sync & Scan Gmail Messages',
@@ -369,6 +402,12 @@ export class ChiefAgent extends AbstractAgent {
 
     // 2. Plan subtasks
     const chiefPlan = await this.plan(input, intent);
+    fileLogger.log(`Orchestrating task: "${input.prompt}"`, 'ChiefAgent', {
+      taskId,
+      primaryAgent: intent.primaryAgent,
+      requiredAgents: intent.requiredAgents,
+      steps: chiefPlan.steps.map((s) => ({ name: s.name, action: s.action })),
+    });
 
     const executedSteps: TaskStep[] = [];
     const stepOutputs: Record<string, unknown> = {};
@@ -436,6 +475,12 @@ export class ChiefAgent extends AbstractAgent {
         stepOutputs[stepDef.action] = stepResult.data;
 
         const isConnector = stepDef.action.includes('search') || stepDef.action.includes('read');
+        fileLogger.log(`Step completed: "${stepDef.name}" (${stepDef.action})`, 'ChiefAgent', {
+          action: stepDef.action,
+          success: stepResult.success,
+          durationMs: Date.now() - stepStartTime,
+          result: stepResult.data,
+        });
         orchestrationTrace.push({
           id: uuidv4(),
           stepNumber: traceStepCounter++,
@@ -452,6 +497,8 @@ export class ChiefAgent extends AbstractAgent {
         const errorMsg = err instanceof Error ? err.message : String(err);
         stepRecord.status = TaskStatus.FAILED;
         stepRecord.error = errorMsg;
+
+        fileLogger.error(`Step failed: "${stepDef.name}" (${stepDef.action}) - ${errorMsg}`, errorMsg, 'ChiefAgent');
 
         orchestrationTrace.push({
           id: uuidv4(),
@@ -523,7 +570,8 @@ export class ChiefAgent extends AbstractAgent {
 
     if (!finalSummary && this.geminiService?.hasApiKey()) {
       try {
-        const llmSynth = await this.geminiService.synthesizeResponseWithLLM(input.prompt, stepOutputs);
+        const history = (input.context?.conversationHistory as Array<{ role: string; content: string }>) || [];
+        const llmSynth = await this.geminiService.synthesizeResponseWithLLM(input.prompt, stepOutputs, history);
         if (llmSynth) {
           finalSummary = llmSynth;
         }
@@ -611,6 +659,12 @@ export class ChiefAgent extends AbstractAgent {
       eventType: AuditEventType.TASK_COMPLETED,
       outputPayload: { summary: finalSummary },
       rationale: 'Chief Agent completed multi-agent orchestration',
+    });
+
+    fileLogger.log(`Orchestration completed for "${input.prompt}"`, 'ChiefAgent', {
+      taskId,
+      summary: finalSummary,
+      stepOutputsCount: Object.keys(stepOutputs).length,
     });
 
     return {

@@ -12,14 +12,14 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 // discoverBestModel() will refine this list at runtime by querying the API.
 // ---------------------------------------------------------------------------
 const MODEL_PREFERENCE_ORDER = [
-  'gemini-3.8-flash',
-  'gemini-3.7-flash',
   'gemini-3.6-flash',
   'gemini-3.5-flash',
-  'gemini-2.5-flash-lite',
-  'gemini-flash-latest',
-  'gemini-pro-latest',
   'gemini-2.5-flash',
+  'gemini-flash-latest',
+  'gemini-2.5-pro',
+  'gemini-3.8-flash',
+  'gemini-3.7-flash',
+  'gemini-pro-latest',
   'gemini-2.0-flash',
   'gemini-1.5-flash',
 ];
@@ -35,7 +35,7 @@ export class GeminiService {
   constructor() {
     this.initGemini();
     if (this.apiKey) {
-      this.discoverBestModel().catch(() => {});
+      this.discoverBestModel().catch(() => { });
     }
   }
 
@@ -52,7 +52,7 @@ export class GeminiService {
     } else {
       this.logger.warn(
         'No GEMINI_API_KEY found. Running in deterministic fallback mode. ' +
-          'Set GEMINI_API_KEY in .env to enable LLM features.',
+        'Set GEMINI_API_KEY in .env to enable LLM features.',
       );
     }
   }
@@ -68,7 +68,7 @@ export class GeminiService {
     this.apiKey = trimmed;
     this.genAI = new GoogleGenerativeAI(trimmed);
     process.env.GEMINI_API_KEY = trimmed;
-    this.discoverBestModel().catch(() => {});
+    this.discoverBestModel().catch(() => { });
     this.logger.log('Gemini API key updated at runtime.');
     return true;
   }
@@ -249,9 +249,12 @@ export class GeminiService {
   // ---------------------------------------------------------------------------
 
   /**
-   * Classify user intent and return a structured routing decision.
+   * Classify user intent and return a structured routing decision with conversational history context.
    */
-  public async understandIntentWithLLM(prompt: string): Promise<{
+  public async understandIntentWithLLM(
+    prompt: string,
+    conversationHistory?: Array<{ role: string; content: string }>,
+  ): Promise<{
     taskType: 'immediate' | 'scheduled' | 'recurring';
     primaryAgent: string;
     requiredAgents: string[];
@@ -260,16 +263,28 @@ export class GeminiService {
   } | null> {
     if (!this.genAI) return null;
 
+    const historySection =
+      conversationHistory && conversationHistory.length > 0
+        ? `RECENT CONVERSATION HISTORY (in chronological order):
+${conversationHistory.map((m) => `${m.role.toUpperCase()}: ${m.content}`).join('\n')}
+
+CONTEXTUAL UNDERSTANDING RULE:
+- If the user's latest prompt contains pronouns, references, or follow-ups (e.g. "are these documents structured?", "open the first one", "what about that folder", "check that email", "summarize it"), resolve the context from the conversation history above!
+- For example, if previous turns discussed loan documents or files in Google Drive, classify a follow-up like "are these documents structured properly?" under "communication" with action "drive.read" targeting that same topic/folder.
+`
+        : '';
+
     const systemPrompt = `You are the Chief Coordinator Agent in a personal AI Operating System.
 Classify whether the user prompt requires specialist agents or is a direct conversational message.
 
+${historySection}
 ROUTING RULES:
-1. GREETINGS & CASUAL TALK → primaryAgent: "chief", requiredAgents: [], steps: []
+1. GREETINGS & CASUAL TALK (when not a follow-up question) → primaryAgent: "chief", requiredAgents: [], steps: []
 2. JOBS & CAREERS → primaryAgent: "job", requiredAgents: ["job"]
 3. SHOPPING & PURCHASES → primaryAgent: "shopping", requiredAgents: ["shopping","research","finance"]
 4. FINANCE & BUDGET (spending, balance, ledger) → primaryAgent: "finance", requiredAgents: ["finance"]
 5. RESEARCH (explicit web search needed) → primaryAgent: "research", requiredAgents: ["research"]
-6. GOOGLE DRIVE, DOCUMENTS, FILES, RESUMES, GMAIL & EMAILS → primaryAgent: "communication", requiredAgents: ["communication"]. (Note: Any search for documents, files, PDFs, or Drive items must route to communication with action "drive.read", NOT finance).
+6. GOOGLE DRIVE, DOCUMENTS, FILES, RESUMES, GMAIL & EMAILS → primaryAgent: "communication", requiredAgents: ["communication"]. (Note: Any search or questions about documents, files, PDFs, or Drive items must route to communication with action "drive.read", NOT finance).
 
 Respond ONLY with valid JSON:
 {
@@ -295,34 +310,45 @@ User prompt: "${prompt}"`;
   }
 
   /**
-   * Synthesise cross-specialist data into a human-readable response.
+   * Synthesise cross-specialist data into a human-readable response with conversation context.
    */
   public async synthesizeResponseWithLLM(
     prompt: string,
     specialistData: Record<string, unknown>,
+    conversationHistory?: Array<{ role: string; content: string }>,
   ): Promise<string | null> {
     if (!this.genAI) return null;
 
     const hasData = Object.keys(specialistData ?? {}).length > 0;
+    const historySection =
+      conversationHistory && conversationHistory.length > 0
+        ? `RECENT CONVERSATION HISTORY:
+${conversationHistory.map((m) => `${m.role.toUpperCase()}: ${m.content}`).join('\n')}
+`
+        : '';
 
     const promptText = hasData
       ? `You are Chief Ghost, the personal AI OS coordinator.
+${historySection}
 The user asked: "${prompt}"
 
 Specialist agent findings:
 ${JSON.stringify(specialistData, null, 2)}
 
 Instructions:
-1. If any specialist step reports { connected: false } or mentions a connector is disconnected, inform the user clearly and politely. For Google Workspace, explain that while their OAuth keys might be saved in their environment, they still need to complete the one-time authorization by clicking "Connect with Google (OAuth 2.0)" in the Connectors tab.
-2. If files, emails, or job postings are present, summarize or list them clearly with markdown formatting.
-3. Be concise, direct, and helpful. Avoid robotic filler.`
+1. Maintain context from previous conversation turns. If the user asked a follow-up question, answer it directly in light of earlier context.
+2. If any specialist step reports { connected: false } or mentions a connector is disconnected, inform the user clearly and politely. For Google Workspace, explain that while their OAuth keys might be saved in their environment, they still need to complete the one-time authorization by clicking "Connect with Google (OAuth 2.0)" in the Connectors tab.
+3. If files, emails, or job postings are present, summarize or list them clearly with markdown formatting.
+4. Be concise, direct, and helpful. Avoid robotic filler.`
       : `You are Chief Ghost, the user's personal AI OS coordinator.
+${historySection}
 The user said: "${prompt}"
 
 Instructions:
-1. Answer the user's inquiry directly, accurately, and conversationally.
-2. If they are asking to search or perform actions on external services (such as Google Drive, Gmail, GitHub, or Slack) that require integration, let them know they can connect their account under the Connectors tab.
-3. Do NOT repeat a generic canned greeting if they asked a specific question.`;
+1. Maintain continuity with the prior conversation turns.
+2. Answer the user's inquiry directly, accurately, and conversationally.
+3. If they are asking to search or perform actions on external services (such as Google Drive, Gmail, GitHub, or Slack) that require integration, let them know they can connect their account under the Connectors tab.
+4. Do NOT repeat a generic canned greeting if they asked a specific question.`;
 
     try {
       const text = await this.generateContentWithFallback(promptText);

@@ -3,6 +3,7 @@
 import React from 'react';
 import GhostMascot from '@/components/GhostMascot';
 import OrchestrationTrace from './OrchestrationTrace';
+import FormattedMessage from './FormattedMessage';
 import type { ChatMessage as ChatMessageType } from '@/lib/types';
 
 interface ChatMessageProps {
@@ -31,8 +32,8 @@ export default function ChatMessage({ message }: ChatMessageProps) {
         <GhostMascot size="sm" mood="happy" />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="bg-white border border-slate-200 text-slate-800 text-sm px-4 py-2.5 rounded-2xl rounded-tl-sm shadow-sm">
-          <p className="whitespace-pre-wrap leading-relaxed">{message.text}</p>
+        <div className="bg-white border border-slate-200 text-slate-800 text-sm px-4 py-3 rounded-2xl rounded-tl-sm shadow-sm">
+          <FormattedMessage content={message.text} />
         </div>
         {message.orchestrationTrace && message.orchestrationTrace.length > 0 && (
           <OrchestrationTrace trace={message.orchestrationTrace} />

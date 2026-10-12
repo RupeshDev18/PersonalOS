@@ -13,6 +13,7 @@ import type {
   ApprovalStatus,
   AuditEvent,
   AuthResponse,
+  ChatMessage,
   ChatResponse,
   ConnectorInfo,
   Job,
@@ -129,10 +130,20 @@ export const auth = {
 // ---------------------------------------------------------------------------
 
 export const chat = {
-  send: (prompt: string) =>
+  send: (prompt: string, conversationId?: string) =>
     request<ChatResponse>('/api/chat', {
       method: 'POST',
-      body: JSON.stringify({ prompt }),
+      body: JSON.stringify({ prompt, conversationId }),
+    }),
+
+  history: (conversationId?: string) =>
+    request<{ conversationId: string; messages: ChatMessage[] }>(
+      conversationId ? `/api/chat/history?conversationId=${encodeURIComponent(conversationId)}` : '/api/chat/history'
+    ),
+
+  clear: () =>
+    request<{ success: boolean; conversationId: string }>('/api/chat/clear', {
+      method: 'POST',
     }),
 
   tasks: () => request<unknown[]>('/api/tasks'),

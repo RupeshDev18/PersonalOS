@@ -6,6 +6,7 @@ import { AuditService } from '../audit/audit.service';
 import { GreenhouseConnector } from '../connectors/greenhouse.connector';
 import { WebSearchConnector } from '../connectors/web-search.connector';
 import { GoogleConnector } from '../connectors/google.connector';
+import { fileLogger } from '../common/file-logger.service';
 
 @Injectable()
 export class ToolsService implements OnModuleInit {
@@ -139,6 +140,7 @@ export class ToolsService implements OnModuleInit {
       execute: async (input?: { category?: string; query?: string }) => {
         const status = this.googleConnector.getStatus();
         if (!status.connected) {
+          fileLogger.warn(`Tool email.read: Google Workspace is not connected`, 'ToolsService');
           return {
             connected: false,
             message: 'Google Workspace is not connected. Connect your Google account in the Connectors tab to scan your Gmail inbox.',
@@ -146,6 +148,11 @@ export class ToolsService implements OnModuleInit {
           };
         }
         const messages = await this.googleConnector.searchMessages(input?.query, input?.category);
+        fileLogger.log(`Tool email.read retrieved ${messages.length} messages`, 'ToolsService', {
+          query: input?.query,
+          account: status.email,
+          count: messages.length,
+        });
         return {
           connected: true,
           account: status.email,
@@ -173,22 +180,20 @@ export class ToolsService implements OnModuleInit {
       execute: async (input?: { fileType?: string; query?: string }) => {
         const status = this.googleConnector.getStatus();
         if (!status.connected) {
+          fileLogger.warn(`Tool drive.read: Google Workspace is not connected`, 'ToolsService');
           return {
             connected: false,
             message: 'Google Workspace (Drive) is not connected. Although OAuth keys may be saved, you need to click "Connect with Google (OAuth 2.0)" in the Connectors tab to authorize access.',
             files: [],
           };
         }
-        let files = this.googleConnector.getDriveFiles(input?.fileType);
-        if (input?.query) {
-          const keywords = input.query.toLowerCase()
-            .replace(/[?.,!]/g, '')
-            .split(/\s+/)
-            .filter((w) => !['can', 'you', 'search', 'my', 'in', 'drive', 'for', 'and', 'list', 'them', 'the', 'find', 'show'].includes(w));
-          if (keywords.length > 0) {
-            files = files.filter((f) => keywords.some((k) => f.name.toLowerCase().includes(k) || (f.fileType && f.fileType.toLowerCase().includes(k))));
-          }
-        }
+        const files = await this.googleConnector.searchDriveFiles(input?.query, input?.fileType);
+        fileLogger.log(`Tool drive.read retrieved ${files.length} files`, 'ToolsService', {
+          query: input?.query,
+          account: status.email,
+          count: files.length,
+          sample: files.slice(0, 3).map((f) => f.name),
+        });
         return {
           connected: true,
           account: status.email,

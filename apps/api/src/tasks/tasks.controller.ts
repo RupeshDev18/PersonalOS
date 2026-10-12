@@ -1,12 +1,16 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { IsString } from 'class-validator';
+import { IsOptional, IsString } from 'class-validator';
 import { TasksService } from './tasks.service';
 import { CurrentUserId } from '../auth/user.decorator';
 
 export class ChatMessageDto {
   @IsString()
   prompt: string;
+
+  @IsOptional()
+  @IsString()
+  conversationId?: string;
 }
 
 @ApiTags('tasks')
@@ -16,8 +20,7 @@ export class TasksController {
 
   /**
    * POST /api/chat
-   * Send a prompt to the Chief Agent.
-   * userId comes from the validated session token, never the body.
+   * Send a prompt to the Chief Agent with conversation persistence & context.
    */
   @Post('chat')
   @ApiOperation({ summary: 'Send a prompt to the Chief Agent' })
@@ -25,7 +28,32 @@ export class TasksController {
     @CurrentUserId() userId: string,
     @Body() body: ChatMessageDto,
   ) {
-    return this.tasksService.processUserMessage(body.prompt, userId);
+    return this.tasksService.processUserMessage(body.prompt, userId, body.conversationId);
+  }
+
+  /**
+   * GET /api/chat/history
+   * Retrieve chat messages and conversation session for the current user.
+   */
+  @Get('chat/history')
+  @ApiOperation({ summary: 'Get current user chat history' })
+  async getChatHistory(
+    @CurrentUserId() userId: string,
+    @Query('conversationId') conversationId?: string,
+  ) {
+    return this.tasksService.getChatHistory(userId, conversationId);
+  }
+
+  /**
+   * POST /api/chat/clear
+   * Start a fresh conversation session.
+   */
+  @Post('chat/clear')
+  @ApiOperation({ summary: 'Start a new conversation session' })
+  async clearChat(
+    @CurrentUserId() userId: string,
+  ) {
+    return this.tasksService.clearChat(userId);
   }
 
   /** GET /api/tasks — list this user's tasks */
