@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit, Inject, forwardRef } from '@nestjs/common';
+import { BadRequestException, Injectable, Inject, NotFoundException, forwardRef } from '@nestjs/common';
 import {
   Job,
   JobLifecycleStatus,
@@ -21,9 +21,11 @@ import { PdfCompilerService } from './pdf-compiler.service';
 import { GeminiService } from '../llm/gemini.service';
 
 @Injectable()
-export class JobsService implements OnModuleInit {
+export class JobsService {
   private jobs: Map<string, Job> = new Map();
-  private userProfile: UserCareerProfile;
+  private userProfile?: UserCareerProfile;
+  private operatorName = '';
+  private operatorEmail = '';
 
   constructor(
     private readonly deduplicationService: DeduplicationService,
@@ -41,126 +43,88 @@ export class JobsService implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly pdfCompilerService: PdfCompilerService,
     private readonly geminiService: GeminiService,
-  ) {
-    this.userProfile = {
-      userId: 'user-rupesh',   // seeded profile — replace with per-user lookup for multi-user support
-      targetRoles: ['Full Stack Developer', 'Backend Engineer', 'Distributed Systems'],
-      skills: [
-        'React',
-        'TypeScript',
-        'Node.js',
-        'PostgreSQL',
-        'AWS',
-        'Docker',
-        'NestJS',
-        'Next.js',
-        'Redis',
-        'TailwindCSS',
-      ],
-      yearsExperience: 3.5,
-      preferredLocations: ['Remote', 'Bengaluru', 'Delhi NCR'],
-      workModePreference: 'remote',
-      minSalary: 2200000,
-      preferredSalary: 3000000,
-      currency: 'INR',
-      resumes: [
-        {
-          id: 'res-fullstack-aws',
-          userId: 'user-rupesh',
-          title: 'Fullstack-AWS-v3.md',
-          fileName: 'Fullstack-AWS-v3.md',
-          targetRole: 'Full Stack Developer',
-          tags: ['React', 'TypeScript', 'Node.js', 'AWS', 'PostgreSQL', 'Docker'],
-          isDefault: true,
-          contentMarkdown: `## Summary\nFull Stack Engineer with 3.5+ years experience building scalable web architectures using React, Node.js, and AWS.\n\n## Experience\n- Built distributed microservices serving 100k+ daily users.\n- Architected Postgres + Redis caching tier reducing latency by 45%.`,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        {
-          id: 'res-backend-systems',
-          userId: 'user-rupesh',
-          title: 'Backend-Systems-v2.md',
-          fileName: 'Backend-Systems-v2.md',
-          targetRole: 'Backend Engineer',
-          tags: ['Node.js', 'NestJS', 'PostgreSQL', 'Redis', 'Distributed Systems'],
-          isDefault: false,
-          contentMarkdown: `## Summary\nBackend Engineer specializing in resilient APIs, queue orchestration, and database optimization.\n\n## Experience\n- Designed high-throughput BullMQ event processing pipeline.\n- Maintained 99.99% uptime across production NestJS microservices.`,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      ],
-    };
-  }
+  ) {}
 
-  async onModuleInit() {
-    try {
-      const dbJobs = await this.prisma.job.findMany({
-        where: { userId: 'user-rupesh' },
-      });
-      if (dbJobs && dbJobs.length > 0) {
-        for (const j of dbJobs) {
-          this.jobs.set(j.id, {
-            id: j.id,
-            externalJobId: j.externalJobId || undefined,
-            source: j.source,
-            title: j.title,
-            normalizedTitle: j.normalizedTitle,
-            company: j.company,
-            location: j.location,
-            remote: j.remote,
-            minSalary: j.minSalary || undefined,
-            maxSalary: j.maxSalary || undefined,
-            currency: j.currency || 'INR',
-            description: j.description,
-            skills: j.skills,
-            url: j.url,
-            dedupHash: j.dedupHash,
-            matchScore: j.matchScore || undefined,
-            matchBreakdown: (j.matchBreakdown as any) || undefined,
-            lifecycleStatus: j.lifecycleStatus as JobLifecycleStatus,
-            recommendedResumeId: j.recommendedResumeId || undefined,
-            discoveredAt: j.discoveredAt,
+  private async ensureInitialized(userId: string): Promise<UserCareerProfile> {
+    if (this.userProfile?.userId === userId) return this.userProfile;
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found.');
+    const [career, resumes, dbJobs] = await Promise.all([
+      this.prisma.careerProfile.findUnique({ where: { userId } }),
+      this.prisma.resumeProfile.findMany({ where: { userId }, orderBy: { createdAt: 'asc' } }),
+      this.prisma.job.findMany({ where: { userId } }),
+    ]);
+    this.operatorName = user.name;
+    this.operatorEmail = user.email;
+    this.userProfile = {
+      userId,
+      targetRoles: career?.targetRoles ?? [],
+      skills: career?.skills ?? [],
+      yearsExperience: career?.yearsExperience ?? 0,
+      preferredLocations: career?.preferredLocations ?? [],
+      workModePreference: (career?.workModePreference as UserCareerProfile['workModePreference']) ?? 'any',
+      minSalary: career?.minSalary ?? undefined,
+      preferredSalary: career?.preferredSalary ?? undefined,
+      currency: career?.currency ?? 'INR',
+      excludedCompanies: career?.excludedCompanies ?? [],
+      preferredIndustries: career?.preferredIndustries ?? [],
+      resumes: resumes
+        .filter((resume) => !resume.contentMarkdown.startsWith('# Rupesh Yadav\nSenior Full Stack & AI Systems Engineer')
+          && !resume.contentMarkdown.startsWith('# Rupesh Yadav\nSenior Backend & Cloud Architect'))
+        .map((resume) => ({ ...resume })),
+    };
+    this.jobs = new Map(dbJobs.map((job) => [job.id, {
+      id: job.id,
+      externalJobId: job.externalJobId || undefined,
+      source: job.source,
+      title: job.title,
+      normalizedTitle: job.normalizedTitle,
+      company: job.company,
+      location: job.location,
+      remote: job.remote,
+      minSalary: job.minSalary ?? undefined,
+      maxSalary: job.maxSalary ?? undefined,
+      currency: job.currency || 'INR',
+      description: job.description,
+      skills: job.skills,
+      url: job.url,
+      dedupHash: job.dedupHash,
+      matchScore: job.matchScore ?? undefined,
+      matchBreakdown: (job.matchBreakdown as any) || undefined,
+      lifecycleStatus: job.lifecycleStatus as JobLifecycleStatus,
+      recommendedResumeId: job.recommendedResumeId || undefined,
+      discoveredAt: job.discoveredAt,
+    }]));
+    if (!career?.skills.length && !career?.targetRoles.length) {
+      for (const [id, job] of this.jobs) {
+        job.matchScore = undefined;
+        job.matchBreakdown = undefined;
+        job.recommendedResumeId = undefined;
+        if (job.lifecycleStatus === JobLifecycleStatus.RECOMMENDED) {
+          job.lifecycleStatus = JobLifecycleStatus.DISCOVERED;
+          await this.prisma.job.updateMany({
+            where: { id, userId },
+            data: { lifecycleStatus: JobLifecycleStatus.DISCOVERED, matchScore: null, recommendedResumeId: null },
           });
         }
       }
-
-      const dbResumes = await this.prisma.resumeProfile.findMany({
-        where: { userId: 'user-rupesh' },
-      });
-      if (dbResumes && dbResumes.length > 0) {
-        this.userProfile.resumes = dbResumes.map((r) => ({
-          id: r.id,
-          userId: r.userId,
-          title: r.title,
-          fileName: r.fileName,
-          targetRole: r.targetRole,
-          tags: r.tags,
-          contentMarkdown: r.contentMarkdown,
-          isDefault: r.isDefault,
-          createdAt: r.createdAt,
-          updatedAt: r.updatedAt,
-        }));
-      }
-    } catch {
-      // Memory fallback
     }
-
-    if (this.jobs.size === 0) {
-      await this.runDiscoveryPipeline('Initial bootstrap job discovery');
-    }
-  }
-
-  public getCareerProfile(): UserCareerProfile {
     return this.userProfile;
   }
 
-  public getJobs(
+  public async getCareerProfile(userId: string): Promise<UserCareerProfile> {
+    return this.ensureInitialized(userId);
+  }
+
+  public async getJobs(
+    userId: string,
     status?: JobLifecycleStatus,
     minScore?: number,
     search?: string,
     company?: string,
     remoteOnly?: boolean,
-  ): Job[] {
+  ): Promise<Job[]> {
+    await this.ensureInitialized(userId);
     let list = Array.from(this.jobs.values());
     if (status) {
       list = list.filter((j) => j.lifecycleStatus === status);
@@ -187,25 +151,26 @@ export class JobsService implements OnModuleInit {
     return list.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
   }
 
-  public getJob(id: string): Job | undefined {
+  public async getJob(userId: string, id: string): Promise<Job | undefined> {
+    await this.ensureInitialized(userId);
     return this.jobs.get(id);
   }
 
-  public updateJobStatus(id: string, status: JobLifecycleStatus): Job {
+  public async updateJobStatus(userId: string, id: string, status: JobLifecycleStatus): Promise<Job> {
+    await this.ensureInitialized(userId);
     const job = this.jobs.get(id);
     if (!job) {
       throw new Error(`Job with id '${id}' not found`);
     }
+    await this.prisma.job.updateMany({
+      where: { id, userId },
+      data: { lifecycleStatus: status },
+    });
     job.lifecycleStatus = status;
 
-    this.prisma.job.update({
-      where: { id },
-      data: { lifecycleStatus: status },
-    }).catch(() => {});
-
-    this.auditService.log({
+    await this.auditService.log({
       taskId: 'job-lifecycle-update',
-      userId: this.userProfile.userId,
+      userId,
       agentId: 'agent-job',
       eventType: AuditEventType.DECISION_CREATED,
       toolName: 'jobs.status.update',
@@ -216,40 +181,78 @@ export class JobsService implements OnModuleInit {
     return job;
   }
 
-  public getResumes(): ResumeProfile[] {
-    return this.userProfile.resumes;
-  }
-
-  public updateCareerProfile(update: Partial<UserCareerProfile>): UserCareerProfile {
-    this.userProfile = {
-      ...this.userProfile,
-      ...update,
-      skills: update.skills ? [...update.skills] : this.userProfile.skills,
-      targetRoles: update.targetRoles ? [...update.targetRoles] : this.userProfile.targetRoles,
-      preferredLocations: update.preferredLocations ? [...update.preferredLocations] : this.userProfile.preferredLocations,
+  public async updateCareerProfile(userId: string, update: Partial<UserCareerProfile>): Promise<UserCareerProfile> {
+    const profile = await this.ensureInitialized(userId);
+    const updated = {
+      ...profile,
+      targetRoles: update.targetRoles ? [...update.targetRoles] : profile.targetRoles,
+      skills: update.skills ? [...update.skills] : profile.skills,
+      yearsExperience: update.yearsExperience ?? profile.yearsExperience,
+      preferredLocations: update.preferredLocations ? [...update.preferredLocations] : profile.preferredLocations,
+      workModePreference: update.workModePreference ?? profile.workModePreference,
+      minSalary: update.minSalary ?? profile.minSalary,
+      preferredSalary: update.preferredSalary ?? profile.preferredSalary,
+      currency: update.currency ?? profile.currency,
+      excludedCompanies: update.excludedCompanies ? [...update.excludedCompanies] : profile.excludedCompanies,
+      preferredIndustries: update.preferredIndustries ? [...update.preferredIndustries] : profile.preferredIndustries,
     };
+    await this.prisma.careerProfile.upsert({
+      where: { userId },
+      update: {
+        targetRoles: updated.targetRoles,
+        skills: updated.skills,
+        yearsExperience: updated.yearsExperience,
+        preferredLocations: updated.preferredLocations,
+        workModePreference: updated.workModePreference,
+        minSalary: updated.minSalary,
+        preferredSalary: updated.preferredSalary,
+        currency: updated.currency,
+        excludedCompanies: updated.excludedCompanies,
+        preferredIndustries: updated.preferredIndustries,
+      },
+      create: {
+        userId,
+        targetRoles: updated.targetRoles,
+        skills: updated.skills,
+        yearsExperience: updated.yearsExperience,
+        preferredLocations: updated.preferredLocations,
+        workModePreference: updated.workModePreference,
+        minSalary: updated.minSalary,
+        preferredSalary: updated.preferredSalary,
+        currency: updated.currency,
+        excludedCompanies: updated.excludedCompanies,
+        preferredIndustries: updated.preferredIndustries,
+      },
+    });
+    this.userProfile = updated;
 
     // Re-score all tracked jobs against new skills/roles immediately
     this.rescoreExistingJobs();
 
-    this.auditService.log({
+    await this.auditService.log({
       taskId: 'career-profile-update',
-      userId: this.userProfile.userId,
+      userId,
       agentId: 'agent-job',
       eventType: AuditEventType.DECISION_CREATED,
       toolName: 'jobs.profile.update',
       outputPayload: {
-        skillsCount: this.userProfile.skills.length,
-        targetRoles: this.userProfile.targetRoles,
+        skillsCount: updated.skills.length,
+        targetRoles: updated.targetRoles,
       },
-      rationale: `Updated career profile with ${this.userProfile.skills.length} skills and re-scored ${this.jobs.size} jobs.`,
+      rationale: `Updated career profile with ${updated.skills.length} skills and re-scored ${this.jobs.size} jobs.`,
     });
 
-    return this.userProfile;
+    return updated;
   }
 
   public rescoreExistingJobs() {
     for (const job of this.jobs.values()) {
+      if (!this.userProfile || (!this.userProfile.skills.length && !this.userProfile.targetRoles.length)) {
+        job.matchScore = undefined;
+        job.matchBreakdown = undefined;
+        job.lifecycleStatus = JobLifecycleStatus.DISCOVERED;
+        continue;
+      }
       const { overallScore, breakdown } = this.matchingEngineService.scoreJob(job, this.userProfile);
       job.matchScore = overallScore;
       job.matchBreakdown = breakdown;
@@ -261,37 +264,45 @@ export class JobsService implements OnModuleInit {
     }
   }
 
-  public addOrUpdateResume(resume: Partial<ResumeProfile>): ResumeProfile {
-    const id = resume.id || `res-${Date.now()}`;
-    const existingIndex = this.userProfile.resumes.findIndex((r) => r.id === id);
+  public async addOrUpdateResume(userId: string, resume: Partial<ResumeProfile>): Promise<ResumeProfile> {
+    const profile = await this.ensureInitialized(userId);
+    if (!resume.contentMarkdown?.trim()) {
+      throw new BadRequestException('Resume content is required.');
+    }
+    const id = resume.id || uuidv4();
+    const existingRecord = await this.prisma.resumeProfile.findUnique({ where: { id } });
+    if (existingRecord && existingRecord.userId !== userId) {
+      throw new NotFoundException('Resume not found.');
+    }
+    const existingIndex = profile.resumes.findIndex((r) => r.id === id);
 
     const fullResume: ResumeProfile = {
       id,
-      userId: this.userProfile.userId,
+      userId,
       title: resume.title || 'Custom-Resume.md',
       fileName: resume.fileName || resume.title || 'Custom-Resume.md',
-      targetRole: resume.targetRole || this.userProfile.targetRoles[0] || 'Software Engineer',
-      tags: resume.tags || this.userProfile.skills.slice(0, 5),
-      contentMarkdown: resume.contentMarkdown || '# Experience\n\n- Software Engineer',
-      isDefault: resume.isDefault ?? (this.userProfile.resumes.length === 0),
+      targetRole: resume.targetRole || profile.targetRoles[0] || 'Unspecified role',
+      tags: resume.tags || profile.skills.slice(0, 5),
+      contentMarkdown: resume.contentMarkdown || '',
+      isDefault: resume.isDefault ?? (profile.resumes.length === 0),
       createdAt: new Date(),
       updatedAt: new Date(),
     };
 
     if (existingIndex >= 0) {
-      this.userProfile.resumes[existingIndex] = {
-        ...this.userProfile.resumes[existingIndex],
+      profile.resumes[existingIndex] = {
+        ...profile.resumes[existingIndex],
         ...fullResume,
         updatedAt: new Date(),
       };
     } else {
-      this.userProfile.resumes.push(fullResume);
+      profile.resumes.push(fullResume);
     }
 
     this.rescoreExistingJobs();
 
     // Persist to PostgreSQL
-    this.prisma.resumeProfile.upsert({
+    await this.prisma.resumeProfile.upsert({
       where: { id: fullResume.id },
       update: {
         title: fullResume.title,
@@ -311,70 +322,72 @@ export class JobsService implements OnModuleInit {
         contentMarkdown: fullResume.contentMarkdown,
         isDefault: fullResume.isDefault,
       },
-    }).catch(() => {});
+    });
 
     return fullResume;
   }
 
-  public deleteResume(id: string): boolean {
-    const initialLen = this.userProfile.resumes.length;
-    this.userProfile.resumes = this.userProfile.resumes.filter((r) => r.id !== id);
-    if (this.userProfile.resumes.length !== initialLen) {
+  public async deleteResume(userId: string, id: string): Promise<boolean> {
+    const profile = await this.ensureInitialized(userId);
+    const removed = await this.prisma.resumeProfile.deleteMany({ where: { id, userId } });
+    if (removed.count > 0) {
+      profile.resumes = profile.resumes.filter((resume) => resume.id !== id);
       this.rescoreExistingJobs();
-      this.prisma.resumeProfile.delete({ where: { id } }).catch(() => {});
       return true;
     }
     return false;
   }
 
-  public async getTailoredResume(jobId: string) {
+  public async getTailoredResume(userId: string, jobId: string) {
+    const profile = await this.ensureInitialized(userId);
     const job = this.jobs.get(jobId);
     if (!job) {
       throw new Error(`Job '${jobId}' not found`);
     }
-    const bestResume = this.resumeCustomizerService.selectBestResume(job, this.userProfile.resumes);
+    const bestResume = this.resumeCustomizerService.selectBestResume(job, profile.resumes);
     return await this.resumeCustomizerService.customize(job, bestResume);
   }
 
-  public async generateResumePdf(jobId: string): Promise<{ buffer: Buffer; fileName: string }> {
+  public async generateResumePdf(userId: string, jobId: string): Promise<{ buffer: Buffer; fileName: string }> {
+    const profile = await this.ensureInitialized(userId);
     const job = this.jobs.get(jobId);
     if (!job) {
       throw new Error(`Job '${jobId}' not found`);
     }
-    const tailored = await this.getTailoredResume(jobId);
+    const tailored = await this.getTailoredResume(userId, jobId);
     const sanitizedCompany = job.company.replace(/[^a-zA-Z0-9]/g, '_');
     const sanitizedRole = job.title.replace(/[^a-zA-Z0-9]/g, '_');
-    const fileName = `Rupesh_Yadav_${sanitizedCompany}_${sanitizedRole}_Resume.pdf`;
+    const fileName = `${this.operatorName.replace(/[^a-zA-Z0-9]/g, '_')}_${sanitizedCompany}_${sanitizedRole}_Resume.pdf`;
 
     const buffer = await this.pdfCompilerService.compileResumePdf({
-      fullName: 'Rupesh Yadav',
-      email: 'ry993494787@gmail.com',
-      phone: '+91 99349 4787',
-      location: 'Bengaluru, India (Remote Available)',
-      github: 'https://github.com/RupeshDev18',
-      linkedin: 'https://linkedin.com/in/rupesh-dev',
+      fullName: this.operatorName,
+      email: this.operatorEmail,
       targetRole: `${job.title}`,
       companyTargeted: job.company,
-      summary: `Results-driven Senior Full Stack & AI Systems Engineer with 3.5+ years experience building fault-tolerant distributed web applications and high-throughput background systems. Highly proficient in TypeScript, React/Next.js, NestJS, and AWS. Tailored specifically for ${job.title} at ${job.company}.`,
-      skills: tailored.emphasizedSkills.length > 0 ? tailored.emphasizedSkills : this.userProfile.skills,
+      skills: tailored.emphasizedSkills.length > 0 ? tailored.emphasizedSkills : profile.skills,
       markdownContent: tailored.tailoredMarkdown,
     });
 
     return { buffer, fileName };
   }
 
-  public async generateCoverLetter(jobId: string): Promise<{
+  public async generateCoverLetter(userId: string, jobId: string): Promise<{
     company: string;
     role: string;
     coverLetter: string;
     isLLMGenerated: boolean;
   }> {
+    const profile = await this.ensureInitialized(userId);
     const job = this.jobs.get(jobId);
     if (!job) {
       throw new Error(`Job '${jobId}' not found`);
     }
 
-    const candidateProfile = `Rupesh Yadav, Senior Full Stack Engineer (3.5+ years exp). Stack: Next.js, React, TypeScript, NestJS, Node.js, PostgreSQL, AWS, Docker, Redis. Built autonomous agent platforms, real-time financial tracking pipelines, and high-conversion web frontends.`;
+    if (profile.resumes.length === 0) {
+      throw new NotFoundException('Add a resume before generating a cover letter.');
+    }
+    const sourceResume = this.resumeCustomizerService.selectBestResume(job, profile.resumes);
+    const candidateProfile = sourceResume.contentMarkdown;
     const jobDescription = `${job.title} at ${job.company}. Requirements: ${job.skills.join(', ')}. Details: ${job.description || ''}`;
 
     let coverLetter: string | null = null;
@@ -399,16 +412,10 @@ export class JobsService implements OnModuleInit {
     if (!coverLetter) {
       coverLetter = `Dear Hiring Team at ${job.company},
 
-I am writing to express my strong interest in the ${job.title} position at ${job.company}. Having followed ${job.company}'s recent technical milestones and market impact, I am inspired by your team's standard of engineering excellence and product velocity.
-
-With over 3.5 years of hands-on production engineering experience, I specialize in architecting modern full stack systems using ${job.skills.slice(0, 4).join(', ')}. In my recent work, I designed autonomous multi-agent pipelines, resilient real-time financial tracking systems, and high-performance React/Next.js applications backed by NestJS and PostgreSQL on AWS. My focus has consistently been on creating software that is robust, maintainable, and delightful to use.
-
-What excites me most about joining ${job.company} is the opportunity to apply this foundation to your core product challenges. I take deep ownership over the features I ship, collaborate proactively across cross-functional teams, and prioritize measurable business outcomes.
-
-I would welcome the opportunity to discuss how my background and problem-solving methodology can add value to ${job.company}'s engineering roadmap. Thank you for your time and consideration.
+I am applying for the ${job.title} position. My experience and skills are described in my attached resume. I would welcome the opportunity to discuss whether my background fits the role.
 
 Sincerely,
-Rupesh Yadav`;
+${this.operatorName}`;
     }
 
     return {
@@ -419,16 +426,15 @@ Rupesh Yadav`;
     };
   }
 
-  public async generateCoverLetterPdf(jobId: string): Promise<{ buffer: Buffer; fileName: string }> {
-    const result = await this.generateCoverLetter(jobId);
+  public async generateCoverLetterPdf(userId: string, jobId: string): Promise<{ buffer: Buffer; fileName: string }> {
+    await this.ensureInitialized(userId);
+    const result = await this.generateCoverLetter(userId, jobId);
     const sanitizedCompany = result.company.replace(/[^a-zA-Z0-9]/g, '_');
-    const fileName = `Rupesh_Yadav_${sanitizedCompany}_Cover_Letter.pdf`;
+    const fileName = `${this.operatorName.replace(/[^a-zA-Z0-9]/g, '_')}_${sanitizedCompany}_Cover_Letter.pdf`;
 
     const buffer = await this.pdfCompilerService.compileCoverLetterPdf({
-      fullName: 'Rupesh Yadav',
-      email: 'ry993494787@gmail.com',
-      phone: '+91 99349 4787',
-      location: 'Bengaluru, India',
+      fullName: this.operatorName,
+      email: this.operatorEmail,
       company: result.company,
       role: result.role,
       letterBody: result.coverLetter,
@@ -440,19 +446,20 @@ Rupesh Yadav`;
   /**
    * Complete multi-stage pipeline: Connectors -> Dedup -> Scoring -> Resume Pair
    */
-  public async runDiscoveryPipeline(triggerReason: string): Promise<{
+  public async runDiscoveryPipeline(userId: string, triggerReason: string): Promise<{
     discovered: number;
     duplicatesRemoved: number;
     rankedCount: number;
   }> {
+    const profile = await this.ensureInitialized(userId);
     const taskId = uuidv4();
 
     // 1. Ingest raw listings from live Greenhouse boards + Naukri + LinkedIn + Wellfound
     const [ghJobs, naukriJobs, linkedinJobs, wellfoundJobs] = await Promise.all([
-      this.greenhouseConnector.search({ roles: this.userProfile.targetRoles }).catch(() => []),
-      this.naukriConnector.search({ roles: this.userProfile.targetRoles }).catch(() => []),
-      this.linkedinConnector.search({ roles: this.userProfile.targetRoles }).catch(() => []),
-      this.wellfoundConnector.search({ roles: this.userProfile.targetRoles }).catch(() => []),
+      this.greenhouseConnector.search({ roles: profile.targetRoles }).catch(() => []),
+      this.naukriConnector.search({ roles: profile.targetRoles }).catch(() => []),
+      this.linkedinConnector.search({ roles: profile.targetRoles }).catch(() => []),
+      this.wellfoundConnector.search({ roles: profile.targetRoles }).catch(() => []),
     ]);
 
     const rawJobs: Job[] = [
@@ -468,16 +475,18 @@ Rupesh Yadav`;
 
     // 3. Score against user profile and pair resumes
     for (const job of uniqueJobs) {
-      const { overallScore, breakdown } = this.matchingEngineService.scoreJob(job, this.userProfile);
-      job.matchScore = overallScore;
-      job.matchBreakdown = breakdown;
+      if (profile.skills.length || profile.targetRoles.length) {
+        const { overallScore, breakdown } = this.matchingEngineService.scoreJob(job, profile);
+        job.matchScore = overallScore;
+        job.matchBreakdown = breakdown;
+      }
 
       // Select best resume
-      if (this.userProfile.resumes.length > 0) {
-        const bestResume = this.resumeCustomizerService.selectBestResume(job, this.userProfile.resumes);
-        job.recommendedResumeId = bestResume.fileName;
+      if (profile.resumes.length > 0) {
+        const bestResume = this.resumeCustomizerService.selectBestResume(job, profile.resumes);
+        job.recommendedResumeId = bestResume.id;
       }
-      job.lifecycleStatus = JobLifecycleStatus.RECOMMENDED;
+      job.lifecycleStatus = job.matchScore === undefined ? JobLifecycleStatus.DISCOVERED : JobLifecycleStatus.RECOMMENDED;
 
       this.jobs.set(job.id, job);
 
@@ -493,7 +502,7 @@ Rupesh Yadav`;
           },
           create: {
             id: job.id,
-            userId: 'user-rupesh',
+            userId,
             externalJobId: job.externalJobId,
             source: job.source,
             title: job.title,
@@ -515,12 +524,15 @@ Rupesh Yadav`;
             discoveredAt: job.discoveredAt,
           },
         })
-        .catch(() => {});
+        .catch((error) => {
+          this.jobs.delete(job.id);
+          throw error;
+        });
     }
 
     this.auditService.log({
       taskId,
-      userId: this.userProfile.userId,
+      userId,
       agentId: 'agent-job',
       eventType: AuditEventType.TOOL_COMPLETED,
       toolName: 'jobs.discovery_pipeline',

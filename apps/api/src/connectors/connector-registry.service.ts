@@ -46,19 +46,19 @@ export class ConnectorRegistryService {
       // 1c. Slack Incoming Webhook Bridge (Team Alerts & Approvals)
       this.slackConnector.getInfo(),
 
-      // 2. Greenhouse — always live (public API, no auth needed)
+      // Greenhouse public boards are queried on demand.
       {
         id: 'connector-greenhouse',
         name: 'Greenhouse Career Boards',
         type: 'job_board',
-        status: 'connected',
+        status: 'fallback_mode',
         isLive: true,
         description:
-          'Scrapes public Greenhouse ATS boards for Stripe, Cloudflare, Figma, Datadog, and Airbnb. No API key required.',
-        rateLimit: 'Open (5 req/sec)',
-        lastSync: new Date().toISOString(),
+          'Queries public Greenhouse job-board endpoints on demand. Results depend on source availability.',
+        rateLimit: 'Provider dependent',
+        lastSync: null,
         details: {
-          companies: ['Stripe', 'Cloudflare', 'Figma', 'Datadog', 'Airbnb'],
+          mode: 'On-demand; no scheduled sync',
           authMode: 'Public REST endpoints',
         },
       } satisfies ConnectorInfo,
@@ -74,12 +74,12 @@ export class ConnectorRegistryService {
         id: 'connector-wellfound',
         name: 'Wellfound Startup Index',
         type: 'job_board',
-        status: 'connected',
+        status: 'fallback_mode',
         isLive: true,
         description:
-          'Discovers high-growth startup engineering roles with competitive INR compensation and equity grants.',
-        rateLimit: 'Active indexing',
-        lastSync: new Date().toISOString(),
+          'Uses best-effort public search snippets for Wellfound listings; compensation and skills are not inferred.',
+        rateLimit: 'Best effort search',
+        lastSync: null,
         details: {
           coverage: 'Venture-backed startups (AI systems, developer tooling, fintech)',
         },
@@ -99,12 +99,12 @@ export class ConnectorRegistryService {
         id: 'connector-duckduckgo',
         name: 'DuckDuckGo Web Search',
         type: 'web_search',
-        status: 'connected',
+        status: 'fallback_mode',
         isLive: true,
         description:
-          'Privacy-first web search used by the Research Agent for benchmarks, reviews, and topic intelligence.',
-        rateLimit: 'Unmetered',
-        lastSync: new Date().toISOString(),
+          'Best-effort DuckDuckGo instant-answer search; results may be empty.',
+        rateLimit: 'Best effort',
+        lastSync: null,
         details: {
           endpoint: 'https://api.duckduckgo.com',
           privacyMode: 'Zero-tracking',
@@ -127,7 +127,7 @@ export class ConnectorRegistryService {
         description:
           'Multi-provider LangGraph engine supporting Google Gemini (gemini-3.8-flash / gemini-3.6-flash), Local Ollama (Hermes 3), OpenAI, and OpenRouter for parallel tool calling and deep reasoning.',
         rateLimit: 'Adaptive / Provider-dependent',
-        lastSync: new Date().toISOString(),
+        lastSync: null,
         details: {
           provider: process.env.LLM_PROVIDER || 'gemini',
           model:
@@ -149,7 +149,7 @@ export class ConnectorRegistryService {
         description:
           'Local read-only transaction ledger. The Finance Agent uses this to evaluate budget and affordability. Money transfers are permanently disabled.',
         rateLimit: 'Internal — read-only',
-        lastSync: new Date().toISOString(),
+        lastSync: null,
         details: {
           accessMode: 'READ_ONLY',
           note: 'Financial transfers blocked by PolicyEngine (V1 constraint)',

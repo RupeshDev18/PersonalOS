@@ -40,7 +40,7 @@ export function useAuth() {
     };
   }, []);
 
-  const login = useCallback(async (email: string, password?: string) => {
+  const login = useCallback(async (email: string, password: string) => {
     setError(null);
     try {
       const res = await auth.login(email, password);
@@ -55,7 +55,7 @@ export function useAuth() {
   }, []);
 
   const signup = useCallback(
-    async (name: string, email: string, password?: string, title?: string) => {
+    async (name: string, email: string, password: string, title?: string) => {
       setError(null);
       try {
         const res = await auth.signup(name, email, password, title);

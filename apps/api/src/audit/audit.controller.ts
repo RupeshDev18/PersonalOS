@@ -15,12 +15,11 @@ export class AuditController {
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'taskId', required: false, type: String })
   getEvents(
-    @CurrentUserId() _userId: string,
+    @CurrentUserId() userId: string,
     @Query('limit') limit?: number,
     @Query('taskId') taskId?: string,
   ) {
-    // userId available here for future per-user filtering
-    return this.auditService.getEvents(limit ? Number(limit) : 50, taskId);
+    return this.auditService.getEvents(userId, limit ? Number(limit) : 50, taskId);
   }
 
   @Get('logs')

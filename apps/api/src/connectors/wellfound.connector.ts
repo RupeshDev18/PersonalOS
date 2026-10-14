@@ -33,24 +33,23 @@ export class WellfoundConnector implements JobSource {
 
           const text: string = item.Text;
           const url: string = item.FirstURL;
+          if (!new URL(url).hostname.endsWith('wellfound.com')) continue;
           const parts = text.split(/ - | at | \| /);
           const title = parts[0]?.trim() || primaryRole;
-          const company = parts[1]?.trim() || 'Venture-Backed Startup';
+          const company = parts[1]?.trim();
+          if (!company) continue;
 
           jobs.push({
             id: `wf-live-${i}-${Date.now()}`,
-            externalJobId: `wf-${i}`,
+            externalJobId: url,
             source: 'Wellfound (AngelList)',
             title,
             normalizedTitle: title.toLowerCase().replace(/senior|lead|staff|principal|sr\.|jr\./g, '').trim(),
             company,
-            location: ['Remote / Global'],
-            remote: true,
-            minSalary: 3000000,
-            maxSalary: 5500000,
-            currency: 'INR',
-            description: `${text}. Discovered via Wellfound startup indexing query.`,
-            skills: ['TypeScript', 'React', 'Node.js', 'PostgreSQL', 'Docker'],
+            location: [],
+            remote: /remote/i.test(text),
+            description: text,
+            skills: [],
             url,
             dedupHash: '',
             lifecycleStatus: JobLifecycleStatus.DISCOVERED,

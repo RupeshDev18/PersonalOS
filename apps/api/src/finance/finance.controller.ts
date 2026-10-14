@@ -84,7 +84,7 @@ export class FinanceController {
   }
 
   @Post('import')
-  @ApiOperation({ summary: 'Import bank statement CSV and seed real personal transactions' })
+  @ApiOperation({ summary: 'Import transactions from a user-provided bank statement CSV' })
   importCsv(
     @CurrentUserId() userId: string,
     @Body() body: ImportCsvDto,

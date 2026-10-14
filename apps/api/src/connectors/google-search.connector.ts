@@ -27,42 +27,23 @@ export class GoogleSearchConnector {
   private readonly logger = new Logger(GoogleSearchConnector.name);
   private searchHistory: SearchHistoryEntry[] = [];
 
-  constructor() {
-    // Seed initial contextual search history
-    this.searchHistory.push(
-      {
-        id: `sh-init-1`,
-        query: 'Next.js 14 App Router server actions best practices',
-        timestamp: new Date(Date.now() - 3600000 * 4).toISOString(),
-        resultCount: 8,
-        summary: 'Researched server actions mutation patterns and revalidatePath recommendations.',
-        topUrls: ['https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations'],
-      },
-      {
-        id: `sh-init-2`,
-        query: 'LangGraph multi-agent architecture and cyclic state graphs',
-        timestamp: new Date(Date.now() - 3600000 * 2).toISOString(),
-        resultCount: 6,
-        summary: 'Evaluated LangGraph StateGraph, tool calling nodes, and human-in-the-loop interrupts.',
-        topUrls: ['https://langchain-ai.github.io/langgraph/'],
-      },
-    );
-  }
-
   public getInfo(): ConnectorInfo {
+    const hasSerper = Boolean(process.env.SERPER_API_KEY);
     return {
       id: 'connector-google-search',
-      name: 'Google Web Search & Search History',
+      name: 'Web Search & Search History',
       type: 'web_search',
-      status: 'connected',
+      status: hasSerper ? 'connected' : 'fallback_mode',
       isLive: true,
-      description:
-        'Real-time Google search for current events, tech docs, and market intelligence with persistent search history memory.',
-      rateLimit: 'Unmetered live search',
-      lastSync: new Date().toISOString(),
+      description: hasSerper
+        ? 'Uses the configured Serper search API. Search history is kept in memory for this process.'
+        : 'Uses best-effort DuckDuckGo instant answers. Search history is kept in memory; results may be empty.',
+      rateLimit: hasSerper ? 'Provider dependent' : 'Best effort',
+      lastSync: null,
       details: {
         historyCount: this.searchHistory.length,
-        features: ['Real-time Google search', 'Session & persistent search history', 'Technical documentation indexing'],
+        provider: hasSerper ? 'Serper' : 'DuckDuckGo Instant Answer',
+        historyPersistence: 'process memory only',
       },
     } satisfies ConnectorInfo;
   }
@@ -139,16 +120,7 @@ export class GoogleSearchConnector {
       }
     }
 
-    // Ensure at least 1 verified entry
-    if (results.length === 0) {
-      results.push({
-        title: `${query} - Google Search Results`,
-        snippet: `Verified public information and developer references for "${query}".`,
-        link: `https://www.google.com/search?q=${encodeURIComponent(query)}`,
-      });
-    }
-
-    const summary = results[0]?.snippet || `Retrieved ${results.length} verified web sources for "${query}".`;
+    const summary = results[0]?.snippet || 'No results returned by the configured search provider.';
 
     // Record in search history
     const historyEntry: SearchHistoryEntry = {
@@ -170,11 +142,7 @@ export class GoogleSearchConnector {
       query,
       summary,
       results,
-      relatedSearches: [
-        `${query} documentation`,
-        `${query} github examples`,
-        `${query} 2026 update`,
-      ],
+      relatedSearches: [],
       timestamp: new Date().toISOString(),
     };
   }

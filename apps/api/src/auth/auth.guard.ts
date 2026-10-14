@@ -33,7 +33,7 @@ export class AuthGuard implements CanActivate {
     private readonly reflector: Reflector,
   ) {}
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
@@ -44,7 +44,7 @@ export class AuthGuard implements CanActivate {
     const authHeader = request.headers['authorization'];
 
     try {
-      const userId = this.authService.validateAuthHeader(authHeader);
+      const userId = await this.authService.validateAuthHeader(authHeader);
       // Attach userId so downstream services can use it without trusting the body.
       (request as Request & { userId: string }).userId = userId;
       return true;

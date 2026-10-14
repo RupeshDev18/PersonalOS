@@ -7,8 +7,6 @@ import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class TasksService {
-  private tasks: Map<string, Task> = new Map();
-
   constructor(
     private readonly agentsService: AgentsService,
     private readonly prisma: PrismaService,
@@ -71,6 +69,18 @@ export class TasksService {
       },
     });
 
+    await this.prisma.task.create({
+      data: {
+        id: taskId,
+        userId,
+        title: prompt.slice(0, 80),
+        inputPrompt: prompt,
+        status: TaskStatus.IN_PROGRESS,
+        priority: TaskPriority.NORMAL,
+        assignedAgents: [],
+      },
+    });
+
     fileLogger.log(`Received user message in conversation ${conversation.id}`, 'TasksService', {
       userId,
       prompt,
@@ -78,15 +88,24 @@ export class TasksService {
     });
 
     // 4. Orchestrate with conversational context
-    const result = await chief.orchestrate({
-      taskId,
-      userId,
-      prompt,
-      context: {
-        conversationId: conversation.id,
-        conversationHistory,
-      },
-    });
+    let result: Awaited<ReturnType<typeof chief.orchestrate>>;
+    try {
+      result = await chief.orchestrate({
+        taskId,
+        userId,
+        prompt,
+        context: {
+          conversationId: conversation.id,
+          conversationHistory,
+        },
+      });
+    } catch (error) {
+      await this.prisma.task.update({
+        where: { id: taskId },
+        data: { status: TaskStatus.FAILED, completedAt: new Date() },
+      });
+      throw error;
+    }
 
     // 5. Persist assistant response to PostgreSQL
     await this.prisma.message.create({
@@ -126,7 +145,39 @@ export class TasksService {
       completedAt: new Date(),
     };
 
-    this.tasks.set(taskId, task);
+    await this.prisma.task.update({
+      where: { id: task.id },
+      data: {
+        title: task.title,
+        inputPrompt: task.inputPrompt,
+        status: task.status,
+        priority: task.priority,
+        chiefIntent: task.chiefIntent as any,
+        assignedAgents: task.assignedAgents,
+        finalSummary: task.finalSummary,
+        recurringCron: task.recurringCron,
+        createdAt: task.createdAt,
+        updatedAt: task.updatedAt,
+        completedAt: task.completedAt,
+        steps: {
+          create: task.steps.map((step, index) => ({
+            id: step.id,
+            agentType: step.agentType,
+            sequenceOrder: step.sequenceOrder ?? index,
+            name: step.name,
+            description: step.description,
+            action: step.action,
+            payload: step.payload as any,
+            status: step.status,
+            dependsOnStepIds: step.dependsOnStepIds ?? [],
+            result: step.result as any,
+            error: step.error,
+            startedAt: step.startedAt,
+            completedAt: step.completedAt,
+          })),
+        },
+      },
+    });
 
     return {
       conversationId: conversation.id,
@@ -184,16 +235,56 @@ export class TasksService {
     };
   }
 
-  getTasks(userId: string): Task[] {
-    return Array.from(this.tasks.values())
-      .filter((t) => t.userId === userId)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  private toTask(record: any): Task {
+    return {
+      id: record.id,
+      userId: record.userId,
+      title: record.title,
+      inputPrompt: record.inputPrompt,
+      status: record.status as TaskStatus,
+      priority: record.priority as TaskPriority,
+      chiefIntent: (record.chiefIntent as Record<string, unknown>) || undefined,
+      assignedAgents: record.assignedAgents,
+      steps: (record.steps || []).map((step: any) => ({
+        id: step.id,
+        taskId: step.taskId,
+        agentType: step.agentType,
+        sequenceOrder: step.sequenceOrder,
+        name: step.name,
+        description: step.description,
+        action: step.action,
+        payload: step.payload as Record<string, unknown>,
+        status: step.status as TaskStatus,
+        dependsOnStepIds: step.dependsOnStepIds,
+        result: step.result,
+        error: step.error || undefined,
+        startedAt: step.startedAt || undefined,
+        completedAt: step.completedAt || undefined,
+      })),
+      finalSummary: record.finalSummary || undefined,
+      scheduledAt: record.scheduledAt || undefined,
+      recurringCron: record.recurringCron || undefined,
+      createdAt: record.createdAt,
+      updatedAt: record.updatedAt,
+      completedAt: record.completedAt || undefined,
+    };
   }
 
-  getTask(id: string, userId: string): Task {
-    const task = this.tasks.get(id);
-    if (!task) throw new NotFoundException(`Task '${id}' not found.`);
-    if (task.userId !== userId) throw new NotFoundException(`Task '${id}' not found.`);
-    return task;
+  async getTasks(userId: string): Promise<Task[]> {
+    const records = await this.prisma.task.findMany({
+      where: { userId },
+      include: { steps: { orderBy: { sequenceOrder: 'asc' } } },
+      orderBy: { createdAt: 'desc' },
+    });
+    return records.map((record) => this.toTask(record));
+  }
+
+  async getTask(id: string, userId: string): Promise<Task> {
+    const record = await this.prisma.task.findFirst({
+      where: { id, userId },
+      include: { steps: { orderBy: { sequenceOrder: 'asc' } } },
+    });
+    if (!record) throw new NotFoundException(`Task '${id}' not found.`);
+    return this.toTask(record);
   }
 }

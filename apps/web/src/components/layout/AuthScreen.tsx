@@ -5,8 +5,8 @@ import GhostMascot from '@/components/GhostMascot';
 import { AlertCircle, ArrowRight } from 'lucide-react';
 
 interface AuthScreenProps {
-  onLogin: (email: string, password?: string) => Promise<void>;
-  onSignup: (name: string, email: string, password?: string, title?: string) => Promise<void>;
+  onLogin: (email: string, password: string) => Promise<void>;
+  onSignup: (name: string, email: string, password: string, title?: string) => Promise<void>;
   error: string | null;
 }
 
@@ -90,7 +90,7 @@ export default function AuthScreen({ onLogin, onSignup, error }: AuthScreenProps
               <>
                 <input
                   type="text"
-                  placeholder="Full name (e.g. Rupesh Yadav)"
+                  placeholder="Full name"
                   value={name}
                   onChange={(e) => {
                     setName(e.target.value);
@@ -110,7 +110,7 @@ export default function AuthScreen({ onLogin, onSignup, error }: AuthScreenProps
             )}
             <input
               type="email"
-              placeholder="Email address (e.g. rupesh.dev@gmail.com)"
+              placeholder="Email address"
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value);
@@ -121,12 +121,14 @@ export default function AuthScreen({ onLogin, onSignup, error }: AuthScreenProps
             />
             <input
               type="password"
-              placeholder="Password (any value for now)"
+              placeholder="Password (at least 12 characters)"
               value={password}
               onChange={(e) => {
                 setPassword(e.target.value);
                 if (localError) setLocalError(null);
               }}
+              minLength={12}
+              required
               className={inputClass}
             />
 
@@ -164,24 +166,6 @@ export default function AuthScreen({ onLogin, onSignup, error }: AuthScreenProps
             </button>
           </form>
 
-          {/* Quick dev login */}
-          <div className="mt-4 pt-4 border-t border-slate-100">
-            <p className="text-xs text-slate-400 text-center mb-2">Quick access (dev)</p>
-            <button
-              onClick={async () => {
-                setLocalError(null);
-                try {
-                  await onLogin('ry993494787@gmail.com');
-                } catch (err: unknown) {
-                  const msg = err instanceof Error ? err.message : 'Login failed';
-                  setLocalError(msg);
-                }
-              }}
-              className="w-full py-2 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors"
-            >
-              Login as Rupesh Yadav
-            </button>
-          </div>
         </div>
       </div>
     </div>

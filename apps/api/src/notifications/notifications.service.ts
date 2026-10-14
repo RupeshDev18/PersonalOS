@@ -67,9 +67,10 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  public async setConfig(botToken: string, chatId?: string): Promise<boolean> {
+  public async setConfig(botToken: string, chatId: string): Promise<boolean> {
     this.botToken = botToken.trim();
-    if (chatId) this.chatId = chatId.trim();
+    this.chatId = chatId.trim();
+    if (!this.chatId) return false;
 
     const ok = await this.verifyBot();
     if (ok) {
@@ -254,6 +255,14 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
       const messageId = cb.message?.message_id;
 
       if (data.startsWith('app:approve:') || data.startsWith('app:reject:')) {
+        if (!this.chatId || String(chatId) !== this.chatId) {
+          await fetch(`https://api.telegram.org/bot${this.botToken}/answerCallbackQuery`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ callback_query_id: cb.id, text: 'This chat is not authorized.', show_alert: true }),
+          });
+          return;
+        }
         const parts = data.split(':');
         const decision = parts[1] as 'approve' | 'reject';
         const approvalId = parts[2];
@@ -271,14 +280,14 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               callback_query_id: cb.id,
-              text: decision === 'approve' ? '✅ Action Authorized!' : '❌ Action Rejected.',
+              text: decision === 'approve' ? '✅ Approval recorded; action was not run.' : '❌ Action rejected.',
               show_alert: true,
             }),
           });
 
           // Edit message on Telegram
           const statusText = decision === 'approve'
-            ? `✅ <b>APPROVED & EXECUTED</b>\n\n<b>${result.title}</b>\nStatus: <code>${result.status}</code>\nDecided by: <b>${cb.from?.first_name || 'Operator'}</b> via Telegram Mobile\nTimestamp: ${new Date().toLocaleTimeString()}`
+            ? `✅ <b>APPROVAL RECORDED</b>\n\n<b>${result.title}</b>\nNo external action was run.\nDecided by: <b>${cb.from?.first_name || 'Operator'}</b> via Telegram Mobile\nTimestamp: ${new Date().toLocaleTimeString()}`
             : `❌ <b>REJECTED BY OPERATOR</b>\n\n<b>${result.title}</b>\nEnforced safety policy constraint.\nTimestamp: ${new Date().toLocaleTimeString()}`;
 
           if (chatId && messageId) {
@@ -314,16 +323,25 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
       const text = msg.text.trim();
       const chatId = String(msg.chat.id);
 
-      // Auto-bind chat ID on /start or first message
-      if (!this.chatId || text.startsWith('/start')) {
-        this.chatId = chatId;
-        await this.setConfig(this.botToken!, this.chatId);
+      if (!this.chatId) {
+        if (text.startsWith('/start') && this.botToken) {
+          await fetch(`https://api.telegram.org/bot${this.botToken}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: chatId,
+              text: `Your chat ID is ${chatId}. Enter it in the PersonalOS Telegram connector to authorize this chat.`,
+            }),
+          });
+        }
+        return;
       }
+      if (chatId !== this.chatId) return;
 
       if (text.startsWith('/start')) {
         await this.sendNotification(
-          `👋 <b>Welcome to PersonalOS Mobile Bridge!</b>\n\n` +
-          `Your Telegram chat ID (<code>${chatId}</code>) is now securely linked.\n` +
+          `👋 <b>PersonalOS Mobile Bridge</b>\n\n` +
+          `This chat is authorized for local PersonalOS notifications.\n` +
           `You will receive real-time notifications for:\n` +
           `• 🛡️ <b>Safety Gate Approvals</b> (1-Tap Approve/Reject)\n` +
           `• 💼 <b>High-match Job Alerts</b>\n` +
@@ -333,7 +351,7 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
       } else if (text.startsWith('/ping')) {
         await this.sendNotification(`🏓 <b>Pong!</b> PersonalOS daemon active and healthy.`);
       } else if (text.startsWith('/approvals')) {
-        const pending = await this.approvalsService.getApprovals(ApprovalStatus.PENDING);
+        const pending = await this.approvalsService.getPendingApprovalsForNotifications();
         if (pending.length === 0) {
           await this.sendNotification(`🛡️ <b>Approvals:</b> No pending requests. All systems clear.`);
         } else {

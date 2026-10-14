@@ -11,6 +11,7 @@ model User {
   id              String           @id @default(uuid())
   email           String           @unique
   name            String
+  passwordHash    String?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   tasks           Task[]
@@ -21,8 +22,22 @@ model User {
   jobs            Job[]
   conversations   Conversation[]
   memories        Memory[]
+  sessions        Session[]
+  careerProfile   CareerProfile?
 
   @@map("users")
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId, expiresAt])
+  @@map("sessions")
 }
 
 model Task {
@@ -73,12 +88,12 @@ model TaskStep {
 model AuditEvent {
   id            String          @id @default(uuid())
   taskId        String?
-  task          Task?           @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  task          Task?           @relation(fields: [taskId], references: [id], onDelete: SetNull)
   stepId        String?
   step          TaskStep?       @relation(fields: [stepId], references: [id], onDelete: SetNull)
   agentId       String?
   userId        String
-  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User            @relation(fields: [userId], references: [id], onDelete: Restrict)
   eventType     String          // TASK_CREATED, TOOL_CALLED, etc.
   toolName      String?
   inputPayload  Json?
@@ -146,6 +161,25 @@ model ResumeProfile {
   updatedAt       DateTime      @updatedAt
 
   @@map("resume_profiles")
+}
+
+model CareerProfile {
+  id                 String   @id @default(uuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetRoles        String[] @default([])
+  skills             String[] @default([])
+  yearsExperience    Float    @default(0)
+  preferredLocations String[] @default([])
+  workModePreference String   @default("any")
+  minSalary          Int?
+  preferredSalary    Int?
+  currency           String   @default("INR")
+  excludedCompanies  String[] @default([])
+  preferredIndustries String[] @default([])
+  updatedAt          DateTime @updatedAt
+
+  @@map("career_profiles")
 }
 
 model Job {

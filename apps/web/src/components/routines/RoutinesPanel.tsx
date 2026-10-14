@@ -43,23 +43,6 @@ export default function RoutinesPanel() {
     fetchRoutines();
   }, []);
 
-  const handleToggle = async (id: string) => {
-    try {
-      const res = await apiRoutines.toggle(id);
-      if (res.success) {
-        setRoutinesList((prev) =>
-          prev.map((r) => (r.id === id ? { ...r, enabled: res.routine.enabled } : r)),
-        );
-        setStatusMsg({
-          ok: true,
-          text: `Routine "${res.routine.name}" ${res.routine.enabled ? 'enabled' : 'disabled'}.`,
-        });
-      }
-    } catch (err: any) {
-      setStatusMsg({ ok: false, text: err.message || 'Failed to toggle routine.' });
-    }
-  };
-
   const handleRunNow = async (id: string) => {
     setRunningId(id);
     setStatusMsg(null);
@@ -112,13 +95,13 @@ export default function RoutinesPanel() {
             <div className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600">
               <Clock size={18} />
             </div>
-            <h1 className="text-base font-bold text-slate-900">Autonomous Scheduled Routines</h1>
+            <h1 className="text-base font-bold text-slate-900">Manual Routines</h1>
             <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 font-semibold">
-              Option 2 Engine
+              Scheduling not configured
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Background agent workflows running while you sleep — scanning Naukri, LinkedIn, Gmail, Amazon, and Flipkart.
+            Run a connector workflow on demand. Recurring schedules are not active yet.
           </p>
         </div>
 
@@ -187,24 +170,7 @@ export default function RoutinesPanel() {
 
                   {/* Actions */}
                   <div className="flex flex-col items-end gap-3 flex-shrink-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium text-slate-500">
-                        {routine.enabled ? 'Automated' : 'Paused'}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleToggle(routine.id)}
-                        className={`w-10 h-5 rounded-full transition-colors relative focus:outline-none ${
-                          routine.enabled ? 'bg-indigo-600' : 'bg-slate-300'
-                        }`}
-                      >
-                        <span
-                          className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
-                            routine.enabled ? 'translate-x-5' : 'translate-x-0'
-                          }`}
-                        />
-                      </button>
-                    </div>
+                    <span className="text-xs font-medium text-slate-500">Manual only</span>
 
                     <button
                       type="button"

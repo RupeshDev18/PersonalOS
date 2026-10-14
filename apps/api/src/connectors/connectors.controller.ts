@@ -231,8 +231,8 @@ export class ConnectorsController {
 
   @Post('google/drive/import-resume/:fileId')
   @ApiOperation({ summary: 'Import a Drive file as a resume into the Resume Vault' })
-  importDriveResume(
-    @CurrentUserId() _userId: string,
+  async importDriveResume(
+    @CurrentUserId() userId: string,
     @Param('fileId') fileId: string,
   ) {
     const file = this.googleConnector.getDriveFileById(fileId);
@@ -241,11 +241,11 @@ export class ConnectorsController {
         'Drive file not found or contains no markdown content.',
       );
     }
-    const saved = this.jobsService.addOrUpdateResume({
+    const saved = await this.jobsService.addOrUpdateResume(userId, {
       id: `resume-${Date.now()}`,
       title: file.name.replace(/\.[^/.]+$/, '').replace(/_/g, ' '),
       fileName: file.name,
-      targetRole: 'Full Stack Engineer',
+      targetRole: 'Imported from Google Drive',
       tags: ['Google Drive', 'Imported'],
       contentMarkdown: file.contentMarkdown,
       isDefault: false,
@@ -441,7 +441,7 @@ export class ConnectorsController {
 
   @Post('github/sync-to-profile')
   @ApiOperation({ summary: 'Enrich candidate profile with GitHub repositories and top languages' })
-  async syncGitHubToProfile(@CurrentUserId() _userId: string) {
+  async syncGitHubToProfile(@CurrentUserId() userId: string) {
     const status = this.githubConnector.getStatus();
     if (!status.connected) {
       throw new NotFoundException('GitHub is not connected. Connect with your Personal Access Token first.');
@@ -467,11 +467,11 @@ ${repos
   .join('\n')}
 `;
 
-    const saved = this.jobsService.addOrUpdateResume({
+    const saved = await this.jobsService.addOrUpdateResume(userId, {
       id: `resume-github-${Date.now()}`,
       title: `${status.username} - GitHub Live Portfolio`,
       fileName: `github-${status.username}-portfolio.md`,
-      targetRole: 'Senior Full Stack & Distributed Systems Architect',
+      targetRole: 'GitHub portfolio',
       tags: ['GitHub Sync', ...topLanguages],
       contentMarkdown: portfolioMarkdown,
       isDefault: false,

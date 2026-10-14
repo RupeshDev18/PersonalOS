@@ -105,21 +105,19 @@ async function request<T>(
 // ---------------------------------------------------------------------------
 
 export const auth = {
-  login: (email: string, password?: string) =>
+  login: (email: string, password: string) =>
     request<AuthResponse>('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     }),
 
-  signup: (name: string, email: string, password?: string, title?: string) =>
+  signup: (name: string, email: string, password: string, title?: string) =>
     request<AuthResponse>('/api/auth/signup', {
       method: 'POST',
       body: JSON.stringify({ name, email, password, title }),
     }),
 
   me: () => request<UserProfile>('/api/auth/me'),
-
-  users: () => request<UserProfile[]>('/api/auth/users'),
 
   logout: () =>
     request<{ success: boolean }>('/api/auth/logout', { method: 'POST' }),
@@ -292,7 +290,7 @@ export const finance = {
   affordability: (price: number, currency?: string) =>
     request<{
       itemPrice: number;
-      isAffordable: boolean;
+      isAffordable: boolean | null;
       verdict: string;
       monthlyDiscretionaryRemaining: number;
       postPurchaseRemaining: number;
@@ -590,10 +588,10 @@ export const notifications = {
       active: boolean;
       botUsername: string | null;
       chatId: string | null;
-      mode: 'polling' | 'webhook' | 'idle';
+      mode: 'polling' | 'idle';
     }>('/api/notifications/status'),
 
-  config: (botToken: string, chatId?: string) =>
+  config: (botToken: string, chatId: string) =>
     request<{ success: boolean; message: string; botUsername?: string }>(
       '/api/notifications/config',
       { method: 'POST', body: JSON.stringify({ botToken, chatId }) },
@@ -635,10 +633,6 @@ export const routines = {
   list: () => request<RoutineItem[]>('/api/routines'),
   run: (id: string) =>
     request<{ success: boolean; message: string; summary: string }>(`/api/routines/${id}/run`, {
-      method: 'POST',
-    }),
-  toggle: (id: string) =>
-    request<{ success: boolean; routine: RoutineItem }>(`/api/routines/${id}/toggle`, {
       method: 'POST',
     }),
 };

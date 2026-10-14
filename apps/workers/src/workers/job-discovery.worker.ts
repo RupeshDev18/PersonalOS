@@ -6,7 +6,7 @@ const TARGET_COMPANIES = ['stripe', 'cloudflare', 'figma', 'datadog', 'airbnb'];
 export class JobDiscoveryWorker {
   constructor(private readonly prisma: PrismaClient) {}
 
-  public async run(userId = 'user-rupesh'): Promise<{ discovered: number; updated: number }> {
+  public async run(userId: string): Promise<{ discovered: number; updated: number }> {
     console.log(`[JobDiscoveryWorker] Starting Greenhouse ATS job discovery pipeline for user '${userId}'...`);
     let discovered = 0;
     let updated = 0;
@@ -43,13 +43,6 @@ export class JobDiscoveryWorker {
           const locationName = rj.location?.name || 'Remote / Hybrid';
           const isRemote = /remote|distributed|anywhere/i.test(locationName) || /remote/i.test(title);
 
-          // Calculate match score
-          let matchScore = 75;
-          if (/senior|staff|lead/i.test(title)) matchScore += 10;
-          if (/full\s*stack|fullstack/i.test(title)) matchScore += 10;
-          if (isRemote) matchScore += 5;
-          matchScore = Math.min(matchScore, 98);
-
           const existing = await this.prisma.job.findUnique({ where: { dedupHash } });
 
           await this.prisma.job.upsert({
@@ -57,7 +50,7 @@ export class JobDiscoveryWorker {
             update: {
               title,
               location: [locationName],
-              matchScore,
+              matchScore: null,
               remote: isRemote,
               url: rj.absolute_url || `https://boards.greenhouse.io/${company}`,
             },
@@ -68,14 +61,13 @@ export class JobDiscoveryWorker {
               normalizedTitle: title.toLowerCase(),
               location: [locationName],
               url: rj.absolute_url || `https://boards.greenhouse.io/${company}`,
-              matchScore,
-              lifecycleStatus: 'RECOMMENDED',
+              lifecycleStatus: 'DISCOVERED',
               source: 'greenhouse',
               externalJobId: String(rj.id),
               dedupHash,
               remote: isRemote,
               description: `Discovered job posting for ${title} at ${company}.`,
-              skills: ['TypeScript', 'Node.js', 'Distributed Systems', 'APIs'],
+              skills: [],
             },
           });
 

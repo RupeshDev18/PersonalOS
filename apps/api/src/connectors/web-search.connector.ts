@@ -33,7 +33,7 @@ export class WebSearchConnector {
 
         return {
           query,
-          abstract: data.AbstractText || `Live search results retrieved for "${query}". Highly reviewed across technology publications.`,
+          abstract: data.AbstractText || '',
           heading: data.Heading || query,
           sourceUrl: data.AbstractURL || 'https://duckduckgo.com/?q=' + encoded,
           relatedTopics: related,
@@ -47,7 +47,7 @@ export class WebSearchConnector {
     // Fallback if network blocks external call
     return {
       query,
-      abstract: `Independent web consensus for "${query}": Rated 4.8/5 based on verified consumer benchmarks and technical reviews.`,
+      abstract: '',
       heading: query,
       sourceUrl: 'https://duckduckgo.com/?q=' + encoded,
       relatedTopics: [],

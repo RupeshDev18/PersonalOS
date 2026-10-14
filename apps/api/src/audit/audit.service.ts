@@ -72,7 +72,7 @@ export class AuditService implements OnModuleInit {
           taskId: fullEvent.taskId,
           stepId: fullEvent.stepId,
           agentId: fullEvent.agentId,
-          userId: fullEvent.userId || 'user-rupesh',
+          userId: fullEvent.userId,
           eventType: fullEvent.eventType,
           toolName: fullEvent.toolName,
           inputPayload: (fullEvent.inputPayload as object) ?? undefined,
@@ -89,7 +89,7 @@ export class AuditService implements OnModuleInit {
           data: {
             id: fullEvent.id,
             agentId: fullEvent.agentId,
-            userId: fullEvent.userId || 'user-rupesh',
+            userId: fullEvent.userId,
             eventType: fullEvent.eventType,
             toolName: fullEvent.toolName,
             inputPayload: (fullEvent.inputPayload as object) ?? undefined,
@@ -105,9 +105,9 @@ export class AuditService implements OnModuleInit {
     return fullEvent;
   }
 
-  public async getEvents(limit = 50, taskId?: string): Promise<AuditEvent[]> {
+  public async getEvents(userId: string, limit = 50, taskId?: string): Promise<AuditEvent[]> {
     try {
-      const whereClause = taskId ? { taskId } : {};
+      const whereClause = { userId, ...(taskId ? { taskId } : {}) };
       const dbEvents = await this.prisma.auditEvent.findMany({
         where: whereClause,
         take: limit,
@@ -131,9 +131,7 @@ export class AuditService implements OnModuleInit {
       }
     } catch {}
 
-    const list = taskId
-      ? this.events.filter((e) => e.taskId === taskId)
-      : this.events;
+    const list = this.events.filter((e) => e.userId === userId && (!taskId || e.taskId === taskId));
     return list.slice(0, limit);
   }
 }

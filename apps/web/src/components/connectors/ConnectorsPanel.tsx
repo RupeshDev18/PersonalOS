@@ -382,11 +382,14 @@ export default function ConnectorsPanel({
   // Telegram handlers
   // ---------------------------------------------------------------------------
   const handleSaveTelegram = async () => {
-    if (!telegramToken.trim()) return;
+    if (!telegramToken.trim() || !telegramChatId.trim()) {
+      setTelegramMsg({ ok: false, text: 'Enter both the bot token and your Telegram chat ID.' });
+      return;
+    }
     setSavingTelegram(true);
     setTelegramMsg(null);
     try {
-      const res = await notifications.config(telegramToken.trim(), telegramChatId.trim() || undefined);
+      const res = await notifications.config(telegramToken.trim(), telegramChatId.trim());
       setTelegramMsg({ ok: res.success, text: res.message });
       if (res.success) {
         setTelegramToken('');
@@ -958,14 +961,14 @@ export default function ConnectorsPanel({
             />
             <input
               type="text"
-              placeholder="Chat ID (optional)"
+              placeholder="Chat ID (send /start to bot first)"
               value={telegramChatId}
               onChange={(e) => setTelegramChatId(e.target.value)}
               className="w-28 text-xs px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-400"
             />
             <button
               onClick={handleSaveTelegram}
-              disabled={savingTelegram || !telegramToken.trim()}
+              disabled={savingTelegram || !telegramToken.trim() || !telegramChatId.trim()}
               className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 disabled:opacity-60 transition-colors flex-shrink-0 font-medium"
             >
               {savingTelegram ? <Loader2 size={11} className="animate-spin" /> : <Bot size={11} />}
@@ -1395,7 +1398,7 @@ export default function ConnectorsPanel({
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div className="flex-1 overflow-y-auto p-4">
         {error && <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
 
         {statusMsg && (
@@ -1409,13 +1412,15 @@ export default function ConnectorsPanel({
             <Loader2 size={20} className="text-indigo-400 animate-spin" />
           </div>
         ) : (
-          connectors.map((connector) => (
-            <ConnectorCard
-              key={connector.id}
-              connector={connector}
-              actions={actionsFor(connector)}
-            />
-          ))
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+            {connectors.map((connector) => (
+              <ConnectorCard
+                key={connector.id}
+                connector={connector}
+                actions={actionsFor(connector)}
+              />
+            ))}
+          </div>
         )}
       </div>
 

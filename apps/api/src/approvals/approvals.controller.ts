@@ -1,9 +1,9 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { ApprovalStatus } from '@personal-os/shared';
+import { ApprovalStatus, CapabilityPermission } from '@personal-os/shared';
 import { ApprovalsService } from './approvals.service';
 import { CurrentUserId } from '../auth/user.decorator';
-import { IsIn, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsIn, IsObject, IsOptional, IsString } from 'class-validator';
 
 export class DecideApprovalDto {
   @IsIn(['approve', 'reject'])
@@ -12,6 +12,24 @@ export class DecideApprovalDto {
   @IsOptional()
   @IsString()
   note?: string;
+}
+
+export class CreateApprovalDto {
+  @IsString()
+  actionType: string;
+
+  @IsEnum(CapabilityPermission)
+  capabilityRequired: CapabilityPermission;
+
+  @IsString()
+  title: string;
+
+  @IsString()
+  description: string;
+
+  @IsOptional()
+  @IsObject()
+  payload?: Record<string, unknown>;
 }
 
 @ApiTags('approvals')
@@ -23,32 +41,32 @@ export class ApprovalsController {
   @ApiOperation({ summary: 'List safety gate approvals with optional status filter' })
   @ApiQuery({ name: 'status', required: false, enum: ApprovalStatus })
   getApprovals(
-    @CurrentUserId() _userId: string,
+    @CurrentUserId() userId: string,
     @Query('status') status?: ApprovalStatus,
   ) {
-    return this.approvalsService.getApprovals(status);
+    return this.approvalsService.getApprovals(userId, status);
   }
 
   @Post(':id/decide')
   @ApiOperation({ summary: 'Approve or reject a pending capability request' })
   decide(
-    @CurrentUserId() _userId: string,
+    @CurrentUserId() userId: string,
     @Param('id') id: string,
     @Body() body: DecideApprovalDto,
   ) {
-    return this.approvalsService.decide(id, body.decision, body.note);
+    return this.approvalsService.decide(id, body.decision, body.note, userId);
   }
 
   @Post()
   @ApiOperation({ summary: 'Create a new capability approval request' })
   create(
     @CurrentUserId() userId: string,
-    @Body() body: any,
+    @Body() body: CreateApprovalDto,
   ) {
     return this.approvalsService.createApprovalRequest({
-      taskId: body.taskId || 'task-manual',
-      stepId: body.stepId || 'step-manual',
-      userId: userId || 'user-rupesh',
+      taskId: 'task-standalone',
+      stepId: 'step-standalone',
+      userId,
       actionType: body.actionType,
       capabilityRequired: body.capabilityRequired,
       title: body.title,

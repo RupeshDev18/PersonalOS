@@ -4,7 +4,6 @@ import {
   Get,
   Headers,
   Post,
-  Query,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
@@ -15,15 +14,16 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  MinLength,
 } from 'class-validator';
 
 export class LoginDto {
   @IsEmail()
   email: string;
 
-  @IsOptional()
   @IsString()
-  password?: string;
+  @MinLength(12)
+  password: string;
 }
 
 export class SignupDto {
@@ -34,9 +34,9 @@ export class SignupDto {
   @IsEmail()
   email: string;
 
-  @IsOptional()
   @IsString()
-  password?: string;
+  @MinLength(12)
+  password: string;
 
   @IsOptional()
   @IsString()
@@ -69,14 +69,6 @@ export class AuthController {
     return this.authService.signup(dto.name, dto.email, dto.password, dto.title);
   }
 
-  /** Public — list all seeded users for fast dev switching in local UI. */
-  @Public()
-  @Get('users')
-  @ApiOperation({ summary: 'List all operator accounts (dev convenience)' })
-  getAllUsers() {
-    return this.authService.getAllUsers();
-  }
-
   /** Protected — returns the profile of whoever owns the current token. */
   @Get('me')
   @ApiOperation({ summary: 'Get current authenticated user profile' })
@@ -87,23 +79,9 @@ export class AuthController {
   /** Protected — invalidate the current session. */
   @Post('logout')
   @ApiOperation({ summary: 'Invalidate the current session token' })
-  logout(@Headers('authorization') auth: string) {
+  async logout(@Headers('authorization') auth: string) {
     const token = auth?.startsWith('Bearer ') ? auth.slice(7).trim() : auth?.trim();
-    if (token) this.authService.logout(token);
+    if (token) await this.authService.logout(token);
     return { success: true };
-  }
-
-  /** Public — Google OAuth redirect handler alias */
-  @Public()
-  @Get('google/callback')
-  @ApiOperation({ summary: 'Google OAuth callback alias' })
-  googleCallback(@Query('code') code: string, @Query('state') state: string) {
-    // Forward to the connectors callback
-    return {
-      success: true,
-      code,
-      state,
-      redirect: `/api/connectors/google/callback?code=${encodeURIComponent(code || '')}`,
-    };
   }
 }

@@ -1,63 +1,43 @@
-# Personal AI Operating System
+# Personal AI OS
 
-A multi-agent personal operating system where you interact primarily with one **Chief Agent**, which understands your context and delegates tasks to specialized autonomous agents across Career, Finance, Research, Shopping, and Communication.
+Personal AI OS is a local-first prototype for a single operator. It has a NestJS API, a Next.js UI, PostgreSQL persistence, connector integrations, and an experimental agent workflow.
 
-## Core Principles
+## Current operating boundaries
 
-1. **Chief-First Interaction:** You talk only to the Chief Agent; it coordinates specialists behind the scenes.
-2. **Least-Privilege Capability Access:** Every agent is isolated with strictly scoped permissions.
-3. **Immutable Audit Ledger:** Every task, tool execution, decision rationale, and data access is permanently logged.
-4. **Human-in-the-Loop Control:** Autonomous for low-risk actions; strict approval gates for high-risk actions (applying to jobs, sending emails, making purchases).
+- The API listens on `127.0.0.1` by default. Keep it local while the app still has process-wide connector state.
+- One operator account is supported. Passwords are hashed; bearer sessions are random, stored by digest, and expire after 30 days.
+- Approval records do not execute external actions. An approved item only records the user's decision.
+- Routines run manually. Recurring schedules and durable routine history are not implemented.
+- Connector status and job search coverage depend on each connector's actual configuration and source availability.
 
----
+These boundaries are deliberate until connector credentials, career profiles, schedules, and all user data are isolated per account. Do not expose the API to a network or enable multi-user signup before that work is complete.
 
-## Monorepo Architecture
+## Local setup
+
+1. Copy `.env.example` to `.env` and set local database and provider credentials as needed.
+2. Install dependencies with `npm install`.
+3. Start the local data services: `docker compose -f infrastructure/docker/docker-compose.yml up -d`.
+4. Generate the Prisma client and apply the current local schema:
+
+   ```bash
+   npm --prefix apps/api run prisma:generate
+   npm --prefix apps/api run prisma:push
+   ```
+
+5. Start the app with `npm run dev`.
+6. Open [http://localhost:3000](http://localhost:3000) and create the local operator account. Use a unique password of at least 12 characters.
+
+The API is at [http://127.0.0.1:4000](http://127.0.0.1:4000), with Swagger at `/api/docs`. PostgreSQL and Redis ports bind to loopback by default. To access the app remotely later, first complete the multi-user and deployment security work; changing `HOST` or the database bind addresses alone is not sufficient.
+
+## Workspace layout
 
 ```text
-PersonalOS/
-├── apps/
-│   ├── api/             # NestJS REST & WebSocket API backend
-│   └── web/             # Next.js 14 Playful UI (Sora, Manrope, Poppins, Ghost Mascot)
-├── packages/
-│   ├── shared/          # Core domain models, enums & TypeScript interfaces
-│   ├── permissions/     # Capability permission engine & approval rules
-│   ├── tools/           # Tool Gateway & credential isolation engine
-│   └── agents/          # Standard Agent runtime & registry
-├── infrastructure/
-│   └── docker/          # Docker Compose for PostgreSQL 16 (pgvector) & Redis 7
-└── docs/                # Architecture diagrams and specifications
+apps/api          NestJS API and Prisma schema
+apps/web          Next.js application
+apps/workers      Background worker prototypes
+packages/shared   Shared types and domain enums
+packages/agents   Agent interfaces and registry
+packages/tools    Tool gateway
+packages/permissions  Capability and approval policies
+infrastructure/docker  Local PostgreSQL and Redis
 ```
-
----
-
-## Key Features
-
-- **Chief Coordinator Agent with Ghost Mascot:** A friendly, unified front-door orchestrating tasks across specialist bots with animated pupil tracking.
-- **Career Profile & Resume Vault:** Store multiple role-targeted markdown resumes, skills, and target job titles. Automatically recalculates real-time job fit scores.
-- **Zero-Fabrication AI Resume Tailoring & Pitch:** Adapts resume bullet points and generates hiring manager outreach pitches tailored to live job listings (e.g., Stripe, Cloudflare, Figma) without ever hallucinating skills or experience.
-- **Human-in-the-Loop Execution Pipeline:** High-stakes operations (such as submitting job applications) trigger an approval gate. Approving dispatches cryptographically sealed audit events.
-- **Live Shopping Scout (DuckDuckGo + Gemini):** Aggregates real-time e-commerce pricing across Amazon India, Croma, and Reliance Digital, verifying cross-agent budget feasibility.
-- **Resilient Gemini Engine:** Auto-discovers and falls back across available Google Generative AI models (`gemini-3.8-flash`, `gemini-3.5-flash`, `gemini-flash-latest`).
-- **Live Greenhouse Jobs Connector:** Streams verified open positions directly from active employer job boards.
-
----
-
-## Getting Started
-
-### 1. Configure Environment
-Create a `.env` in the root directory:
-```bash
-GEMINI_API_KEY="your-google-ai-studio-api-key"
-```
-
-### 2. Install Dependencies
-```bash
-npm install
-```
-
-### 3. Run Development Servers
-```bash
-npm run dev
-```
-- **Web App:** [http://localhost:3000](http://localhost:3000)
-- **API Backend:** [http://localhost:4000](http://localhost:4000) (Swagger at `/api/docs`)

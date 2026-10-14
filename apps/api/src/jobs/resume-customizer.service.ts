@@ -63,7 +63,7 @@ export class ResumeCustomizerService {
     let tailoredMarkdown = `
 # ${baseResume.title} (Tailored for ${job.company} - ${job.title})
 
-> **Target Role:** ${job.title} | **Relevance Match:** ${job.matchScore || 90}%
+> **Target Role:** ${job.title} | **Relevance Match:** ${job.matchScore === undefined ? 'Not scored' : `${job.matchScore}%`}
 
 ## Highlighted Competencies
 ${matchingSkills.map((s) => `- **${s}** (Direct Match with ${job.company} requirements)`).join('\n')}
@@ -72,7 +72,7 @@ ${matchingSkills.map((s) => `- **${s}** (Direct Match with ${job.company} requir
 ${baseResume.contentMarkdown}
 `.trim();
 
-    let outreachPitch = `Hi team at ${job.company}, I noticed the ${job.title} opening. With my background in ${matchingSkills.slice(0, 3).join(', ')} and production system design, I'm excited by what you're building and would love to connect!`;
+    let outreachPitch = `Hi ${job.company} team, I noticed the ${job.title} opening. My resume lists ${matchingSkills.length ? matchingSkills.slice(0, 3).join(', ') : 'skills relevant to the role'}; I would be glad to discuss whether my background fits.`;
     let isLLMTailored = false;
 
     if (this.geminiService.hasApiKey()) {
@@ -82,7 +82,7 @@ ${baseResume.contentMarkdown}
         if (llmResult && llmResult.length > 50) {
           tailoredMarkdown = llmResult;
           isLLMTailored = true;
-          outreachPitch = `Hi ${job.company} team, I am applying for the ${job.title} position. My verified experience aligns directly with your stack (${matchingSkills.join(', ')}). Looking forward to discussing how I can contribute from day one!`;
+          outreachPitch = `Hi ${job.company} team, I am interested in the ${job.title} position. My resume lists these skills relevant to the role: ${matchingSkills.join(', ') || 'please see the attached resume'}. I would welcome a conversation about the position.`;
         }
       } catch (err) {
         this.logger.warn(`Gemini resume tailoring error, falling back to deterministic: ${err}`);

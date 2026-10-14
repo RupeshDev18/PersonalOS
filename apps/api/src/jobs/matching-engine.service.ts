@@ -14,14 +14,17 @@ export class MatchingEngineService {
     const concerns: string[] = [];
 
     // 1. Role Match (25 pts max)
-    let roleScore = 70;
+    let roleScore = 50;
     const lowerTitle = job.title.toLowerCase();
     const targetRoleMatch = profile.targetRoles.some((tr) => lowerTitle.includes(tr.toLowerCase()));
     if (targetRoleMatch) {
       roleScore = 95;
       reasons.push(`Target role match: "${job.title}" aligns directly with your preferred career path.`);
-    } else {
+    } else if (profile.targetRoles.length > 0) {
+      roleScore = 35;
       concerns.push(`Job title "${job.title}" differs slightly from your target roles (${profile.targetRoles.join(', ')}).`);
+    } else {
+      concerns.push('Add target roles to your career profile for a personalized role match.');
     }
 
     // 2. Skill Match (25 pts max)
@@ -39,7 +42,9 @@ export class MatchingEngineService {
 
     const totalJobSkills = Math.max(job.skills.length, 1);
     const skillRatio = matchedSkillsCount / totalJobSkills;
-    const skillScore = Math.round(Math.min(100, Math.max(40, skillRatio * 100)));
+    const skillScore = profile.skills.length === 0
+      ? 50
+      : Math.round(Math.min(100, skillRatio * 100));
 
     if (matchedSkillsCount > 0) {
       reasons.push(`${matchedSkillsCount}/${totalJobSkills} key technical skills match (${job.skills.filter(s => userSkillsLower.has(s.toLowerCase())).join(', ')}).`);
@@ -47,20 +52,25 @@ export class MatchingEngineService {
     if (missingSkills.length > 0 && missingSkills.length <= 3) {
       concerns.push(`Job mentions ${missingSkills.join(', ')}, which are not strongly emphasized in your profile.`);
     }
+    if (profile.skills.length === 0) {
+      concerns.push('Add skills to your career profile for a personalized skills match.');
+    }
 
     // 3. Location / Remote Match (15 pts max)
     let locationScore = 80;
     if (job.remote && (profile.workModePreference === 'remote' || profile.workModePreference === 'any')) {
       locationScore = 100;
-      reasons.push('Remote flexibility matches your 100% remote preference.');
+      reasons.push(profile.workModePreference === 'remote'
+        ? 'This role is remote, matching your remote preference.'
+        : 'This role is remote and your profile accepts remote work.');
     } else if (!job.remote && profile.workModePreference === 'remote') {
       locationScore = 40;
       concerns.push(`Onsite/hybrid position located in ${job.location.join(', ')} conflicts with your remote preference.`);
     }
 
     // 4. Experience Match (15 pts max)
-    const experienceScore = 90;
-    reasons.push(`Your ${profile.yearsExperience}+ years experience satisfies the candidate seniority expectations.`);
+    const experienceScore = 50;
+    concerns.push('The listing has no structured experience requirement to compare.');
 
     // 5. Salary Match (10 pts max)
     let salaryScore = 85;

@@ -10,19 +10,13 @@ export class RoutinesController {
 
   @Get()
   @ApiOperation({ summary: 'Get all autonomous background routines and their execution history' })
-  getAllRoutines(@CurrentUserId() _userId: string) {
-    return this.routinesService.getAll();
-  }
-
-  @Post(':id/toggle')
-  @ApiOperation({ summary: 'Toggle routine automation schedule enabled/disabled' })
-  toggleRoutine(@CurrentUserId() _userId: string, @Param('id') id: string) {
-    return this.routinesService.toggle(id);
+  getAllRoutines(@CurrentUserId() userId: string) {
+    return this.routinesService.getAll(userId);
   }
 
   @Post(':id/run')
   @ApiOperation({ summary: 'Trigger immediate execution of an autonomous background routine' })
-  runRoutineNow(@CurrentUserId() _userId: string, @Param('id') id: string) {
-    return this.routinesService.runNow(id);
+  runRoutineNow(@CurrentUserId() userId: string, @Param('id') id: string) {
+    return this.routinesService.runNow(userId, id);
   }
 }

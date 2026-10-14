@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { SpendingAnalysis, Transaction, TransactionCategory, AuditEventType } from '@personal-os/shared';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -7,8 +7,8 @@ import { v4 as uuidv4 } from 'uuid';
 export interface AffordabilityEvaluation {
   itemPrice: number;
   currency: string;
-  isAffordable: boolean;
-  verdict: 'comfortable' | 'stretch' | 'exceeds_budget';
+  isAffordable: boolean | null;
+  verdict: 'comfortable' | 'stretch' | 'exceeds_budget' | 'unknown';
   monthlyIncome: number;
   monthlyDiscretionaryRemaining: number;
   postPurchaseRemaining: number;
@@ -38,32 +38,16 @@ export interface CsvImportResult {
 import { AccountAggregatorConnector, AABankAccount, AASyncResult } from '../connectors/account-aggregator.connector';
 
 @Injectable()
-export class FinanceService implements OnModuleInit {
+export class FinanceService {
   private readonly logger = new Logger(FinanceService.name);
   private transactionsByUser: Map<string, Transaction[]> = new Map();
-  private readonly monthlyIncome = 240_000; // ₹2.4 L / month default baseline
+  private readonly monthlyIncome = 0;
 
   constructor(
     private readonly auditService: AuditService,
     private readonly prisma: PrismaService,
     private readonly accountAggregatorConnector: AccountAggregatorConnector,
   ) {}
-
-  async onModuleInit() {
-    try {
-      const count = await this.prisma.transaction.count();
-      if (count === 0) {
-        this.logger.log('No transactions in PostgreSQL. Seeding realistic initial ledger...');
-        await this.seedInitialDbTransactions('user-rupesh');
-      }
-
-      await this.refreshUserCache('user-rupesh');
-      this.logger.log(`FinanceService initialized with PostgreSQL. User 'user-rupesh' ledger active.`);
-    } catch (err) {
-      this.logger.warn(`Could not connect to PostgreSQL for transactions: ${(err as Error).message}. Using in-memory seed.`);
-      this.seedDemoTransactionsInMemory('user-rupesh');
-    }
-  }
 
   private async refreshUserCache(userId: string): Promise<void> {
     try {
@@ -115,13 +99,15 @@ export class FinanceService implements OnModuleInit {
           timestamp: r.date,
           description: r.description,
           isRecurring: r.isRecurring,
-        }));
+        })).filter((transaction) => !this.isLegacyDemoTransaction(transaction));
       }
     } catch (err) {
       this.logger.warn(`DB read error in getTransactions: ${(err as Error).message}`);
     }
 
-    return (this.transactionsByUser.get(userId) ?? []).slice(0, limit);
+    return (this.transactionsByUser.get(userId) ?? [])
+      .filter((transaction) => !this.isLegacyDemoTransaction(transaction))
+      .slice(0, limit);
   }
 
   public async getSpendingAnalysis(userId: string): Promise<SpendingAnalysis> {
@@ -144,7 +130,9 @@ export class FinanceService implements OnModuleInit {
       if (t.isRecurring) recurringCommitments += t.amount;
     }
 
-    const remainingDiscretionary = Math.max(0, this.monthlyIncome - totalExpense);
+    const remainingDiscretionary = this.monthlyIncome > 0
+      ? Math.max(0, this.monthlyIncome - totalExpense)
+      : 0;
 
     return {
       userId,
@@ -346,7 +334,10 @@ export class FinanceService implements OnModuleInit {
     let verdict: AffordabilityEvaluation['verdict'];
     let advice: string;
 
-    if (postPurchase < 0) {
+    if (analysis.totalIncome <= 0) {
+      verdict = 'unknown';
+      advice = 'Affordability cannot be assessed because monthly income or a budget has not been configured.';
+    } else if (postPurchase < 0) {
       verdict = 'exceeds_budget';
       advice = `This purchase (₹${price.toLocaleString('en-IN')}) exceeds your remaining monthly discretionary reserve of ₹${remaining.toLocaleString('en-IN')}. Consider waiting until next month.`;
     } else if (postPurchase < 25_000) {
@@ -371,7 +362,7 @@ export class FinanceService implements OnModuleInit {
     return {
       itemPrice: price,
       currency,
-      isAffordable: verdict !== 'exceeds_budget',
+      isAffordable: verdict === 'unknown' ? null : verdict !== 'exceeds_budget',
       verdict,
       monthlyIncome: this.monthlyIncome,
       monthlyDiscretionaryRemaining: remaining,
@@ -397,6 +388,22 @@ export class FinanceService implements OnModuleInit {
     if (lower.match(/hospital|pharmacy|apollo|medplus|doctor|clinic|health|1mg|practo|dentist|cult\.fit/)) return TransactionCategory.HEALTHCARE;
     if (lower.match(/zerodha|groww|mutual fund|sip|etf|stocks|upstox|indmoney|coin/)) return TransactionCategory.INVESTMENTS;
     return TransactionCategory.OTHER;
+  }
+
+  private isLegacyDemoTransaction(transaction: Transaction): boolean {
+    const demoRows = [
+      ['AWS Cloud Services', 1499, 'Monthly compute & ECS container runtime'],
+      ['Anthropic & OpenAI', 2200, 'Monthly API inference token credits'],
+      ['GitHub Copilot Enterprise', 450, 'Developer workspace license'],
+      ['Apartment Maintenance & Rent', 32000, 'Monthly flat rent and maintenance'],
+      ['Tata Power & ACT Broadband', 8500, 'Electricity and gigabit fiber bill'],
+      ['AWS Cloud Services', 3800, 'Developer personal infrastructure lab'],
+      ['Nature Basket Grocery', 6200, 'Weekly household groceries'],
+      ['Netflix & Spotify Premium', 1499, 'Streaming entertainment services'],
+    ];
+    return demoRows.some(([merchant, amount, description]) =>
+      transaction.merchant === merchant && transaction.amount === amount && transaction.description === description,
+    );
   }
 
   private cleanMerchantName(desc: string): string {
@@ -437,84 +444,6 @@ export class FinanceService implements OnModuleInit {
       if (!isNaN(custom.getTime())) return custom;
     }
     return new Date();
-  }
-
-  private async seedInitialDbTransactions(userId: string): Promise<void> {
-    const defaults = [
-      {
-        userId, accountId: 'acc-hdfc-salary',
-        amount: 32_000, currency: 'INR',
-        merchant: 'Apartment Maintenance & Rent',
-        category: TransactionCategory.HOUSING,
-        description: 'Monthly flat rent and maintenance',
-        isRecurring: true,
-      },
-      {
-        userId, accountId: 'acc-hdfc-salary',
-        amount: 8_500, currency: 'INR',
-        merchant: 'Tata Power & ACT Broadband',
-        category: TransactionCategory.UTILITIES,
-        description: 'Electricity and gigabit fiber bill',
-        isRecurring: true,
-      },
-      {
-        userId, accountId: 'acc-icici-credit',
-        amount: 3_800, currency: 'INR',
-        merchant: 'AWS Cloud Services',
-        category: TransactionCategory.SUBSCRIPTIONS,
-        description: 'Developer personal infrastructure lab',
-        isRecurring: true,
-      },
-      {
-        userId, accountId: 'acc-icici-credit',
-        amount: 6_200, currency: 'INR',
-        merchant: 'Nature Basket Grocery',
-        category: TransactionCategory.FOOD_AND_DINING,
-        description: 'Weekly household groceries',
-        isRecurring: false,
-      },
-      {
-        userId, accountId: 'acc-icici-credit',
-        amount: 1_499, currency: 'INR',
-        merchant: 'Netflix & Spotify Premium',
-        category: TransactionCategory.SUBSCRIPTIONS,
-        description: 'Streaming entertainment services',
-        isRecurring: true,
-      },
-    ];
-
-    for (const d of defaults) {
-      await this.prisma.transaction.create({ data: d });
-    }
-  }
-
-  private seedDemoTransactionsInMemory(userId: string): void {
-    this.transactionsByUser.set(userId, [
-      {
-        id: 'tx-1', userId, accountId: 'acc-hdfc-salary',
-        amount: 32_000, currency: 'INR',
-        merchant: 'Apartment Maintenance & Rent',
-        category: TransactionCategory.HOUSING,
-        timestamp: new Date(), description: 'Monthly flat rent and maintenance',
-        isRecurring: true,
-      },
-      {
-        id: 'tx-2', userId, accountId: 'acc-hdfc-salary',
-        amount: 8_500, currency: 'INR',
-        merchant: 'Tata Power & ACT Broadband',
-        category: TransactionCategory.UTILITIES,
-        timestamp: new Date(), description: 'Electricity and gigabit fiber bill',
-        isRecurring: true,
-      },
-      {
-        id: 'tx-3', userId, accountId: 'acc-icici-credit',
-        amount: 3_800, currency: 'INR',
-        merchant: 'AWS Cloud Services',
-        category: TransactionCategory.SUBSCRIPTIONS,
-        timestamp: new Date(), description: 'Developer personal infrastructure lab',
-        isRecurring: true,
-      },
-    ]);
   }
 
   public async linkAccountAggregator(userId: string, mobileOrVpa: string, banks?: string[]) {

@@ -427,8 +427,8 @@ export class ToolsService implements OnModuleInit {
       execute: async (input: { product: string }) => {
         const comp = await this.ecommerceConnector.comparePrices(input.product);
         fileLogger.log(`Tool ecommerce.compare evaluated "${input.product}"`, 'ToolsService', {
-          cheapest: comp.cheapestOption.platform,
-          price: comp.cheapestOption.currentPrice,
+          cheapest: comp.cheapestOption?.platform ?? null,
+          price: comp.cheapestOption?.currentPrice ?? null,
           savings: comp.savingsAmount,
         });
         return comp;

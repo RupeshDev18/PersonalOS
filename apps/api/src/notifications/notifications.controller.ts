@@ -2,17 +2,16 @@ import { Body, Controller, Get, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { NotificationsService } from './notifications.service';
 import { CurrentUserId } from '../auth/user.decorator';
-import { Public } from '../auth/auth.guard';
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsNotEmpty, IsString } from 'class-validator';
 
 export class SetTelegramConfigDto {
   @IsString()
   @IsNotEmpty()
   botToken: string;
 
-  @IsOptional()
   @IsString()
-  chatId?: string;
+  @IsNotEmpty()
+  chatId: string;
 }
 
 @ApiTags('notifications')
@@ -20,7 +19,6 @@ export class SetTelegramConfigDto {
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 
-  @Public()
   @Get('status')
   @ApiOperation({ summary: 'Get Telegram notification bridge status' })
   getStatus() {
@@ -55,13 +53,5 @@ export class NotificationsController {
         ? 'Test alert sent successfully to Telegram.'
         : 'Could not send test message. Ensure your bot is configured and you ran /start.',
     };
-  }
-
-  @Public()
-  @Post('telegram/webhook')
-  @ApiOperation({ summary: 'Telegram Webhook handler (for production deployments)' })
-  async handleWebhook(@Body() update: any) {
-    await this.notificationsService.processUpdate(update);
-    return { ok: true };
   }
 }

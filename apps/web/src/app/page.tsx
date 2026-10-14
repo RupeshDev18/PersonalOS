@@ -320,7 +320,9 @@ function FinancePanel({ userId }: { userId?: string }) {
                   value: analysis.remainingDiscretionary,
                   icon: <Wallet size={14} className="text-indigo-500" />,
                   color: 'text-indigo-700',
-                  sub: `${Math.round((analysis.remainingDiscretionary / analysis.totalIncome) * 100)}% buffer left`,
+                  sub: analysis.totalIncome > 0
+                    ? `${Math.round((analysis.remainingDiscretionary / analysis.totalIncome) * 100)}% buffer left`
+                    : 'Income budget not configured',
                 },
                 {
                   label: 'Recurring Commitments',

@@ -87,7 +87,7 @@ export default function TailoredApplicationModal({
   const handleDownloadResume = async () => {
     setDownloadingResume(true);
     try {
-      const safeName = `Rupesh_Yadav_${job.company.replace(/\s+/g, '_')}_Resume.pdf`;
+      const safeName = `PersonalOS_${job.company.replace(/\s+/g, '_')}_Resume.pdf`;
       await jobsApi.downloadResumePdf(job.id, safeName);
     } catch (err) {
       alert((err as Error).message);
@@ -99,7 +99,7 @@ export default function TailoredApplicationModal({
   const handleDownloadCoverLetter = async () => {
     setDownloadingCoverLetter(true);
     try {
-      const safeName = `Rupesh_Yadav_${job.company.replace(/\s+/g, '_')}_Cover_Letter.pdf`;
+      const safeName = `PersonalOS_${job.company.replace(/\s+/g, '_')}_Cover_Letter.pdf`;
       await jobsApi.downloadCoverLetterPdf(job.id, safeName);
     } catch (err) {
       alert((err as Error).message);
