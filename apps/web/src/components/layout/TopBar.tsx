@@ -8,6 +8,7 @@ const PANEL_LABELS: Record<ActivePanel, string> = {
   chat:       'Chief Agent',
   jobs:       'Job Discovery',
   finance:    'Finance',
+  routines:   'Autonomous Routines',
   approvals:  'Approvals',
   audit:      'Audit Log',
   connectors: 'Connectors',

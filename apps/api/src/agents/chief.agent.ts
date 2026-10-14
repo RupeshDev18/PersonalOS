@@ -203,6 +203,17 @@ export class ChiefAgent extends AbstractAgent {
       };
     }
 
+    if (text.includes('github') || text.includes('repo') || text.includes('repositor') || text.includes('pull request') || text.includes('commit') || text.includes('public repo')) {
+      return {
+        taskType,
+        scheduleExpression,
+        primaryAgent: AgentType.RESEARCH,
+        requiredAgents: [AgentType.RESEARCH],
+        summary: 'Inspect user connected GitHub repositories and developer activity',
+        rawInput: input.prompt,
+      };
+    }
+
     if (text.includes('search for') || text.includes('research') || text.includes('look up') || text.includes('find info')) {
       return {
         taskType,
@@ -276,13 +287,25 @@ export class ChiefAgent extends AbstractAgent {
         payload: {},
       });
     } else if (intent.primaryAgent === AgentType.RESEARCH) {
-      steps.push({
-        agentType: AgentType.RESEARCH,
-        name: 'Conduct Live Web Research',
-        description: 'Search relevant topics and aggregate findings via live DuckDuckGo Connector',
-        action: 'research.web.search',
-        payload: { query: input.prompt },
-      });
+      const promptLower = input.prompt.toLowerCase();
+      const isGithub = promptLower.includes('github') || promptLower.includes('repo') || promptLower.includes('repositor') || promptLower.includes('commit') || promptLower.includes('code');
+      if (isGithub) {
+        steps.push({
+          agentType: AgentType.RESEARCH,
+          name: 'Search GitHub Repositories',
+          description: 'Fetch repositories, languages, and stars from connected GitHub integration',
+          action: 'github.read',
+          payload: { query: input.prompt },
+        });
+      } else {
+        steps.push({
+          agentType: AgentType.RESEARCH,
+          name: 'Conduct Live Web Research',
+          description: 'Search relevant topics and aggregate findings via live DuckDuckGo Connector',
+          action: 'research.web.search',
+          payload: { query: input.prompt },
+        });
+      }
     } else if (intent.primaryAgent === AgentType.COMMUNICATION) {
       const promptLower = input.prompt.toLowerCase();
       const history = (input.context?.conversationHistory as Array<{ role: string; content: string }>) || [];
@@ -351,6 +374,44 @@ export class ChiefAgent extends AbstractAgent {
 
     // 1.5. Execute via LangGraph Autonomous State Machine (if active)
     const history = (input.context?.conversationHistory as Array<{ role: string; content: string }>) || [];
+
+    // Load live connected integrations context from Prisma so agents know live status
+    let connectorContext = '';
+    if (this.prisma) {
+      try {
+        const configs = await this.prisma.connectorConfig.findMany();
+        const liveList = configs
+          .filter((c) => c.isLive)
+          .map((c) => {
+            const d = (c.details as any) || {};
+            if (c.id === 'connector-github') {
+              return `• GitHub Developer Index: LIVE (Authorized @${d.username || 'user'}, ${d.repoCount || 0} repositories, ${d.totalStars || 0} stars, top languages: ${(d.topLanguages || []).join(', ') || 'TypeScript, Go, Python'})`;
+            }
+            if (c.id === 'connector-google-workspace') {
+              return `• Google Workspace (Gmail + Drive): LIVE (Authorized email: ${d.email || 'user'})`;
+            }
+            if (c.id === 'connector-amazon-account') {
+              return `• Amazon India Personal Account: LIVE (Connected @${d.username || 'user'}, Orders Synced)`;
+            }
+            if (c.id === 'connector-flipkart-account') {
+              return `• Flipkart Personal Account: LIVE (Connected @${d.username || 'user'}, Orders Synced)`;
+            }
+            if (c.id === 'connector-linkedin-account') {
+              return `• LinkedIn Personal Account: LIVE (Connected @${d.username || 'user'}, Applications Synced)`;
+            }
+            if (c.id === 'connector-naukri-account') {
+              return `• Naukri.com Personal Account: LIVE (Connected @${d.username || 'user'}, Profile Score ${d.stats?.profileScore || 'Active'})`;
+            }
+            return `• ${c.name || c.id}: LIVE`;
+          });
+        if (liveList.length > 0) {
+          connectorContext = liveList.join('\n');
+        }
+      } catch {
+        // continue
+      }
+    }
+
     if (this.graphService && (this.geminiService?.hasApiKey() || process.env.OPENAI_API_KEY || process.env.OLLAMA_BASE_URL)) {
       try {
         fileLogger.log(`Delegating to LangGraph autonomous graph: "${input.prompt}"`, 'ChiefAgent', { taskId, historyTurns: history.length });
@@ -360,6 +421,7 @@ export class ChiefAgent extends AbstractAgent {
           taskId,
           conversationHistory: history,
           gateway: this.toolGateway,
+          connectorContext,
         });
 
         this.auditService.log({
@@ -614,7 +676,7 @@ export class ChiefAgent extends AbstractAgent {
     if (!finalSummary && this.geminiService?.hasApiKey()) {
       try {
         const history = (input.context?.conversationHistory as Array<{ role: string; content: string }>) || [];
-        const llmSynth = await this.geminiService.synthesizeResponseWithLLM(input.prompt, stepOutputs, history);
+        const llmSynth = await this.geminiService.synthesizeResponseWithLLM(input.prompt, stepOutputs, history, connectorContext);
         if (llmSynth) {
           finalSummary = llmSynth;
         }
@@ -632,6 +694,14 @@ export class ChiefAgent extends AbstractAgent {
         finalSummary = `Job Specialist ingested live openings from Greenhouse public boards, removed duplicate listings, and scored candidate matches against your verified tech profile.`;
       } else if (intent.primaryAgent === AgentType.FINANCE) {
         finalSummary = `Finance Specialist ingested your latest discretionary ledger transactions. Safe purchasing margin verified.`;
+      } else if (stepOutputs['github.read'] || stepOutputs['Search GitHub Repositories']) {
+        const gh = (stepOutputs['github.read'] || stepOutputs['Search GitHub Repositories']) as any;
+        if (gh && gh.connected && gh.repos) {
+          const repoList = gh.repos.map((r: any) => `• **${r.name}** (${r.language || 'Code'}, ⭐ ${r.stars})${r.url ? ` - [View Repo](${r.url})` : ''}`).join('\n');
+          finalSummary = `Yes! Your **GitHub Developer Index** is active and connected (@**${gh.username}**) with **${gh.repoCount || gh.repos.length} repositories**:\n\n${repoList}`;
+        } else {
+          finalSummary = `GitHub integration status: ${gh?.message || 'Please connect your GitHub account in the Connectors tab.'}`;
+        }
       } else if (intent.primaryAgent === AgentType.COMMUNICATION) {
         const driveOutput = stepOutputs['drive.read'] as any;
         const emailOutput = stepOutputs['email.read'] as any;

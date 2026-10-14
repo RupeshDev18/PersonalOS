@@ -11,6 +11,7 @@ export type ConnectorType =
   | 'llm_engine'
   | 'financial_ledger'
   | 'communication'
+  | 'ecommerce'
   | 'social';
 
 export interface ConnectorInfo {

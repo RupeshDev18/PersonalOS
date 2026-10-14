@@ -244,7 +244,7 @@ export interface AuditEvent {
 export type ConnectorStatus = 'connected' | 'disconnected' | 'fallback_mode' | 'error';
 export type ConnectorType =
   | 'personal_context' | 'job_board' | 'web_search'
-  | 'llm_engine' | 'financial_ledger' | 'communication' | 'social';
+  | 'llm_engine' | 'financial_ledger' | 'communication' | 'ecommerce' | 'social';
 
 export interface ConnectorInfo {
   id: string;
@@ -264,6 +264,7 @@ export type ActivePanel =
   | 'chat'
   | 'jobs'
   | 'finance'
+  | 'routines'
   | 'approvals'
   | 'audit'
   | 'connectors'

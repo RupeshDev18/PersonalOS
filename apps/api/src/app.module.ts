@@ -15,6 +15,7 @@ import { LlmModule } from './llm/llm.module';
 import { AuthModule } from './auth/auth.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { RoutinesModule } from './routines/routines.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     LlmModule,
     AuthModule,
     NotificationsModule,
+    RoutinesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

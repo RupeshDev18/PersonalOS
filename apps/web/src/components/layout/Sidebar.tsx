@@ -3,7 +3,7 @@
 import React from 'react';
 import {
   MessageSquare, Briefcase, Wallet, ShieldCheck,
-  Activity, Plug, User, ChevronRight,
+  Activity, Plug, User, ChevronRight, Clock,
 } from 'lucide-react';
 import GhostMascot from '@/components/GhostMascot';
 import type { ActivePanel } from '@/lib/types';
@@ -29,6 +29,7 @@ export default function Sidebar({
     { id: 'chat',       label: 'Chief Agent', icon: <MessageSquare size={18} /> },
     { id: 'jobs',       label: 'Jobs',        icon: <Briefcase size={18} /> },
     { id: 'finance',    label: 'Finance',     icon: <Wallet size={18} /> },
+    { id: 'routines',   label: 'Routines',    icon: <Clock size={18} /> },
     { id: 'approvals',  label: 'Approvals',   icon: <ShieldCheck size={18} />, badge: pendingApprovals },
     { id: 'audit',      label: 'Audit Log',   icon: <Activity size={18} /> },
     { id: 'connectors', label: 'Connectors',  icon: <Plug size={18} /> },

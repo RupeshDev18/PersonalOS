@@ -12,12 +12,11 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 // discoverBestModel() will refine this list at runtime by querying the API.
 // ---------------------------------------------------------------------------
 const MODEL_PREFERENCE_ORDER = [
+  'gemini-3.8-flash',
   'gemini-3.6-flash',
   'gemini-3.5-flash',
-  'gemini-2.5-flash',
   'gemini-flash-latest',
   'gemini-2.5-pro',
-  'gemini-3.8-flash',
   'gemini-3.7-flash',
   'gemini-pro-latest',
   'gemini-2.0-flash',
@@ -285,6 +284,7 @@ ROUTING RULES:
 4. FINANCE & BUDGET (spending, balance, ledger) → primaryAgent: "finance", requiredAgents: ["finance"]
 5. RESEARCH (explicit web search needed) → primaryAgent: "research", requiredAgents: ["research"]
 6. GOOGLE DRIVE, DOCUMENTS, FILES, RESUMES, GMAIL & EMAILS → primaryAgent: "communication", requiredAgents: ["communication"]. (Note: Any search or questions about documents, files, PDFs, or Drive items must route to communication with action "drive.read", NOT finance).
+7. GITHUB, REPOSITORIES, CODE, COMMITS, PRs → primaryAgent: "research", requiredAgents: ["research"]. Route with action "github.read".
 
 Respond ONLY with valid JSON:
 {
@@ -316,6 +316,7 @@ User prompt: "${prompt}"`;
     prompt: string,
     specialistData: Record<string, unknown>,
     conversationHistory?: Array<{ role: string; content: string }>,
+    connectorContext?: string,
   ): Promise<string | null> {
     if (!this.genAI) return null;
 
@@ -327,9 +328,13 @@ ${conversationHistory.map((m) => `${m.role.toUpperCase()}: ${m.content}`).join('
 `
         : '';
 
+    const connectorSection = connectorContext
+      ? `\nACTIVE CONNECTORS STATUS IN OPERATOR'S OS:\n${connectorContext}\nNOTE: If a service is listed as Connected above, it IS connected and authorized. Do NOT tell the user it is disconnected.\n`
+      : '';
+
     const promptText = hasData
       ? `You are Chief Ghost, the personal AI OS coordinator.
-${historySection}
+${historySection}${connectorSection}
 The user asked: "${prompt}"
 
 Specialist agent findings:
@@ -341,13 +346,13 @@ Instructions:
 3. If files, emails, or job postings are present, summarize or list them clearly with markdown formatting.
 4. Be concise, direct, and helpful. Avoid robotic filler.`
       : `You are Chief Ghost, the user's personal AI OS coordinator.
-${historySection}
+${historySection}${connectorSection}
 The user said: "${prompt}"
 
 Instructions:
 1. Maintain continuity with the prior conversation turns.
 2. Answer the user's inquiry directly, accurately, and conversationally.
-3. If they are asking to search or perform actions on external services (such as Google Drive, Gmail, GitHub, or Slack) that require integration, let them know they can connect their account under the Connectors tab.
+3. If they are asking about connected accounts or capabilities, refer to the active connectors above.
 4. Do NOT repeat a generic canned greeting if they asked a specific question.`;
 
     try {

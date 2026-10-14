@@ -484,6 +484,99 @@ export const connectors = {
       method: 'POST',
       body: JSON.stringify(config),
     }),
+
+  // Naukri & LinkedIn
+  naukriSearch: (role?: string, location?: string) => {
+    const qs = new URLSearchParams();
+    if (role) qs.set('role', role);
+    if (location) qs.set('location', location);
+    return request<any[]>(`/api/connectors/naukri/search?${qs.toString()}`);
+  },
+
+  linkedInSearch: (role?: string, location?: string) => {
+    const qs = new URLSearchParams();
+    if (role) qs.set('role', role);
+    if (location) qs.set('location', location);
+    return request<any[]>(`/api/connectors/linkedin/search?${qs.toString()}`);
+  },
+
+  // E-Commerce
+  amazonSearch: (q: string) =>
+    request<any[]>(`/api/connectors/ecommerce/amazon?q=${encodeURIComponent(q)}`),
+
+  flipkartSearch: (q: string) =>
+    request<any[]>(`/api/connectors/ecommerce/flipkart?q=${encodeURIComponent(q)}`),
+
+  ecommerceCompare: (q: string) =>
+    request<any>(`/api/connectors/ecommerce/compare?q=${encodeURIComponent(q)}`),
+
+  // Google Search & History
+  googleSearch: (q: string) =>
+    request<any>(`/api/connectors/google-search/query?q=${encodeURIComponent(q)}`),
+
+  searchHistory: () =>
+    request<any[]>('/api/connectors/google-search/history'),
+
+  clearSearchHistory: () =>
+    request<{ success: boolean; message: string }>('/api/connectors/google-search/history/clear', {
+      method: 'POST',
+    }),
+
+  // Local Browser Session Agent (Amazon, Flipkart, LinkedIn, Naukri)
+  browserLoginStart: (platform: string) =>
+    request<{ success: boolean; message: string; loginUrl: string; platform: string }>(
+      `/api/connectors/browser/login/start/${platform}`,
+      { method: 'POST' },
+    ),
+
+  browserLoginStatus: (platform: string) =>
+    request<{
+      active: boolean;
+      status: string;
+      message: string;
+      accountInfo?: any;
+      startedAt?: number;
+      isSaved: boolean;
+    }>(`/api/connectors/browser/login/status/${platform}`),
+
+  browserLoginComplete: (platform: string) =>
+    request<{ success: boolean; message: string; accountInfo: any }>(
+      `/api/connectors/browser/login/complete/${platform}`,
+      { method: 'POST' },
+    ),
+
+  browserLoginCancel: (platform: string) =>
+    request<{ success: boolean }>(`/api/connectors/browser/login/cancel/${platform}`, {
+      method: 'POST',
+    }),
+
+  browserAccount: (platform: string) =>
+    request<{
+      platform: string;
+      connected: boolean;
+      username: string | null;
+      lastSync: string | null;
+      summary: string;
+      items: any[];
+      stats: Record<string, any>;
+    }>(`/api/connectors/browser/account/${platform}`),
+
+  browserSync: (platform: string) =>
+    request<{
+      platform: string;
+      connected: boolean;
+      username: string | null;
+      lastSync: string | null;
+      summary: string;
+      items: any[];
+      stats: Record<string, any>;
+    }>(`/api/connectors/browser/sync/${platform}`, { method: 'POST' }),
+
+  browserDisconnect: (platform: string) =>
+    request<{ success: boolean; message: string }>(
+      `/api/connectors/browser/disconnect/${platform}`,
+      { method: 'POST' },
+    ),
 };
 
 // ---------------------------------------------------------------------------
@@ -508,6 +601,44 @@ export const notifications = {
 
   test: () =>
     request<{ success: boolean; message: string }>('/api/notifications/test', {
+      method: 'POST',
+    }),
+};
+
+// ---------------------------------------------------------------------------
+// Autonomous Scheduled Routines
+// ---------------------------------------------------------------------------
+
+export interface RoutineExecutionLog {
+  id: string;
+  timestamp: string;
+  status: 'success' | 'failed' | 'running';
+  summary: string;
+}
+
+export interface RoutineItem {
+  id: string;
+  name: string;
+  description: string;
+  schedule: string;
+  cronHint: string;
+  enabled: boolean;
+  category: 'career' | 'briefing' | 'shopping' | 'research';
+  lastRun?: string;
+  nextRun?: string;
+  lastStatus?: 'success' | 'failed' | 'pending';
+  lastSummary?: string;
+  logs: RoutineExecutionLog[];
+}
+
+export const routines = {
+  list: () => request<RoutineItem[]>('/api/routines'),
+  run: (id: string) =>
+    request<{ success: boolean; message: string; summary: string }>(`/api/routines/${id}/run`, {
+      method: 'POST',
+    }),
+  toggle: (id: string) =>
+    request<{ success: boolean; routine: RoutineItem }>(`/api/routines/${id}/toggle`, {
       method: 'POST',
     }),
 };

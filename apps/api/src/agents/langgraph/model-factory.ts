@@ -54,8 +54,8 @@ export function createChatModel(config: ModelConfig = {}): BaseChatModel {
     case 'gemini':
     default: {
       const apiKey = config.apiKey || process.env.GEMINI_API_KEY;
-      // Use verified modern Gemini models
-      const model = config.modelName || process.env.GEMINI_MODEL_NAME || 'gemini-2.5-flash';
+      // Use verified modern Gemini models: gemini-3.8-flash is the primary active model
+      const model = config.modelName || process.env.GEMINI_MODEL_NAME || 'gemini-3.8-flash';
       return new ChatGoogleGenerativeAI({
         apiKey,
         model,

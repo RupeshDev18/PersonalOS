@@ -13,6 +13,7 @@ import JobsPanel from '@/components/jobs/JobsPanel';
 import ApprovalsPanel from '@/components/approvals/ApprovalsPanel';
 import AuditPanel from '@/components/audit/AuditPanel';
 import ConnectorsPanel from '@/components/connectors/ConnectorsPanel';
+import RoutinesPanel from '@/components/routines/RoutinesPanel';
 
 // Hooks
 import { useAuth } from '@/hooks/useAuth';
@@ -877,6 +878,8 @@ function AuthenticatedDashboard({
           )}
 
           {activePanel === 'finance' && <FinancePanel userId={user.id} />}
+
+          {activePanel === 'routines' && <RoutinesPanel />}
 
           {activePanel === 'approvals' && (
             <ApprovalsPanel

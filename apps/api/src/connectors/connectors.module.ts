@@ -8,12 +8,16 @@ import { GoogleConnector } from './google.connector';
 import { AccountAggregatorConnector } from './account-aggregator.connector';
 import { GitHubConnector } from './github.connector';
 import { SlackConnector } from './slack.connector';
+import { ECommerceConnector } from './ecommerce.connector';
+import { GoogleSearchConnector } from './google-search.connector';
 import { ConnectorRegistryService } from './connector-registry.service';
 import { ConnectorsController } from './connectors.controller';
 import { LlmModule } from '../llm/llm.module';
 import { JobsModule } from '../jobs/jobs.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+
+import { BrowserSessionService } from './browser-session.service';
 
 @Module({
   imports: [LlmModule, PrismaModule, forwardRef(() => JobsModule), NotificationsModule],
@@ -28,6 +32,9 @@ import { NotificationsModule } from '../notifications/notifications.module';
     AccountAggregatorConnector,
     GitHubConnector,
     SlackConnector,
+    ECommerceConnector,
+    GoogleSearchConnector,
+    BrowserSessionService,
     ConnectorRegistryService,
   ],
   exports: [
@@ -40,6 +47,9 @@ import { NotificationsModule } from '../notifications/notifications.module';
     AccountAggregatorConnector,
     GitHubConnector,
     SlackConnector,
+    ECommerceConnector,
+    GoogleSearchConnector,
+    BrowserSessionService,
     ConnectorRegistryService,
   ],
 })

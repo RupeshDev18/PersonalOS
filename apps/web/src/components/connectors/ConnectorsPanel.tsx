@@ -20,8 +20,14 @@ import {
   Cpu,
   Sparkles,
   Server,
+  Search,
+  ShoppingBag,
+  Globe,
+  Building2,
+  Laptop,
 } from 'lucide-react';
 import ConnectorCard from './ConnectorCard';
+import BrowserLoginModal from './BrowserLoginModal';
 import { notifications, connectors as apiConnectors } from '@/lib/api';
 import type { ConnectorInfo } from '@/lib/types';
 
@@ -74,7 +80,7 @@ export default function ConnectorsPanel({
 
   // Multi-Provider LLM state (LangGraph Engine)
   const [llmProvider, setLlmProvider] = useState<'gemini' | 'ollama' | 'openai' | 'openrouter'>('gemini');
-  const [llmModel, setLlmModel] = useState('gemini-2.5-flash');
+  const [llmModel, setLlmModel] = useState('gemini-3.8-flash');
   const [llmApiKey, setLlmApiKey] = useState('');
   const [llmBaseUrl, setLlmBaseUrl] = useState('http://localhost:11434/v1');
   const [savingLlm, setSavingLlm] = useState(false);
@@ -103,6 +109,93 @@ export default function ConnectorsPanel({
   const [telegramChatId, setTelegramChatId] = useState('');
   const [savingTelegram, setSavingTelegram] = useState(false);
   const [telegramMsg, setTelegramMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  // Naukri state
+  const [naukriRole, setNaukriRole] = useState('Senior Backend Engineer');
+  const [searchingNaukri, setSearchingNaukri] = useState(false);
+  const [naukriMsg, setNaukriMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  // LinkedIn state
+  const [linkedinRole, setLinkedinRole] = useState('Staff Software Engineer');
+  const [searchingLinkedin, setSearchingLinkedin] = useState(false);
+  const [linkedinMsg, setLinkedinMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  // Amazon & Flipkart state
+  const [amazonProduct, setAmazonProduct] = useState('MacBook Air M2');
+  const [searchingAmazon, setSearchingAmazon] = useState(false);
+  const [amazonMsg, setAmazonMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const [flipkartProduct, setFlipkartProduct] = useState('Sony WH-1000XM5');
+  const [searchingFlipkart, setSearchingFlipkart] = useState(false);
+  const [flipkartMsg, setFlipkartMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  // Google Search & History state
+  const [googleQuery, setGoogleQuery] = useState('Next.js 14 App Router');
+  const [searchingGoogle, setSearchingGoogle] = useState(false);
+  const [googleSearchMsg, setGoogleSearchMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [recentSearches, setRecentSearches] = useState<any[]>([]);
+  const [showSearchHistory, setShowSearchHistory] = useState(false);
+
+  // Browser Session Customer Accounts state (Amazon, Flipkart, LinkedIn, Naukri)
+  const [browserAccounts, setBrowserAccounts] = useState<Record<string, any>>({});
+  const [browserModal, setBrowserModal] = useState<{
+    open: boolean;
+    platform: 'amazon' | 'flipkart' | 'linkedin' | 'naukri';
+    displayName: string;
+  } | null>(null);
+  const [syncingPlatform, setSyncingPlatform] = useState<string | null>(null);
+
+  const fetchBrowserAccounts = async () => {
+    const platforms: Array<'amazon' | 'flipkart' | 'linkedin' | 'naukri'> = [
+      'amazon',
+      'flipkart',
+      'linkedin',
+      'naukri',
+    ];
+    const results: Record<string, any> = {};
+    await Promise.allSettled(
+      platforms.map(async (p) => {
+        try {
+          const acc = await apiConnectors.browserAccount(p);
+          results[p] = acc;
+        } catch {
+          results[p] = { connected: false };
+        }
+      }),
+    );
+    setBrowserAccounts(results);
+  };
+
+  useEffect(() => {
+    fetchBrowserAccounts();
+  }, []);
+
+  const openBrowserLogin = (platform: 'amazon' | 'flipkart' | 'linkedin' | 'naukri', displayName: string) => {
+    setBrowserModal({ open: true, platform, displayName });
+  };
+
+  const handleSyncBrowser = async (platform: string) => {
+    setSyncingPlatform(platform);
+    try {
+      const res = await apiConnectors.browserSync(platform);
+      setBrowserAccounts((prev) => ({ ...prev, [platform]: res }));
+    } catch (err: any) {
+      alert(`Sync failed: ${err.message}`);
+    } finally {
+      setSyncingPlatform(null);
+    }
+  };
+
+  const handleDisconnectBrowser = async (platform: string) => {
+    if (!confirm(`Are you sure you want to disconnect your ${platform} session?`)) return;
+    try {
+      await apiConnectors.browserDisconnect(platform);
+      await fetchBrowserAccounts();
+      onRefresh();
+    } catch (err: any) {
+      alert(`Disconnect failed: ${err.message}`);
+    }
+  };
 
   // ---------------------------------------------------------------------------
   // Google handlers
@@ -353,6 +446,95 @@ export default function ConnectorsPanel({
   };
 
   // ---------------------------------------------------------------------------
+  // Naukri & LinkedIn Handlers
+  // ---------------------------------------------------------------------------
+  const handleSearchNaukri = async () => {
+    if (!naukriRole.trim()) return;
+    setSearchingNaukri(true);
+    setNaukriMsg(null);
+    try {
+      const res = await apiConnectors.naukriSearch(naukriRole.trim(), 'Bengaluru');
+      setNaukriMsg({ ok: true, text: `Discovered ${(res as any).length} active unicorn roles for "${naukriRole}".` });
+    } catch (e: unknown) {
+      setNaukriMsg({ ok: false, text: e instanceof Error ? e.message : 'Naukri search failed.' });
+    } finally {
+      setSearchingNaukri(false);
+    }
+  };
+
+  const handleSearchLinkedin = async () => {
+    if (!linkedinRole.trim()) return;
+    setSearchingLinkedin(true);
+    setLinkedinMsg(null);
+    try {
+      const res = await apiConnectors.linkedInSearch(linkedinRole.trim(), 'India');
+      setLinkedinMsg({ ok: true, text: `Discovered ${(res as any).length} tech GCC roles for "${linkedinRole}".` });
+    } catch (e: unknown) {
+      setLinkedinMsg({ ok: false, text: e instanceof Error ? e.message : 'LinkedIn search failed.' });
+    } finally {
+      setSearchingLinkedin(false);
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // Amazon & Flipkart Handlers
+  // ---------------------------------------------------------------------------
+  const handleSearchAmazon = async () => {
+    if (!amazonProduct.trim()) return;
+    setSearchingAmazon(true);
+    setAmazonMsg(null);
+    try {
+      const res = await apiConnectors.amazonSearch(amazonProduct.trim());
+      setAmazonMsg({ ok: true, text: `Retrieved ${(res as any).length} verified Amazon India listings for "${amazonProduct}".` });
+    } catch (e: unknown) {
+      setAmazonMsg({ ok: false, text: e instanceof Error ? e.message : 'Amazon search failed.' });
+    } finally {
+      setSearchingAmazon(false);
+    }
+  };
+
+  const handleSearchFlipkart = async () => {
+    if (!flipkartProduct.trim()) return;
+    setSearchingFlipkart(true);
+    setFlipkartMsg(null);
+    try {
+      const res = await apiConnectors.flipkartSearch(flipkartProduct.trim());
+      setFlipkartMsg({ ok: true, text: `Retrieved ${(res as any).length} Flipkart deals for "${flipkartProduct}".` });
+    } catch (e: unknown) {
+      setFlipkartMsg({ ok: false, text: e instanceof Error ? e.message : 'Flipkart search failed.' });
+    } finally {
+      setSearchingFlipkart(false);
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // Google Search & History Handlers
+  // ---------------------------------------------------------------------------
+  const handleSearchGoogle = async () => {
+    if (!googleQuery.trim()) return;
+    setSearchingGoogle(true);
+    setGoogleSearchMsg(null);
+    try {
+      const res = await apiConnectors.googleSearch(googleQuery.trim());
+      setGoogleSearchMsg({ ok: true, text: res.summary || `Retrieved results for "${googleQuery}".` });
+      handleFetchSearchHistory();
+    } catch (e: unknown) {
+      setGoogleSearchMsg({ ok: false, text: e instanceof Error ? e.message : 'Google search failed.' });
+    } finally {
+      setSearchingGoogle(false);
+    }
+  };
+
+  const handleFetchSearchHistory = async () => {
+    try {
+      const hist = await apiConnectors.searchHistory();
+      setRecentSearches(hist || []);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  // ---------------------------------------------------------------------------
   // Build per-connector action slots
   // ---------------------------------------------------------------------------
   const actionsFor = (connector: ConnectorInfo): React.ReactNode => {
@@ -560,8 +742,8 @@ export default function ConnectorsPanel({
                   type="button"
                   onClick={() => {
                     setLlmProvider(p.id);
-                    if (p.id === 'gemini' && !['gemini-2.5-flash', 'gemini-3.6-flash', 'gemini-1.5-flash'].includes(llmModel)) {
-                      setLlmModel('gemini-2.5-flash');
+                    if (p.id === 'gemini' && !['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-1.5-flash'].includes(llmModel)) {
+                      setLlmModel('gemini-3.8-flash');
                     } else if (p.id === 'ollama') {
                       setLlmModel('hermes3');
                       setLlmBaseUrl('http://localhost:11434/v1');
@@ -589,7 +771,7 @@ export default function ConnectorsPanel({
             <span className="text-[11px] text-slate-400 font-medium">Model:</span>
             {llmProvider === 'gemini' && (
               <>
-                {['gemini-2.5-flash', 'gemini-3.6-flash', 'gemini-1.5-flash'].map((m) => (
+                {['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-1.5-flash'].map((m) => (
                   <button
                     key={m}
                     type="button"
@@ -806,10 +988,394 @@ export default function ConnectorsPanel({
       );
     }
 
+    // 6. Naukri.com
+    if (connector.id === 'connector-naukri') {
+      const acc = browserAccounts['naukri'];
+      const isConnected = acc?.connected;
+
+      return (
+        <div className="flex flex-col gap-3 w-full pt-1">
+          {/* Customer Account Session Status Banner */}
+          <div className="flex items-center justify-between p-3 rounded-xl border border-indigo-200/80 bg-indigo-50/50">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-sm">
+                N
+              </div>
+              <div className="flex flex-col">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-semibold text-slate-800">
+                    {isConnected ? `Naukri Candidate Account: Linked (@${acc?.username || 'User'})` : 'Naukri.com Personal Account'}
+                  </span>
+                  <span className={`inline-flex items-center px-1.5 py-0.2 rounded-full text-[10px] font-medium ${isConnected ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'}`}>
+                    {isConnected ? 'Active Session' : 'Not Connected'}
+                  </span>
+                </div>
+                <span className="text-[11px] text-slate-500">
+                  {isConnected
+                    ? `${acc?.summary || 'Recruiter search appearances & applied jobs tracked'}`
+                    : 'Link your personal Naukri account with 1-click desktop login (OTP supported).'}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {isConnected ? (
+                <>
+                  <button
+                    onClick={() => handleSyncBrowser('naukri')}
+                    disabled={syncingPlatform === 'naukri'}
+                    className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg bg-white text-slate-700 hover:bg-slate-50 border border-slate-300 font-medium shadow-xs transition-colors"
+                  >
+                    {syncingPlatform === 'naukri' ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
+                    Sync Activity
+                  </button>
+                  <button
+                    onClick={() => handleDisconnectBrowser('naukri')}
+                    className="flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg text-rose-600 hover:bg-rose-50 font-medium transition-colors"
+                  >
+                    Disconnect
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => openBrowserLogin('naukri', 'Naukri.com')}
+                  className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 font-medium shadow-sm transition-colors"
+                >
+                  <Laptop size={12} />
+                  Link Account (Browser Login)
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="text"
+              placeholder="Target Role (e.g. Senior Backend Engineer)"
+              value={naukriRole}
+              onChange={(e) => setNaukriRole(e.target.value)}
+              className="flex-1 text-xs px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-400 min-w-[200px]"
+            />
+            <button
+              onClick={handleSearchNaukri}
+              disabled={searchingNaukri || !naukriRole.trim()}
+              className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 transition-colors font-medium flex-shrink-0"
+            >
+              {searchingNaukri ? <Loader2 size={11} className="animate-spin" /> : <Building2 size={11} />}
+              Search Unicorns
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // 7. LinkedIn
+    if (connector.id === 'connector-linkedin') {
+      const acc = browserAccounts['linkedin'];
+      const isConnected = acc?.connected;
+
+      return (
+        <div className="flex flex-col gap-3 w-full pt-1">
+          {/* Customer Account Session Status Banner */}
+          <div className="flex items-center justify-between p-3 rounded-xl border border-sky-200/80 bg-sky-50/50">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-sky-600 text-white flex items-center justify-center font-bold text-xs shadow-sm">
+                in
+              </div>
+              <div className="flex flex-col">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-semibold text-slate-800">
+                    {isConnected ? `LinkedIn Professional: Linked (@${acc?.username || 'User'})` : 'LinkedIn Personal Account'}
+                  </span>
+                  <span className={`inline-flex items-center px-1.5 py-0.2 rounded-full text-[10px] font-medium ${isConnected ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'}`}>
+                    {isConnected ? 'Active Session' : 'Not Connected'}
+                  </span>
+                </div>
+                <span className="text-[11px] text-slate-500">
+                  {isConnected
+                    ? `${acc?.summary || 'Applied jobs tracker and profile sync active'}`
+                    : 'Link your personal LinkedIn to let Chief Agent track applied jobs & recruiter views.'}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {isConnected ? (
+                <>
+                  <button
+                    onClick={() => handleSyncBrowser('linkedin')}
+                    disabled={syncingPlatform === 'linkedin'}
+                    className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg bg-white text-slate-700 hover:bg-slate-50 border border-slate-300 font-medium shadow-xs transition-colors"
+                  >
+                    {syncingPlatform === 'linkedin' ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
+                    Sync Applications
+                  </button>
+                  <button
+                    onClick={() => handleDisconnectBrowser('linkedin')}
+                    className="flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg text-rose-600 hover:bg-rose-50 font-medium transition-colors"
+                  >
+                    Disconnect
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => openBrowserLogin('linkedin', 'LinkedIn')}
+                  className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-sky-600 text-white hover:bg-sky-700 font-medium shadow-sm transition-colors"
+                >
+                  <Laptop size={12} />
+                  Link Account (Browser Login)
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="text"
+              placeholder="Target Role (e.g. Staff Software Engineer)"
+              value={linkedinRole}
+              onChange={(e) => setLinkedinRole(e.target.value)}
+              className="flex-1 text-xs px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-400 min-w-[200px]"
+            />
+            <button
+              onClick={handleSearchLinkedin}
+              disabled={searchingLinkedin || !linkedinRole.trim()}
+              className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition-colors font-medium flex-shrink-0"
+            >
+              {searchingLinkedin ? <Loader2 size={11} className="animate-spin" /> : <Search size={11} />}
+              Search GCCs
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // 8. Amazon India
+    if (connector.id === 'connector-amazon') {
+      const acc = browserAccounts['amazon'];
+      const isConnected = acc?.connected;
+
+      return (
+        <div className="flex flex-col gap-3 w-full pt-1">
+          {/* Customer Account Session Status Banner */}
+          <div className="flex items-center justify-between p-3 rounded-xl border border-amber-200/80 bg-amber-50/50">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center font-bold text-xs shadow-sm">
+                a
+              </div>
+              <div className="flex flex-col">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-semibold text-slate-800">
+                    {isConnected ? `Amazon Prime: Linked (@${acc?.username || 'User'})` : 'Amazon India Customer Account'}
+                  </span>
+                  <span className={`inline-flex items-center px-1.5 py-0.2 rounded-full text-[10px] font-medium ${isConnected ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'}`}>
+                    {isConnected ? 'Active Session' : 'Not Connected'}
+                  </span>
+                </div>
+                <span className="text-[11px] text-slate-500">
+                  {isConnected
+                    ? `${acc?.summary || 'Orders and delivery tracking active'}`
+                    : 'Log in once on desktop to let Chief Agent track orders & shipments.'}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {isConnected ? (
+                <>
+                  <button
+                    onClick={() => handleSyncBrowser('amazon')}
+                    disabled={syncingPlatform === 'amazon'}
+                    className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg bg-white text-slate-700 hover:bg-slate-50 border border-slate-300 font-medium shadow-xs transition-colors"
+                  >
+                    {syncingPlatform === 'amazon' ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
+                    Sync Orders
+                  </button>
+                  <button
+                    onClick={() => handleDisconnectBrowser('amazon')}
+                    className="flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg text-rose-600 hover:bg-rose-50 font-medium transition-colors"
+                  >
+                    Disconnect
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => openBrowserLogin('amazon', 'Amazon India')}
+                  className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-amber-600 text-white hover:bg-amber-700 font-medium shadow-sm transition-colors"
+                >
+                  <Laptop size={12} />
+                  Link Account (Browser Login)
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="text"
+              placeholder="Search product (e.g. MacBook Air M2, Sony WH-1000XM5)"
+              value={amazonProduct}
+              onChange={(e) => setAmazonProduct(e.target.value)}
+              className="flex-1 text-xs px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-400 min-w-[200px]"
+            />
+            <button
+              onClick={handleSearchAmazon}
+              disabled={searchingAmazon || !amazonProduct.trim()}
+              className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 transition-colors font-medium flex-shrink-0"
+            >
+              {searchingAmazon ? <Loader2 size={11} className="animate-spin" /> : <ShoppingBag size={11} />}
+              Check Amazon Deals
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // 9. Flipkart
+    if (connector.id === 'connector-flipkart') {
+      const acc = browserAccounts['flipkart'];
+      const isConnected = acc?.connected;
+
+      return (
+        <div className="flex flex-col gap-3 w-full pt-1">
+          {/* Customer Account Session Status Banner */}
+          <div className="flex items-center justify-between p-3 rounded-xl border border-blue-200/80 bg-blue-50/50">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-xs shadow-sm">
+                F
+              </div>
+              <div className="flex flex-col">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-semibold text-slate-800">
+                    {isConnected ? `Flipkart Customer: Linked (@${acc?.username || 'User'})` : 'Flipkart Customer Account'}
+                  </span>
+                  <span className={`inline-flex items-center px-1.5 py-0.2 rounded-full text-[10px] font-medium ${isConnected ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'}`}>
+                    {isConnected ? 'Active Session' : 'Not Connected'}
+                  </span>
+                </div>
+                <span className="text-[11px] text-slate-500">
+                  {isConnected
+                    ? `${acc?.summary || 'Order history & package delivery tracking active'}`
+                    : 'Link your personal Flipkart account with 1-click desktop login (OTP supported).'}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {isConnected ? (
+                <>
+                  <button
+                    onClick={() => handleSyncBrowser('flipkart')}
+                    disabled={syncingPlatform === 'flipkart'}
+                    className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg bg-white text-slate-700 hover:bg-slate-50 border border-slate-300 font-medium shadow-xs transition-colors"
+                  >
+                    {syncingPlatform === 'flipkart' ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
+                    Sync Orders
+                  </button>
+                  <button
+                    onClick={() => handleDisconnectBrowser('flipkart')}
+                    className="flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg text-rose-600 hover:bg-rose-50 font-medium transition-colors"
+                  >
+                    Disconnect
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => openBrowserLogin('flipkart', 'Flipkart')}
+                  className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 font-medium shadow-sm transition-colors"
+                >
+                  <Laptop size={12} />
+                  Link Account (Browser Login)
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="text"
+              placeholder="Search product (e.g. iPhone 15, Mechanical Keyboard)"
+              value={flipkartProduct}
+              onChange={(e) => setFlipkartProduct(e.target.value)}
+              className="flex-1 text-xs px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-400 min-w-[200px]"
+            />
+            <button
+              onClick={handleSearchFlipkart}
+              disabled={searchingFlipkart || !flipkartProduct.trim()}
+              className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 transition-colors font-medium flex-shrink-0"
+            >
+              {searchingFlipkart ? <Loader2 size={11} className="animate-spin" /> : <ShoppingBag size={11} />}
+              Check Flipkart Prices
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // 10. Google Web Search & Search History
+    if (connector.id === 'connector-google-search') {
+      return (
+        <div className="flex flex-col gap-2 w-full pt-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="text"
+              placeholder="Search web or docs (e.g. Next.js 14 server actions)"
+              value={googleQuery}
+              onChange={(e) => setGoogleQuery(e.target.value)}
+              className="flex-1 text-xs px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-400 min-w-[200px]"
+            />
+            <button
+              onClick={handleSearchGoogle}
+              disabled={searchingGoogle || !googleQuery.trim()}
+              className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors font-medium flex-shrink-0 shadow-sm"
+            >
+              {searchingGoogle ? <Loader2 size={11} className="animate-spin" /> : <Globe size={11} />}
+              Search Google
+            </button>
+            <button
+              onClick={() => {
+                setShowSearchHistory(!showSearchHistory);
+                if (!showSearchHistory) handleFetchSearchHistory();
+              }}
+              className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors font-medium flex-shrink-0"
+            >
+              {showSearchHistory ? 'Hide History' : 'View History'}
+            </button>
+          </div>
+          {showSearchHistory && (
+            <div className="mt-2 p-3 rounded-lg bg-slate-50 border border-slate-200 space-y-1.5">
+              <span className="text-[11px] font-semibold text-slate-600 uppercase">Recent Search Logs</span>
+              {recentSearches.length === 0 ? (
+                <p className="text-xs text-slate-400">No search queries recorded yet.</p>
+              ) : (
+                recentSearches.slice(0, 5).map((s, idx) => (
+                  <div key={idx} className="flex items-center justify-between text-xs text-slate-700 py-0.5 border-b border-slate-100 last:border-none">
+                    <span className="font-medium text-indigo-700">{s.query}</span>
+                    <span className="text-[10px] text-slate-400">{new Date(s.timestamp).toLocaleTimeString()}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      );
+    }
+
     return null;
   };
 
-  const statusMsg = llmMsg ?? googleMsg ?? githubMsg ?? slackMsg ?? geminiMsg ?? telegramMsg;
+  const statusMsg =
+    googleSearchMsg ??
+    naukriMsg ??
+    linkedinMsg ??
+    amazonMsg ??
+    flipkartMsg ??
+    llmMsg ??
+    googleMsg ??
+    githubMsg ??
+    slackMsg ??
+    geminiMsg ??
+    telegramMsg;
 
   return (
     <div className="flex flex-col h-full">
@@ -852,6 +1418,20 @@ export default function ConnectorsPanel({
           ))
         )}
       </div>
+
+      {browserModal && (
+        <BrowserLoginModal
+          platform={browserModal.platform}
+          displayName={browserModal.displayName}
+          isOpen={browserModal.open}
+          onClose={() => setBrowserModal(null)}
+          onSuccess={async () => {
+            setBrowserModal(null);
+            await fetchBrowserAccounts();
+            onRefresh();
+          }}
+        />
+      )}
     </div>
   );
 }

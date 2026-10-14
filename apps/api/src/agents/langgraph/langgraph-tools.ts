@@ -250,14 +250,285 @@ export function createLangGraphTools(gateway: ToolGateway, userId: string, taskI
     },
   );
 
+  const naukriTool = tool(
+    async (input) => {
+      fileLogger.log(`LangGraph invoking tool: search_naukri_jobs`, 'LangGraphTools', { input, userId, taskId });
+      try {
+        const res = await gateway.execute(
+          'naukri.search',
+          { role: input.role, location: input.location, remote: input.remote },
+          { taskId, userId, agentType: AgentType.JOB },
+        );
+        return typeof res === 'string' ? res : JSON.stringify(res, null, 2);
+      } catch (err: any) {
+        return `Failed to search Naukri: ${err.message}`;
+      }
+    },
+    {
+      name: 'search_naukri_jobs',
+      description:
+        'Searches Indian tech unicorn and scaleup career opportunities on Naukri.com (Razorpay, CRED, Swiggy, Zepto, Groww, etc.).',
+      schema: z.object({
+        role: z.string().optional().describe('Target job title or skill (e.g. "Backend Engineer", "Full Stack Developer", "AI Engineer")'),
+        location: z.string().optional().describe('City or region filter (e.g. "Bengaluru", "Hyderabad", "Gurgaon", "Pune", "Remote")'),
+        remote: z.boolean().optional().describe('Whether to filter for remote work roles'),
+      }),
+    },
+  );
+
+  const linkedInTool = tool(
+    async (input) => {
+      fileLogger.log(`LangGraph invoking tool: search_linkedin_jobs`, 'LangGraphTools', { input, userId, taskId });
+      try {
+        const res = await gateway.execute(
+          'linkedin.search',
+          { role: input.role, location: input.location, remote: input.remote },
+          { taskId, userId, agentType: AgentType.JOB },
+        );
+        return typeof res === 'string' ? res : JSON.stringify(res, null, 2);
+      } catch (err: any) {
+        return `Failed to search LinkedIn: ${err.message}`;
+      }
+    },
+    {
+      name: 'search_linkedin_jobs',
+      description:
+        'Searches top MNCs, Global Capability Centers (GCCs), and remote tech roles across India on LinkedIn (Google, Microsoft IDC, Uber, Atlassian).',
+      schema: z.object({
+        role: z.string().optional().describe('Target role or skill (e.g. "Staff Engineer", "Senior React Developer")'),
+        location: z.string().optional().describe('Target location (e.g. "India", "Bengaluru", "Remote")'),
+        remote: z.boolean().optional().describe('Whether to filter for remote roles'),
+      }),
+    },
+  );
+
+  const amazonTool = tool(
+    async (input) => {
+      fileLogger.log(`LangGraph invoking tool: search_amazon_deals`, 'LangGraphTools', { input, userId, taskId });
+      try {
+        const res = await gateway.execute(
+          'amazon.search',
+          { query: input.query },
+          { taskId, userId, agentType: AgentType.SHOPPING },
+        );
+        return typeof res === 'string' ? res : JSON.stringify(res, null, 2);
+      } catch (err: any) {
+        return `Failed to search Amazon: ${err.message}`;
+      }
+    },
+    {
+      name: 'search_amazon_deals',
+      description:
+        'Searches products, real-time prices in INR, ratings, and Prime delivery badges on Amazon India (amazon.in).',
+      schema: z.object({
+        query: z.string().describe('Product search query (e.g. "MacBook Air M2", "Sony WH-1000XM5", "Mechanical Keyboard")'),
+      }),
+    },
+  );
+
+  const flipkartTool = tool(
+    async (input) => {
+      fileLogger.log(`LangGraph invoking tool: search_flipkart_deals`, 'LangGraphTools', { input, userId, taskId });
+      try {
+        const res = await gateway.execute(
+          'flipkart.search',
+          { query: input.query },
+          { taskId, userId, agentType: AgentType.SHOPPING },
+        );
+        return typeof res === 'string' ? res : JSON.stringify(res, null, 2);
+      } catch (err: any) {
+        return `Failed to search Flipkart: ${err.message}`;
+      }
+    },
+    {
+      name: 'search_flipkart_deals',
+      description:
+        'Searches electronics, discounts, bank offers, and Assured delivery tags on Flipkart (flipkart.com).',
+      schema: z.object({
+        query: z.string().describe('Product search query (e.g. "iPhone 15", "Dell XPS 13", "Ergonomic Chair")'),
+      }),
+    },
+  );
+
+  const ecommerceCompareTool = tool(
+    async (input) => {
+      fileLogger.log(`LangGraph invoking tool: compare_ecommerce_prices`, 'LangGraphTools', { input, userId, taskId });
+      try {
+        const res = await gateway.execute(
+          'ecommerce.compare',
+          { product: input.product },
+          { taskId, userId, agentType: AgentType.SHOPPING },
+        );
+        return typeof res === 'string' ? res : JSON.stringify(res, null, 2);
+      } catch (err: any) {
+        return `Failed to compare ecommerce prices: ${err.message}`;
+      }
+    },
+    {
+      name: 'compare_ecommerce_prices',
+      description:
+        'Performs a side-by-side price comparison between Amazon India and Flipkart for any product or gadget, calculating exact savings in INR.',
+      schema: z.object({
+        product: z.string().describe('The product name to compare (e.g. "MacBook Air M2 16GB", "Sony XM5 headphones")'),
+      }),
+    },
+  );
+
+  const googleSearchTool = tool(
+    async (input) => {
+      fileLogger.log(`LangGraph invoking tool: google_web_search`, 'LangGraphTools', { input, userId, taskId });
+      try {
+        const res = await gateway.execute(
+          'google.search',
+          { query: input.query },
+          { taskId, userId, agentType: AgentType.RESEARCH },
+        );
+        return typeof res === 'string' ? res : JSON.stringify(res, null, 2);
+      } catch (err: any) {
+        return `Failed Google web search: ${err.message}`;
+      }
+    },
+    {
+      name: 'google_web_search',
+      description:
+        'Queries Google Search for live web information, breaking news, market events, and official documentation.',
+      schema: z.object({
+        query: z.string().describe('Search query for Google'),
+      }),
+    },
+  );
+
+  const searchHistoryTool = tool(
+    async (input) => {
+      fileLogger.log(`LangGraph invoking tool: get_search_history`, 'LangGraphTools', { input, userId, taskId });
+      try {
+        const res = await gateway.execute(
+          'search.history.read',
+          { limit: input.limit },
+          { taskId, userId, agentType: AgentType.RESEARCH },
+        );
+        return typeof res === 'string' ? res : JSON.stringify(res, null, 2);
+      } catch (err: any) {
+        return `Failed to read search history: ${err.message}`;
+      }
+    },
+    {
+      name: 'get_search_history',
+      description:
+        'Retrieves the user recent search and research history across PersonalOS to recall topics, queries, or past findings.',
+      schema: z.object({
+        limit: z.number().optional().describe('Maximum number of past search history items to return (default 10)'),
+      }),
+    },
+  );
+
+  const myAmazonOrdersTool = tool(
+    async () => {
+      fileLogger.log(`LangGraph invoking tool: get_my_amazon_orders`, 'LangGraphTools', { userId, taskId });
+      try {
+        const res = await gateway.execute(
+          'amazon.user.orders',
+          {},
+          { taskId, userId, agentType: AgentType.SHOPPING },
+        );
+        return typeof res === 'string' ? res : JSON.stringify(res, null, 2);
+      } catch (err: any) {
+        return `Failed to fetch Amazon orders: ${err.message}`;
+      }
+    },
+    {
+      name: 'get_my_amazon_orders',
+      description:
+        'Fetches recent customer orders, package delivery dates, item names, and tracking status from the user linked personal Amazon.in account.',
+      schema: z.object({}),
+    },
+  );
+
+  const myFlipkartOrdersTool = tool(
+    async () => {
+      fileLogger.log(`LangGraph invoking tool: get_my_flipkart_orders`, 'LangGraphTools', { userId, taskId });
+      try {
+        const res = await gateway.execute(
+          'flipkart.user.orders',
+          {},
+          { taskId, userId, agentType: AgentType.SHOPPING },
+        );
+        return typeof res === 'string' ? res : JSON.stringify(res, null, 2);
+      } catch (err: any) {
+        return `Failed to fetch Flipkart orders: ${err.message}`;
+      }
+    },
+    {
+      name: 'get_my_flipkart_orders',
+      description:
+        'Fetches recent customer orders, package delivery status, and purchase history from the user linked personal Flipkart account.',
+      schema: z.object({}),
+    },
+  );
+
+  const myLinkedInActivityTool = tool(
+    async () => {
+      fileLogger.log(`LangGraph invoking tool: get_my_linkedin_activity`, 'LangGraphTools', { userId, taskId });
+      try {
+        const res = await gateway.execute(
+          'linkedin.user.activity',
+          {},
+          { taskId, userId, agentType: AgentType.JOB },
+        );
+        return typeof res === 'string' ? res : JSON.stringify(res, null, 2);
+      } catch (err: any) {
+        return `Failed to fetch LinkedIn activity: ${err.message}`;
+      }
+    },
+    {
+      name: 'get_my_linkedin_activity',
+      description:
+        'Fetches jobs applied to, recruiter views, and application progress from the user linked personal LinkedIn account.',
+      schema: z.object({}),
+    },
+  );
+
+  const myNaukriActivityTool = tool(
+    async () => {
+      fileLogger.log(`LangGraph invoking tool: get_my_naukri_activity`, 'LangGraphTools', { userId, taskId });
+      try {
+        const res = await gateway.execute(
+          'naukri.user.activity',
+          {},
+          { taskId, userId, agentType: AgentType.JOB },
+        );
+        return typeof res === 'string' ? res : JSON.stringify(res, null, 2);
+      } catch (err: any) {
+        return `Failed to fetch Naukri activity: ${err.message}`;
+      }
+    },
+    {
+      name: 'get_my_naukri_activity',
+      description:
+        'Fetches profile completion score, recruiter search appearances, and applied job statuses from the user linked personal Naukri account.',
+      schema: z.object({}),
+    },
+  );
+
   return [
     driveTool,
     readDriveDocTool,
     gmailTool,
     jobSearchTool,
+    naukriTool,
+    linkedInTool,
+    myLinkedInActivityTool,
+    myNaukriActivityTool,
     webSearchTool,
+    googleSearchTool,
+    searchHistoryTool,
     financeTool,
     shoppingTool,
+    amazonTool,
+    flipkartTool,
+    myAmazonOrdersTool,
+    myFlipkartOrdersTool,
+    ecommerceCompareTool,
     githubReposTool,
     githubFileTool,
     slackAlertTool,

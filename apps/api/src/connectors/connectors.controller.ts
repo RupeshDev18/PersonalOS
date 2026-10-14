@@ -17,6 +17,11 @@ import { GoogleConnector, GoogleAuthMethod } from './google.connector';
 import { GreenhouseConnector } from './greenhouse.connector';
 import { GitHubConnector } from './github.connector';
 import { SlackConnector } from './slack.connector';
+import { NaukriConnector } from './naukri.connector';
+import { LinkedInConnector } from './linkedin.connector';
+import { ECommerceConnector } from './ecommerce.connector';
+import { GoogleSearchConnector } from './google-search.connector';
+import { BrowserSessionService, SupportedBrowserPlatform } from './browser-session.service';
 import { GeminiService } from '../llm/gemini.service';
 import { JobsService } from '../jobs/jobs.service';
 import { CurrentUserId } from '../auth/user.decorator';
@@ -108,6 +113,11 @@ export class ConnectorsController {
     private readonly geminiService: GeminiService,
     private readonly githubConnector: GitHubConnector,
     private readonly slackConnector: SlackConnector,
+    private readonly naukriConnector: NaukriConnector,
+    private readonly linkedinConnector: LinkedInConnector,
+    private readonly ecommerceConnector: ECommerceConnector,
+    private readonly googleSearchConnector: GoogleSearchConnector,
+    private readonly browserSessionService: BrowserSessionService,
     @Inject(forwardRef(() => JobsService))
     private readonly jobsService: JobsService,
   ) {}
@@ -280,7 +290,7 @@ export class ConnectorsController {
     const provider = process.env.LLM_PROVIDER || 'gemini';
     const model =
       provider === 'gemini'
-        ? process.env.GEMINI_MODEL_NAME || 'gemini-2.5-flash'
+        ? process.env.GEMINI_MODEL_NAME || 'gemini-3.8-flash'
         : provider === 'ollama'
         ? process.env.OLLAMA_MODEL_NAME || 'hermes3'
         : process.env.OPENAI_MODEL_NAME || 'gpt-4o-mini';
@@ -503,5 +513,146 @@ ${repos
   @ApiOperation({ summary: 'Send a test notification to the configured Slack channel' })
   async testSlack(@CurrentUserId() _userId: string) {
     return this.slackConnector.testMessage();
+  }
+
+  // -------------------------------------------------------------------------
+  // Indian Tech Career Portals (Naukri & LinkedIn)
+  // -------------------------------------------------------------------------
+
+  @Get('naukri/search')
+  @ApiOperation({ summary: 'Search Indian tech unicorns on Naukri.com' })
+  async searchNaukri(
+    @CurrentUserId() _userId: string,
+    @Query('role') role?: string,
+    @Query('location') location?: string,
+  ) {
+    return this.naukriConnector.search({
+      roles: role ? [role] : ['Software Engineer'],
+      location: location || 'Bengaluru',
+    });
+  }
+
+  @Get('linkedin/search')
+  @ApiOperation({ summary: 'Search Indian tech GCCs and remote listings on LinkedIn' })
+  async searchLinkedIn(
+    @CurrentUserId() _userId: string,
+    @Query('role') role?: string,
+    @Query('location') location?: string,
+  ) {
+    return this.linkedinConnector.search({
+      roles: role ? [role] : ['Software Engineer'],
+      location: location || 'India',
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // E-Commerce Price Intelligence (Amazon & Flipkart)
+  // -------------------------------------------------------------------------
+
+  @Get('ecommerce/amazon')
+  @ApiOperation({ summary: 'Search Amazon India for products, deals, and Prime delivery' })
+  async searchAmazon(@CurrentUserId() _userId: string, @Query('q') query: string) {
+    return this.ecommerceConnector.searchAmazon(query || 'MacBook Air M2');
+  }
+
+  @Get('ecommerce/flipkart')
+  @ApiOperation({ summary: 'Search Flipkart for electronics and discounts' })
+  async searchFlipkart(@CurrentUserId() _userId: string, @Query('q') query: string) {
+    return this.ecommerceConnector.searchFlipkart(query || 'MacBook Air M2');
+  }
+
+  @Get('ecommerce/compare')
+  @ApiOperation({ summary: 'Compare prices side-by-side between Amazon India and Flipkart' })
+  async compareECommerce(@CurrentUserId() _userId: string, @Query('q') query: string) {
+    return this.ecommerceConnector.comparePrices(query || 'MacBook Air M2');
+  }
+
+  // -------------------------------------------------------------------------
+  // Google Web Search & Search History
+  // -------------------------------------------------------------------------
+
+  @Get('google-search/query')
+  @ApiOperation({ summary: 'Perform real-time Google web search' })
+  async searchGoogleWeb(@CurrentUserId() _userId: string, @Query('q') query: string) {
+    return this.googleSearchConnector.search(query);
+  }
+
+  @Get('google-search/history')
+  @ApiOperation({ summary: 'Get recent search and research history' })
+  getSearchHistory(@CurrentUserId() _userId: string) {
+    return this.googleSearchConnector.getSearchHistory();
+  }
+
+  @Post('google-search/history/clear')
+  @ApiOperation({ summary: 'Clear search history' })
+  clearSearchHistory(@CurrentUserId() _userId: string) {
+    return this.googleSearchConnector.clearSearchHistory();
+  }
+
+  // -------------------------------------------------------------------------
+  // Local Browser Session Agent (Amazon, Flipkart, LinkedIn, Naukri)
+  // -------------------------------------------------------------------------
+
+  @Post('browser/login/start/:platform')
+  @ApiOperation({ summary: 'Launch real Chrome window on user desktop for one-time login with OTP/2FA' })
+  async startBrowserLogin(
+    @CurrentUserId() _userId: string,
+    @Param('platform') platform: SupportedBrowserPlatform,
+  ) {
+    return this.browserSessionService.startInteractiveLogin(platform);
+  }
+
+  @Get('browser/login/status/:platform')
+  @ApiOperation({ summary: 'Check status of interactive login session' })
+  getBrowserLoginStatus(
+    @CurrentUserId() _userId: string,
+    @Param('platform') platform: SupportedBrowserPlatform,
+  ) {
+    return this.browserSessionService.getLoginStatus(platform);
+  }
+
+  @Post('browser/login/complete/:platform')
+  @ApiOperation({ summary: 'Manually capture and save authenticated session' })
+  async completeBrowserLogin(
+    @CurrentUserId() _userId: string,
+    @Param('platform') platform: SupportedBrowserPlatform,
+  ) {
+    return this.browserSessionService.completeLogin(platform);
+  }
+
+  @Post('browser/login/cancel/:platform')
+  @ApiOperation({ summary: 'Cancel interactive login session' })
+  async cancelBrowserLogin(
+    @CurrentUserId() _userId: string,
+    @Param('platform') platform: SupportedBrowserPlatform,
+  ) {
+    return this.browserSessionService.cancelLogin(platform);
+  }
+
+  @Get('browser/account/:platform')
+  @ApiOperation({ summary: 'Get account status and recent orders / applications' })
+  async getBrowserAccount(
+    @CurrentUserId() _userId: string,
+    @Param('platform') platform: SupportedBrowserPlatform,
+  ) {
+    return this.browserSessionService.getAccountStatus(platform);
+  }
+
+  @Post('browser/sync/:platform')
+  @ApiOperation({ summary: 'Run headless sync to fetch latest orders or applied jobs' })
+  async syncBrowserAccount(
+    @CurrentUserId() _userId: string,
+    @Param('platform') platform: SupportedBrowserPlatform,
+  ) {
+    return this.browserSessionService.syncAccountData(platform);
+  }
+
+  @Post('browser/disconnect/:platform')
+  @ApiOperation({ summary: 'Disconnect account and wipe session state' })
+  async disconnectBrowserAccount(
+    @CurrentUserId() _userId: string,
+    @Param('platform') platform: SupportedBrowserPlatform,
+  ) {
+    return this.browserSessionService.disconnect(platform);
   }
 }

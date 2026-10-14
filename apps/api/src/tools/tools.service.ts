@@ -8,6 +8,11 @@ import { WebSearchConnector } from '../connectors/web-search.connector';
 import { GoogleConnector } from '../connectors/google.connector';
 import { GitHubConnector } from '../connectors/github.connector';
 import { SlackConnector } from '../connectors/slack.connector';
+import { NaukriConnector } from '../connectors/naukri.connector';
+import { LinkedInConnector } from '../connectors/linkedin.connector';
+import { ECommerceConnector } from '../connectors/ecommerce.connector';
+import { GoogleSearchConnector } from '../connectors/google-search.connector';
+import { BrowserSessionService } from '../connectors/browser-session.service';
 import { fileLogger } from '../common/file-logger.service';
 
 @Injectable()
@@ -22,6 +27,11 @@ export class ToolsService implements OnModuleInit {
     private readonly googleConnector: GoogleConnector,
     private readonly githubConnector: GitHubConnector,
     private readonly slackConnector: SlackConnector,
+    private readonly naukriConnector: NaukriConnector,
+    private readonly linkedinConnector: LinkedInConnector,
+    private readonly ecommerceConnector: ECommerceConnector,
+    private readonly googleSearchConnector: GoogleSearchConnector,
+    private readonly browserSessionService: BrowserSessionService,
   ) {
     this.policyEngine = new PolicyEngine();
     this.toolGateway = new ToolGateway(this.policyEngine, (event) => {
@@ -323,6 +333,185 @@ export class ToolsService implements OnModuleInit {
       requiredCapability: CapabilityPermission.SLACK_READ,
       execute: async () => {
         return this.slackConnector.getStatus();
+      },
+    });
+
+    // 12. Naukri.com India Tech Unicorn Search Tool
+    this.toolGateway.registerTool({
+      id: 'naukri.search',
+      name: 'Naukri.com India Tech Career Search',
+      description: 'Searches Indian tech unicorns and scaleups across Bengaluru, Gurgaon, Hyderabad on Naukri.com',
+      requiredCapability: CapabilityPermission.NAUKRI_SEARCH,
+      execute: async (input: { role?: string; location?: string; remote?: boolean }) => {
+        const jobs = await this.naukriConnector.search({
+          roles: input.role ? [input.role] : ['Software Engineer'],
+          location: input.location || 'Bengaluru',
+          remote: input.remote,
+        });
+        fileLogger.log(`Tool naukri.search retrieved ${jobs.length} roles`, 'ToolsService', { input });
+        return {
+          source: 'Naukri.com (India)',
+          count: jobs.length,
+          query: input.role || 'Software Engineer',
+          location: input.location || 'Bengaluru',
+          jobs: jobs.slice(0, 6),
+        };
+      },
+    });
+
+    // 13. LinkedIn Jobs India & Remote Tool
+    this.toolGateway.registerTool({
+      id: 'linkedin.search',
+      name: 'LinkedIn Jobs India & GCC Search',
+      description: 'Searches tier-1 tech MNCs, GCCs, and remote opportunities across India on LinkedIn',
+      requiredCapability: CapabilityPermission.LINKEDIN_SEARCH,
+      execute: async (input: { role?: string; location?: string; remote?: boolean }) => {
+        const jobs = await this.linkedinConnector.search({
+          roles: input.role ? [input.role] : ['Software Engineer'],
+          location: input.location || 'India',
+          remote: input.remote,
+        });
+        fileLogger.log(`Tool linkedin.search retrieved ${jobs.length} roles`, 'ToolsService', { input });
+        return {
+          source: 'LinkedIn Jobs',
+          count: jobs.length,
+          query: input.role || 'Software Engineer',
+          location: input.location || 'India',
+          jobs: jobs.slice(0, 6),
+        };
+      },
+    });
+
+    // 14. Amazon India Product & Price Search Tool
+    this.toolGateway.registerTool({
+      id: 'amazon.search',
+      name: 'Amazon India Price & Deals Search',
+      description: 'Searches products on Amazon.in, retrieves live prices, ratings, and Prime delivery estimates',
+      requiredCapability: CapabilityPermission.AMAZON_SEARCH,
+      execute: async (input: { query: string; maxResults?: number }) => {
+        const items = await this.ecommerceConnector.searchAmazon(input.query, input.maxResults || 5);
+        fileLogger.log(`Tool amazon.search retrieved ${items.length} items for "${input.query}"`, 'ToolsService');
+        return {
+          platform: 'Amazon India',
+          query: input.query,
+          count: items.length,
+          items,
+        };
+      },
+    });
+
+    // 15. Flipkart Product & Discount Search Tool
+    this.toolGateway.registerTool({
+      id: 'flipkart.search',
+      name: 'Flipkart Electronics & Deals Search',
+      description: 'Searches products on Flipkart, retrieves live prices, discounts, and Assured delivery tags',
+      requiredCapability: CapabilityPermission.FLIPKART_SEARCH,
+      execute: async (input: { query: string; maxResults?: number }) => {
+        const items = await this.ecommerceConnector.searchFlipkart(input.query, input.maxResults || 5);
+        fileLogger.log(`Tool flipkart.search retrieved ${items.length} items for "${input.query}"`, 'ToolsService');
+        return {
+          platform: 'Flipkart',
+          query: input.query,
+          count: items.length,
+          items,
+        };
+      },
+    });
+
+    // 16. E-Commerce Side-by-Side Comparison Tool
+    this.toolGateway.registerTool({
+      id: 'ecommerce.compare',
+      name: 'Amazon vs Flipkart Price Comparison',
+      description: 'Compares real-time product prices side-by-side across Amazon India and Flipkart, calculating savings',
+      requiredCapability: CapabilityPermission.ECOMMERCE_COMPARE,
+      execute: async (input: { product: string }) => {
+        const comp = await this.ecommerceConnector.comparePrices(input.product);
+        fileLogger.log(`Tool ecommerce.compare evaluated "${input.product}"`, 'ToolsService', {
+          cheapest: comp.cheapestOption.platform,
+          price: comp.cheapestOption.currentPrice,
+          savings: comp.savingsAmount,
+        });
+        return comp;
+      },
+    });
+
+    // 17. Google Web Search Tool
+    this.toolGateway.registerTool({
+      id: 'google.search',
+      name: 'Google Live Web Search',
+      description: 'Performs live Google search for up-to-date information, technical documentation, or breaking news',
+      requiredCapability: CapabilityPermission.GOOGLE_SEARCH,
+      execute: async (input: { query: string; maxResults?: number }) => {
+        const res = await this.googleSearchConnector.search(input.query, input.maxResults || 5);
+        fileLogger.log(`Tool google.search completed query: "${input.query}"`, 'ToolsService');
+        return res;
+      },
+    });
+
+    // 18. Personal Search & Research History Tool
+    this.toolGateway.registerTool({
+      id: 'search.history.read',
+      name: 'Search & Research History Ingestion',
+      description: 'Retrieves user past search history and research topics across PersonalOS',
+      requiredCapability: CapabilityPermission.SEARCH_HISTORY_READ,
+      execute: async (input?: { limit?: number }) => {
+        const history = this.googleSearchConnector.getSearchHistory(input?.limit || 15);
+        return {
+          count: history.length,
+          history,
+        };
+      },
+    });
+
+    // 19. User Amazon Account Orders & Delivery Tracking
+    this.toolGateway.registerTool({
+      id: 'amazon.user.orders',
+      name: 'Amazon Customer Order History & Deliveries',
+      description: 'Retrieves live order history, item names, delivery dates, and package status from the user linked Amazon.in account',
+      requiredCapability: CapabilityPermission.AMAZON_USER_ORDERS,
+      execute: async () => {
+        const data = await this.browserSessionService.getAccountStatus('amazon');
+        fileLogger.log(`Tool amazon.user.orders fetched ${data.items.length} orders`, 'ToolsService');
+        return data;
+      },
+    });
+
+    // 20. User Flipkart Account Orders & Tracking
+    this.toolGateway.registerTool({
+      id: 'flipkart.user.orders',
+      name: 'Flipkart Customer Orders & Package Tracking',
+      description: 'Retrieves live orders, item prices, and delivery tracking from the user linked Flipkart account',
+      requiredCapability: CapabilityPermission.FLIPKART_USER_ORDERS,
+      execute: async () => {
+        const data = await this.browserSessionService.getAccountStatus('flipkart');
+        fileLogger.log(`Tool flipkart.user.orders fetched ${data.items.length} orders`, 'ToolsService');
+        return data;
+      },
+    });
+
+    // 21. User LinkedIn Job Applications & Activity
+    this.toolGateway.registerTool({
+      id: 'linkedin.user.activity',
+      name: 'LinkedIn Job Applications & Professional Activity',
+      description: 'Fetches jobs applied to, recruiter views, and profile status from the user linked LinkedIn account',
+      requiredCapability: CapabilityPermission.LINKEDIN_USER_ACTIVITY,
+      execute: async () => {
+        const data = await this.browserSessionService.getAccountStatus('linkedin');
+        fileLogger.log(`Tool linkedin.user.activity fetched ${data.items.length} applications`, 'ToolsService');
+        return data;
+      },
+    });
+
+    // 22. User Naukri Job Applications & Recruiter Actions
+    this.toolGateway.registerTool({
+      id: 'naukri.user.activity',
+      name: 'Naukri Job Applications & Recruiter Actions',
+      description: 'Fetches profile completion score, recruiter search appearances, and applied job statuses from the user linked Naukri account',
+      requiredCapability: CapabilityPermission.NAUKRI_USER_ACTIVITY,
+      execute: async () => {
+        const data = await this.browserSessionService.getAccountStatus('naukri');
+        fileLogger.log(`Tool naukri.user.activity fetched ${data.items.length} applications`, 'ToolsService');
+        return data;
       },
     });
   }

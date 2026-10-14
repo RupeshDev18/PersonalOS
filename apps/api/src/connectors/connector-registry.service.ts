@@ -8,6 +8,10 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { AccountAggregatorConnector } from './account-aggregator.connector';
 import { GitHubConnector } from './github.connector';
 import { SlackConnector } from './slack.connector';
+import { NaukriConnector } from './naukri.connector';
+import { LinkedInConnector } from './linkedin.connector';
+import { ECommerceConnector } from './ecommerce.connector';
+import { GoogleSearchConnector } from './google-search.connector';
 
 // ---------------------------------------------------------------------------
 // ConnectorRegistryService
@@ -24,6 +28,10 @@ export class ConnectorRegistryService {
     private readonly accountAggregatorConnector: AccountAggregatorConnector,
     private readonly githubConnector: GitHubConnector,
     private readonly slackConnector: SlackConnector,
+    private readonly naukriConnector: NaukriConnector,
+    private readonly linkedinConnector: LinkedInConnector,
+    private readonly ecommerceConnector: ECommerceConnector,
+    private readonly googleSearchConnector: GoogleSearchConnector,
   ) {}
 
   /** Returns live status for every registered connector. */
@@ -56,38 +64,10 @@ export class ConnectorRegistryService {
       } satisfies ConnectorInfo,
 
       // 2b. Naukri.com India Tech Career Boards
-      {
-        id: 'connector-naukri',
-        name: 'Naukri.com India Tech Boards',
-        type: 'job_board',
-        status: 'connected',
-        isLive: true,
-        description:
-          'Ingests Indian tech unicorn opportunities across Bengaluru, Gurugram, Hyderabad (Razorpay, CRED, Swiggy, Zepto, Groww).',
-        rateLimit: 'Active polling',
-        lastSync: new Date().toISOString(),
-        details: {
-          coverage: 'Indian Unicorns & High-Growth Scaleups',
-          hubs: ['Bengaluru', 'Gurugram', 'Hyderabad', 'Pune', 'Noida', 'Remote'],
-        },
-      } satisfies ConnectorInfo,
+      this.naukriConnector.getInfo(),
 
       // 2c. LinkedIn Jobs India & Remote
-      {
-        id: 'connector-linkedin',
-        name: 'LinkedIn Jobs India',
-        type: 'job_board',
-        status: 'connected',
-        isLive: true,
-        description:
-          'Ingests top MNC and GCC tech openings across India (Microsoft, Google, Uber, Atlassian, Intuit).',
-        rateLimit: 'Live guest search',
-        lastSync: new Date().toISOString(),
-        details: {
-          coverage: 'Tier-1 Tech GCCs & MNC Global Engineering Hubs',
-          region: 'India & Remote',
-        },
-      } satisfies ConnectorInfo,
+      this.linkedinConnector.getInfo(),
 
       // 2d. Wellfound / AngelList Startup Index
       {
@@ -104,6 +84,15 @@ export class ConnectorRegistryService {
           coverage: 'Venture-backed startups (AI systems, developer tooling, fintech)',
         },
       } satisfies ConnectorInfo,
+
+      // 3a. Amazon India Commerce Connector
+      this.ecommerceConnector.getAmazonInfo(),
+
+      // 3b. Flipkart Commerce Connector
+      this.ecommerceConnector.getFlipkartInfo(),
+
+      // 3c. Google Web Search & Search History
+      this.googleSearchConnector.getInfo(),
 
       // 3. DuckDuckGo web search — always live
       {
@@ -136,7 +125,7 @@ export class ConnectorRegistryService {
             : 'fallback_mode',
         isLive: true,
         description:
-          'Multi-provider LangGraph engine supporting Google Gemini (gemini-2.5-flash / gemini-3.6-flash), Local Ollama (Hermes 3), OpenAI, and OpenRouter for parallel tool calling and deep reasoning.',
+          'Multi-provider LangGraph engine supporting Google Gemini (gemini-3.8-flash / gemini-3.6-flash), Local Ollama (Hermes 3), OpenAI, and OpenRouter for parallel tool calling and deep reasoning.',
         rateLimit: 'Adaptive / Provider-dependent',
         lastSync: new Date().toISOString(),
         details: {
@@ -145,7 +134,7 @@ export class ConnectorRegistryService {
             process.env.GEMINI_MODEL_NAME ||
             process.env.OPENAI_MODEL_NAME ||
             process.env.OLLAMA_MODEL_NAME ||
-            'gemini-2.5-flash',
+            'gemini-3.8-flash',
           instructions: 'Configure keys or local Ollama endpoint directly from the switcher below.',
         },
       } satisfies ConnectorInfo,

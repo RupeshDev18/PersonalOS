@@ -39,6 +39,27 @@ export enum CapabilityPermission {
   SLACK_READ = 'slack.read',
   SLACK_SEND = 'slack.send',
 
+  // Indian & Global Career Portals
+  NAUKRI_SEARCH = 'naukri.search',
+  LINKEDIN_SEARCH = 'linkedin.search',
+
+  // E-Commerce Price & Deals Intelligence
+  AMAZON_SEARCH = 'amazon.search',
+  FLIPKART_SEARCH = 'flipkart.search',
+  ECOMMERCE_COMPARE = 'ecommerce.compare',
+  AMAZON_USER_ORDERS = 'amazon.user.orders',
+  FLIPKART_USER_ORDERS = 'flipkart.user.orders',
+  LINKEDIN_USER_ACTIVITY = 'linkedin.user.activity',
+  NAUKRI_USER_ACTIVITY = 'naukri.user.activity',
+
+  // Web & Search History
+  GOOGLE_SEARCH = 'google.search',
+  SEARCH_HISTORY_READ = 'search.history.read',
+
+  // Autonomous Scheduled Routines
+  ROUTINES_MANAGE = 'routines.manage',
+  ROUTINES_EXECUTE = 'routines.execute',
+
   // Social capabilities
   SOCIAL_READ = 'social.read',
   SOCIAL_DRAFT = 'social.draft',
