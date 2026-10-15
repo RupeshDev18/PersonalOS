@@ -6,7 +6,7 @@ import { GeminiService } from '../llm/gemini.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ChiefGraphService } from './langgraph/chief-graph.service';
 import { JobAgent } from './specialists/job.agent';
-import { FinanceAgent, ResearchAgent, ShoppingAgent, CommunicationAgent } from './specialists/other.agents';
+import { FinanceAgent, ResearchAgent, ShoppingAgent, CommunicationAgent, ContentAgent, SocialAgent } from './specialists/other.agents';
 import { ChiefAgent } from './chief.agent';
 
 @Injectable()
@@ -31,12 +31,16 @@ export class AgentsService implements OnModuleInit {
     const financeAgent = new FinanceAgent(gateway);
     const shoppingAgent = new ShoppingAgent(gateway);
     const communicationAgent = new CommunicationAgent(gateway);
+    const contentAgent = new ContentAgent(gateway);
+    const socialAgent = new SocialAgent(gateway);
 
     this.registry.register(jobAgent);
     this.registry.register(researchAgent);
     this.registry.register(financeAgent);
     this.registry.register(shoppingAgent);
     this.registry.register(communicationAgent);
+    this.registry.register(contentAgent);
+    this.registry.register(socialAgent);
 
     // 2. Register Chief Agent with LangGraph engine, Gemini LLM reasoning & Prisma memory
     this.chiefAgent = new ChiefAgent(

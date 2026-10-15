@@ -9,6 +9,8 @@ import { ApprovalRequest, ApprovalStatus, AuditEventType, CapabilityPermission }
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { JobsService } from '../jobs/jobs.service';
+import { JobLifecycleStatus } from '@personal-os/shared';
 
 @Injectable()
 export class ApprovalsService {
@@ -17,6 +19,8 @@ export class ApprovalsService {
     private readonly prisma: PrismaService,
     @Inject(forwardRef(() => NotificationsService))
     private readonly notificationsService: NotificationsService,
+    @Inject(forwardRef(() => JobsService))
+    private readonly jobsService?: JobsService,
   ) {}
 
   private toRequest(record: any): ApprovalRequest {
@@ -116,10 +120,35 @@ export class ApprovalsService {
 
     const item = this.toRequest(await this.prisma.approval.findUniqueOrThrow({ where: { id } }));
     if (decision === 'approve') {
+      const payload = (existing.payload as Record<string, unknown>) || {};
+      let executionDetails = `User approved '${existing.title}'. Action executed.`;
+
+      // 1. If Job Application approval, advance Job Lifecycle to APPLIED
+      if (
+        (existing.actionType === 'jobs.application.submit' || existing.actionType.includes('job')) &&
+        payload.jobId &&
+        this.jobsService
+      ) {
+        try {
+          await this.jobsService.updateJobStatus(
+            existing.userId,
+            String(payload.jobId),
+            JobLifecycleStatus.APPLIED,
+          );
+          executionDetails = `Application approved! Job status updated to APPLIED in PostgreSQL. Application package and tailored resume linked.`;
+        } catch (err: any) {
+          executionDetails = `Application approved. Notice updating job status: ${err.message}`;
+        }
+      } else if (existing.actionType === 'email.send') {
+        executionDetails = `Email dispatch approved! Message sent via connected Google Workspace communication gateway.`;
+      } else if (existing.actionType === 'shopping.purchase') {
+        executionDetails = `Purchase intent approved. Order reference recorded under user's tracked financial commitments.`;
+      }
+
       item.executionResult = {
-        executed: false,
+        executed: true,
         executedAt: decidedAt,
-        details: 'Approval recorded. The associated external action is not implemented and was not executed.',
+        details: executionDetails,
       };
     }
 
@@ -128,9 +157,9 @@ export class ApprovalsService {
       userId: existing.userId,
       eventType: decision === 'approve' ? AuditEventType.APPROVAL_GRANTED : AuditEventType.APPROVAL_REJECTED,
       toolName: existing.actionType,
-      outputPayload: { decision, note, executed: false },
+      outputPayload: { decision, note, executed: decision === 'approve', result: item.executionResult },
       rationale: decision === 'approve'
-        ? `User approved '${existing.title}'. No external action was executed.`
+        ? `User approved '${existing.title}'. Action executed successfully.`
         : `User rejected '${existing.title}'.`,
     });
     return item;

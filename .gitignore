@@ -42,3 +42,4 @@ postgres-data/
 redis-data/
 .playwright-mcp/
 *.png
+scratch/

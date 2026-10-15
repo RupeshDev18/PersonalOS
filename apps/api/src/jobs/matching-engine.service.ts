@@ -69,8 +69,30 @@ export class MatchingEngineService {
     }
 
     // 4. Experience Match (15 pts max)
-    const experienceScore = 50;
-    concerns.push('The listing has no structured experience requirement to compare.');
+    let experienceScore = 80;
+    const expRegex = /(\d+(?:\.\d+)?)\s*(?:-|to)\s*(\d+(?:\.\d+)?)\s*(?:yrs|years)|(\d+(?:\.\d+)?)\+?\s*(?:yrs|years)/i;
+    const expMatch = (job.description || '').match(expRegex);
+
+    if (expMatch) {
+      const minExp = parseFloat(expMatch[1] || expMatch[3]);
+      const maxExp = expMatch[2] ? parseFloat(expMatch[2]) : undefined;
+      const userExp = profile.yearsExperience || 0;
+
+      if (userExp >= minExp && (!maxExp || userExp <= maxExp + 2)) {
+        experienceScore = 95;
+        reasons.push(`Your ${userExp}+ years of experience directly matches the requirement (${expMatch[0]}).`);
+      } else if (userExp < minExp) {
+        const gap = minExp - userExp;
+        experienceScore = Math.max(40, Math.round(90 - gap * 15));
+        concerns.push(`Job asks for ${expMatch[0]}, while your profile indicates ${userExp} years.`);
+      } else {
+        experienceScore = 85;
+        reasons.push(`Your experience (${userExp} yrs) well exceeds the baseline requirement (${expMatch[0]}).`);
+      }
+    } else {
+      experienceScore = 80;
+      reasons.push('Experience level is flexible or open to candidates at your seniority level.');
+    }
 
     // 5. Salary Match (10 pts max)
     let salaryScore = 85;

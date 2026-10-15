@@ -4,9 +4,10 @@ import { ApprovalsController } from './approvals.controller';
 import { AuditModule } from '../audit/audit.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { JobsModule } from '../jobs/jobs.module';
 
 @Module({
-  imports: [AuditModule, PrismaModule, forwardRef(() => NotificationsModule)],
+  imports: [AuditModule, PrismaModule, forwardRef(() => NotificationsModule), forwardRef(() => JobsModule)],
   controllers: [ApprovalsController],
   providers: [ApprovalsService],
   exports: [ApprovalsService],

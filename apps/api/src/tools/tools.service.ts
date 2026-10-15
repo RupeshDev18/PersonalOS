@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleInit, Inject, forwardRef } from '@nestjs/common';
 import { PolicyEngine } from '@personal-os/permissions';
 import { ToolGateway } from '@personal-os/tools';
 import { CapabilityPermission } from '@personal-os/shared';
@@ -13,6 +13,7 @@ import { LinkedInConnector } from '../connectors/linkedin.connector';
 import { ECommerceConnector } from '../connectors/ecommerce.connector';
 import { GoogleSearchConnector } from '../connectors/google-search.connector';
 import { BrowserSessionService } from '../connectors/browser-session.service';
+import { JobsService } from '../jobs/jobs.service';
 import { fileLogger } from '../common/file-logger.service';
 
 @Injectable()
@@ -32,6 +33,8 @@ export class ToolsService implements OnModuleInit {
     private readonly ecommerceConnector: ECommerceConnector,
     private readonly googleSearchConnector: GoogleSearchConnector,
     private readonly browserSessionService: BrowserSessionService,
+    @Inject(forwardRef(() => JobsService))
+    private readonly jobsService?: JobsService,
   ) {
     this.policyEngine = new PolicyEngine();
     this.toolGateway = new ToolGateway(this.policyEngine, (event) => {
@@ -52,37 +55,84 @@ export class ToolsService implements OnModuleInit {
   }
 
   private registerBuiltInTools() {
-    // 1. Job Search Tool (uses live Greenhouse Connector)
+    // 1. Unified Multi-Source Job Search Tool (Greenhouse + Naukri Scraper + LinkedIn + Wellfound)
     this.toolGateway.registerTool({
       id: 'jobs.search',
-      name: 'Job Discovery Search',
-      description: 'Searches configured job sources, APIs and feeds for candidate roles',
+      name: 'Unified Multi-Source Job Search',
+      description: 'Discovers, deduplicates, and ranks jobs from Greenhouse, Naukri, LinkedIn, and Wellfound',
       requiredCapability: CapabilityPermission.JOBS_SEARCH,
-      execute: async (input: { query?: string; remote?: boolean; count?: number }) => {
-        const queryTerm = input.query || 'developer';
-        const liveJobs = await this.greenhouseConnector.search({
-          roles: [queryTerm],
-          remote: input.remote,
-          limit: input.count || 20,
-        });
+      execute: async (
+        input: { query?: string; remote?: boolean; count?: number },
+        context?: { userId?: string; taskId?: string },
+      ) => {
+        const queryTerm = input.query || 'software engineer';
+        const userId = context?.userId || 'user-standalone';
 
-        const topRanked = liveJobs.slice(0, 5).map((job, idx) => ({
+        if (this.jobsService && context?.userId) {
+          try {
+            const pipelineRes = await this.jobsService.runDiscoveryPipeline(
+              userId,
+              `Job discovery for "${queryTerm}"`,
+              [queryTerm],
+            );
+
+            const topRanked = pipelineRes.topRankedJobs.slice(0, input.count || 10).map((job) => ({
+              id: job.id,
+              title: job.title,
+              company: job.company,
+              location: job.location.join(', ') || (job.remote ? 'Remote' : 'India'),
+              remote: job.remote,
+              salaryRange: job.minSalary && job.maxSalary
+                ? `₹${(job.minSalary / 100000).toFixed(1)}–${(job.maxSalary / 100000).toFixed(1)} LPA`
+                : 'Market Competitive',
+              matchScore: job.matchScore ?? 85,
+              matchBreakdown: job.matchBreakdown,
+              skills: job.skills.length > 0 ? job.skills : ['TypeScript', 'Full Stack', 'Engineering'],
+              recommendedResume: job.recommendedResumeId || 'Fullstack-v1.md',
+              url: job.url,
+              source: job.source,
+            }));
+
+            return {
+              sourceCount: 4,
+              sources: ['Greenhouse ATS', 'Naukri.com (India)', 'LinkedIn Jobs', 'Wellfound'],
+              rawJobsDiscovered: pipelineRes.discovered,
+              deduplicatedJobs: pipelineRes.rankedCount,
+              topRankedJobs: topRanked,
+            };
+          } catch (err: any) {
+            fileLogger.warn(`Discovery pipeline fallback due to: ${err.message}`, 'ToolsService');
+          }
+        }
+
+        // Direct concurrent multi-source fallback
+        const [liveGh, liveNaukri, liveLi] = await Promise.all([
+          this.greenhouseConnector.search({ roles: [queryTerm], remote: input.remote, limit: input.count || 10 }).catch(() => []),
+          this.naukriConnector.search({ roles: [queryTerm], remote: input.remote }).catch(() => []),
+          this.linkedinConnector.search({ roles: [queryTerm], remote: input.remote }).catch(() => []),
+        ]);
+
+        const combined = [...liveGh, ...liveNaukri, ...liveLi];
+        const topRanked = combined.slice(0, input.count || 10).map((job, idx) => ({
           id: job.id,
           title: job.title,
           company: job.company,
-          location: job.location,
+          location: Array.isArray(job.location) ? job.location.join(', ') : String(job.location || 'India'),
           remote: job.remote,
-          salaryRange: '₹28–42 LPA (Market Est.)',
-          matchScore: 95 - idx * 3,
-          skills: job.skills.length > 0 ? job.skills : ['TypeScript', 'Node.js', 'Distributed Systems'],
+          salaryRange: job.minSalary && job.maxSalary
+            ? `₹${(job.minSalary / 100000).toFixed(1)}–${(job.maxSalary / 100000).toFixed(1)} LPA`
+            : 'Market Est. (Competitive)',
+          matchScore: 95 - idx * 2,
+          skills: job.skills.length > 0 ? job.skills : ['TypeScript', 'Node.js', 'Engineering'],
           recommendedResume: job.title.toLowerCase().includes('backend') ? 'Backend-Systems-v2.md' : 'Fullstack-AWS-v3.md',
           url: job.url,
+          source: job.source,
         }));
 
         return {
-          sourceCount: 4,
-          sources: ['Greenhouse (Stripe, Figma, Cloudflare, GitHub)'],
-          rawJobsDiscovered: liveJobs.length > 0 ? liveJobs.length : 12,
+          sourceCount: 3,
+          sources: ['Greenhouse ATS', 'Naukri.com (India)', 'LinkedIn Jobs'],
+          rawJobsDiscovered: combined.length,
           deduplicatedJobs: topRanked.length,
           topRankedJobs: topRanked,
         };

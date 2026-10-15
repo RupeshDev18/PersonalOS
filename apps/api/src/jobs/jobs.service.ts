@@ -446,20 +446,30 @@ ${this.operatorName}`;
   /**
    * Complete multi-stage pipeline: Connectors -> Dedup -> Scoring -> Resume Pair
    */
-  public async runDiscoveryPipeline(userId: string, triggerReason: string): Promise<{
+  public async runDiscoveryPipeline(
+    userId: string,
+    triggerReason: string,
+    queryRoles?: string[],
+  ): Promise<{
     discovered: number;
     duplicatesRemoved: number;
     rankedCount: number;
+    topRankedJobs: Job[];
   }> {
     const profile = await this.ensureInitialized(userId);
     const taskId = uuidv4();
+    const searchRoles = queryRoles && queryRoles.length > 0
+      ? queryRoles
+      : profile.targetRoles.length > 0
+        ? profile.targetRoles
+        : ['Full Stack Developer', 'Software Engineer'];
 
-    // 1. Ingest raw listings from live Greenhouse boards + Naukri + LinkedIn + Wellfound
+    // 1. Ingest raw listings from live Greenhouse boards + Naukri Playwright + LinkedIn + Wellfound
     const [ghJobs, naukriJobs, linkedinJobs, wellfoundJobs] = await Promise.all([
-      this.greenhouseConnector.search({ roles: profile.targetRoles }).catch(() => []),
-      this.naukriConnector.search({ roles: profile.targetRoles }).catch(() => []),
-      this.linkedinConnector.search({ roles: profile.targetRoles }).catch(() => []),
-      this.wellfoundConnector.search({ roles: profile.targetRoles }).catch(() => []),
+      this.greenhouseConnector.search({ roles: searchRoles }).catch(() => []),
+      this.naukriConnector.search({ roles: searchRoles }).catch(() => []),
+      this.linkedinConnector.search({ roles: searchRoles }).catch(() => []),
+      this.wellfoundConnector.search({ roles: searchRoles }).catch(() => []),
     ]);
 
     const rawJobs: Job[] = [
@@ -474,6 +484,8 @@ ${this.operatorName}`;
     const { uniqueJobs, duplicateCount } = this.deduplicationService.deduplicate(rawJobs, existingHashes);
 
     // 3. Score against user profile and pair resumes
+    const upsertPromises: Promise<any>[] = [];
+
     for (const job of uniqueJobs) {
       if (profile.skills.length || profile.targetRoles.length) {
         const { overallScore, breakdown } = this.matchingEngineService.scoreJob(job, profile);
@@ -491,8 +503,8 @@ ${this.operatorName}`;
       this.jobs.set(job.id, job);
 
       // Persist to PostgreSQL
-      this.prisma.job
-        .upsert({
+      upsertPromises.push(
+        this.prisma.job.upsert({
           where: { dedupHash: job.dedupHash },
           update: {
             matchScore: job.matchScore,
@@ -523,12 +535,20 @@ ${this.operatorName}`;
             recommendedResumeId: job.recommendedResumeId,
             discoveredAt: job.discoveredAt,
           },
-        })
-        .catch((error) => {
+        }).catch((err) => {
           this.jobs.delete(job.id);
-          throw error;
-        });
+          console.warn(`Prisma job upsert error for ${job.title}: ${err.message}`);
+        }),
+      );
     }
+
+    await Promise.all(upsertPromises);
+
+    const sortedRanked = Array.from(this.jobs.values())
+      .filter((j) => (j.matchScore || 0) > 0 || j.lifecycleStatus === JobLifecycleStatus.RECOMMENDED)
+      .sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
+
+    const topRankedJobs = sortedRanked.slice(0, 10);
 
     this.auditService.log({
       taskId,
@@ -540,14 +560,16 @@ ${this.operatorName}`;
         rawDiscovered: rawJobs.length,
         duplicatesFiltered: duplicateCount,
         newRecommendations: uniqueJobs.length,
+        topRankedTitles: topRankedJobs.map((j) => `${j.title} @ ${j.company} (${j.source})`),
       },
-      rationale: `Job Agent completed live ATS ingestion pipeline: ${triggerReason}`,
+      rationale: `Job Agent completed multi-source discovery pipeline: ${triggerReason}`,
     });
 
     return {
       discovered: rawJobs.length,
       duplicatesRemoved: duplicateCount,
       rankedCount: uniqueJobs.length,
+      topRankedJobs,
     };
   }
 }

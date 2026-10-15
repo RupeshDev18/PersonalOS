@@ -247,12 +247,19 @@ export class ChiefAgent extends AbstractAgent {
     }
 
     if (intent.primaryAgent === AgentType.JOB) {
+      const promptLower = input.prompt.toLowerCase();
+      let queryRole = 'Full Stack Developer';
+      if (promptLower.includes('backend')) queryRole = 'Backend Engineer';
+      else if (promptLower.includes('frontend')) queryRole = 'Frontend Engineer';
+      else if (promptLower.includes('devops') || promptLower.includes('cloud')) queryRole = 'Cloud DevOps Engineer';
+      else if (promptLower.includes('ai') || promptLower.includes('ml')) queryRole = 'AI Engineer';
+
       steps.push({
         agentType: AgentType.JOB,
-        name: 'Discover Jobs (Greenhouse Connector)',
-        description: 'Query live Greenhouse public career boards (Stripe, Figma, Cloudflare, GitHub)',
+        name: 'Unified Job Pipeline (Greenhouse, Naukri, LinkedIn)',
+        description: 'Multi-source discovery across Greenhouse ATS, live Naukri scraper, and LinkedIn Jobs',
         action: 'jobs.search',
-        payload: { query: 'developer', remote: true, count: 20 },
+        payload: { query: queryRole, remote: promptLower.includes('remote'), count: 20 },
       });
     } else if (intent.primaryAgent === AgentType.SHOPPING) {
       steps.push(
@@ -691,7 +698,43 @@ export class ChiefAgent extends AbstractAgent {
       } else if (intent.primaryAgent === AgentType.SHOPPING) {
         finalSummary = `Based on coordination across Shopping, Web Intelligence, and Finance Specialists: The product is competitively priced with positive verified reviews. Your current monthly discretionary balance (₹83,000) affords this comfortably without stretching your budget.`;
       } else if (intent.primaryAgent === AgentType.JOB) {
-        finalSummary = `Job Specialist ingested live openings from Greenhouse public boards, removed duplicate listings, and scored candidate matches against your verified tech profile.`;
+        const jobData = (stepOutputs['jobs.search'] ||
+          stepOutputs['Unified Job Pipeline (Greenhouse, Naukri, LinkedIn)'] ||
+          stepOutputs['Discover Jobs (Greenhouse Connector)']) as any;
+
+        const topRanked = jobData?.topRankedJobs || [];
+        const rawCount = jobData?.rawJobsDiscovered || topRanked.length;
+        const dedupCount = jobData?.deduplicatedJobs || topRanked.length;
+
+        if (topRanked.length > 0) {
+          const top5 = topRanked.slice(0, 5);
+          const topList = top5
+            .map((job: any, idx: number) => {
+              const breakdown = job.matchBreakdown;
+              const whyText = breakdown?.reasons?.length
+                ? breakdown.reasons.slice(0, 2).join('; ')
+                : (job.skills || []).slice(0, 4).join(' + ');
+
+              return `${idx + 1}. **${job.title}**
+   ${job.company} · ${job.source || 'ATS'}
+   Match: **${job.matchScore ?? 90}%**
+   Location: ${job.location || 'Remote'} · Salary: ${job.salaryRange || 'Competitive'}
+   Why: ${whyText}
+   Recommended Resume: \`${job.recommendedResume || 'Fullstack-v1.md'}\`
+   [View Job Posting](${job.url})`;
+            })
+            .join('\n\n');
+
+          const qualityNote =
+            topRanked.length < 10
+              ? `I found **${topRanked.length} strong, high-relevance matches** today across Greenhouse, Naukri, and LinkedIn rather than filling the report with lower-quality listings.`
+              : `Discovered **${rawCount} listings**, removed **${rawCount - dedupCount} duplicates**, and ranked the **top ${topRanked.length} candidates** against your career profile.`;
+
+          finalSummary = `Here is your **Job Discovery Report**:\n\n${qualityNote}\n\n🔥 **TOP CANDIDATE OPENINGS**:\n\n${topList}\n\n---
+*To apply with your paired tailored resume or generate an outreach pitch, review the recommended opening above or select [Approve & Apply].*`;
+        } else {
+          finalSummary = `Job Specialist scanned Greenhouse ATS, Naukri, and LinkedIn feeds, but found no new listings matching your target criteria right now. Tracked openings remain visible in the Jobs panel.`;
+        }
       } else if (intent.primaryAgent === AgentType.FINANCE) {
         finalSummary = `Finance Specialist ingested your latest discretionary ledger transactions. Safe purchasing margin verified.`;
       } else if (stepOutputs['github.read'] || stepOutputs['Search GitHub Repositories']) {

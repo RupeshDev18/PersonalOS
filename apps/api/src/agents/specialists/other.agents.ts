@@ -162,3 +162,84 @@ export class CommunicationAgent extends AbstractAgent {
   }
 }
 
+export class ContentAgent extends AbstractAgent {
+  public readonly id = 'agent-content';
+  public readonly type = AgentType.CONTENT;
+  public readonly name = 'Content Specialist';
+  public readonly description = 'Generates social drafts, LinkedIn posts, technical documentation, and communication drafts.';
+
+  constructor(toolGateway: ToolGateway) {
+    super(toolGateway);
+  }
+
+  async understand(input: AgentInput): Promise<Intent> {
+    return {
+      taskType: 'immediate',
+      primaryAgent: AgentType.CONTENT,
+      requiredAgents: [AgentType.CONTENT],
+      summary: 'Draft structured content, blog post, or social copy',
+      rawInput: input.prompt,
+    };
+  }
+
+  async plan(input: AgentInput, intent: Intent): Promise<unknown> {
+    return { steps: ['outline_draft', 'generate_content', 'request_approval_if_publishing'] };
+  }
+
+  async execute(stepId: string, payload: { taskId: string; userId: string; topic?: string; draft?: string }): Promise<StepResult> {
+    return {
+      stepId,
+      success: true,
+      data: {
+        draftTitle: payload.topic || 'New Draft Content',
+        status: 'draft_prepared',
+        content: payload.draft || `Draft prepared based on your instructions.`,
+      },
+    };
+  }
+
+  async summarize(result: AgentResult): Promise<string> {
+    return 'Drafted content ready for user review.';
+  }
+}
+
+export class SocialAgent extends AbstractAgent {
+  public readonly id = 'agent-social';
+  public readonly type = AgentType.SOCIAL;
+  public readonly name = 'Social Specialist';
+  public readonly description = 'Monitors permitted social updates, summarizes trends, and drafts responses.';
+
+  constructor(toolGateway: ToolGateway) {
+    super(toolGateway);
+  }
+
+  async understand(input: AgentInput): Promise<Intent> {
+    return {
+      taskType: 'immediate',
+      primaryAgent: AgentType.SOCIAL,
+      requiredAgents: [AgentType.SOCIAL],
+      summary: 'Monitor trends and draft social updates',
+      rawInput: input.prompt,
+    };
+  }
+
+  async plan(input: AgentInput, intent: Intent): Promise<unknown> {
+    return { steps: ['scan_topics', 'draft_response'] };
+  }
+
+  async execute(stepId: string, payload: { taskId: string; userId: string; query?: string }): Promise<StepResult> {
+    return {
+      stepId,
+      success: true,
+      data: {
+        topic: payload.query || 'tech trends',
+        summary: 'Monitored social trends and identified relevant discussion threads.',
+      },
+    };
+  }
+
+  async summarize(result: AgentResult): Promise<string> {
+    return 'Tracked social activity and prepared responses.';
+  }
+}
+

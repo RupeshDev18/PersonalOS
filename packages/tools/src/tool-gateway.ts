@@ -53,24 +53,31 @@ export class ToolGateway {
       throw new Error(`Access Denied: ${auth.reason}`);
     }
 
-    if (auth.requiresApproval) {
+    if (auth.requiresApproval && !context.approvedByApprovalId) {
       await this.logAudit({
         taskId: context.taskId,
         stepId: context.stepId,
         agentId: context.agentType,
         userId: context.userId,
-        eventType: context.approvedByApprovalId
-          ? AuditEventType.TOOL_FAILED
-          : AuditEventType.APPROVAL_REQUESTED,
+        eventType: AuditEventType.APPROVAL_REQUESTED,
         toolName: toolId,
         inputPayload: input,
-        rationale: context.approvedByApprovalId
-          ? 'Approval-gated execution is not implemented; no protected action was run.'
-          : auth.reason,
+        rationale: auth.reason,
       });
-      throw new Error(context.approvedByApprovalId
-        ? 'Approval was recorded, but protected tool execution is not implemented.'
-        : `Action requires explicit approval before tool execution: ${auth.reason}`);
+      throw new Error(`Action requires explicit approval before tool execution: ${auth.reason}`);
+    }
+
+    if (auth.requiresApproval && context.approvedByApprovalId) {
+      await this.logAudit({
+        taskId: context.taskId,
+        stepId: context.stepId,
+        agentId: context.agentType,
+        userId: context.userId,
+        eventType: AuditEventType.APPROVAL_GRANTED,
+        toolName: toolId,
+        inputPayload: input,
+        rationale: `Human safety gate cleared by approval: ${context.approvedByApprovalId}`,
+      });
     }
 
     // 2. Audit: Tool Started
